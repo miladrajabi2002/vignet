@@ -685,3 +685,117 @@ export async function topActiveUsers(limit = 5, days = 30): Promise<ActiveUserRo
                 lastActivityAt: r.lastActivityAt,
         }))
 }
+
+// ─── HOURLY MESSAGE FLOW ──────────────────────────────────────────
+
+export interface HourlyMessagePoint {
+        /** Local hour label in the dashboard timezone, e.g. "۱۲:۰۰" */
+        hour: string
+        /** Customer messages received in this hour, all channels together */
+        incoming: number
+        /** Of those, how many got a reply (bot or operator) in the same conversation */
+        answered: number
+}
+
+export interface ChannelMessageTotal {
+        channel: string
+        incoming: number
+        answered: number
+}
+
+export interface MessageFlow24h {
+        hours: HourlyMessagePoint[]
+        channels: ChannelMessageTotal[]
+        incoming: number
+        answered: number
+        /** answered ÷ incoming as a whole percent; 100 when nothing came in */
+        rate: number
+}
+
+/** "YYYY-MM-DD HH" for a Date in the dashboard timezone — matches the SQL key. */
+function tzHourKey(d: Date): string {
+        const parts = new Intl.DateTimeFormat('en-CA', {
+                timeZone: DASHBOARD_TZ,
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                hourCycle: 'h23',
+        }).formatToParts(d)
+        const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '00'
+        return `${get('year')}-${get('month')}-${get('day')} ${get('hour')}`
+}
+
+/** "۱۲:۰۰" from a tzHourKey — the bucket's start, never the current minute. */
+function hourLabel(key: string): string {
+        const h = Number(key.slice(-2)).toLocaleString('fa-IR', { minimumIntegerDigits: 2 })
+        return `${h}:۰۰`
+}
+
+/**
+ * Customer messages received per hour over the last 24 hours, across every
+ * channel, and how many of them were answered. A customer message counts as
+ * answered when an ASSISTANT message (the agent or an operator) follows it in
+ * the same conversation — so three quick messages answered by one reply are
+ * all answered.
+ */
+export async function messageFlow24h(): Promise<MessageFlow24h> {
+        const now = Date.now()
+        // One extra hour so the oldest bucket is complete; rows outside the 24
+        // buckets below are simply dropped.
+        const since = new Date(now - 25 * 3_600_000)
+
+        // Message timestamps are UTC without a zone, so read them as UTC first
+        // and then shift into the dashboard timezone before truncating.
+        const rows = await prisma.$queryRaw<{ h: string; channel: string; incoming: bigint; answered: bigint }[]>`
+    SELECT to_char(date_trunc('hour', (m."createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD HH24') AS h,
+           c."channel"::text AS channel,
+           count(*) AS incoming,
+           count(*) FILTER (WHERE EXISTS (
+             SELECT 1 FROM "Message" r
+             WHERE r."conversationId" = m."conversationId"
+               AND r."role" = 'ASSISTANT'
+               AND r."createdAt" >= m."createdAt"
+           )) AS answered
+    FROM "Message" m
+    JOIN "Conversation" c ON c."id" = m."conversationId"
+    WHERE m."role" = 'USER'
+      AND m."createdAt" >= (${since} AT TIME ZONE 'UTC')
+      AND c."deletedAt" IS NULL
+      AND ${adminVisibleWorkspaceSql(Prisma.sql`c."workspaceId"`)}
+    GROUP BY 1, 2
+  `
+
+        const hours: HourlyMessagePoint[] = []
+        const index = new Map<string, HourlyMessagePoint>()
+        for (let i = 23; i >= 0; i -= 1) {
+                const key = tzHourKey(new Date(now - i * 3_600_000))
+                const point = { hour: hourLabel(key), incoming: 0, answered: 0 }
+                hours.push(point)
+                index.set(key, point)
+        }
+
+        const byChannel = new Map<string, ChannelMessageTotal>()
+        for (const r of rows) {
+                const point = index.get(r.h)
+                if (!point) continue
+                const incoming = Number(r.incoming)
+                const answered = Number(r.answered)
+                point.incoming += incoming
+                point.answered += answered
+                const ch = byChannel.get(r.channel) ?? { channel: r.channel, incoming: 0, answered: 0 }
+                ch.incoming += incoming
+                ch.answered += answered
+                byChannel.set(r.channel, ch)
+        }
+
+        const incoming = hours.reduce((sum, p) => sum + p.incoming, 0)
+        const answered = hours.reduce((sum, p) => sum + p.answered, 0)
+        return {
+                hours,
+                channels: [...byChannel.values()].sort((a, b) => b.incoming - a.incoming),
+                incoming,
+                answered,
+                rate: incoming > 0 ? Math.round((answered / incoming) * 100) : 100,
+        }
+}

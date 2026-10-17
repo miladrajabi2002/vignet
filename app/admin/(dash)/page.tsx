@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import {
   Wallet,
   MessagesSquare,
-  TrendingUp,
+  MessageSquareReply,
   AlertTriangle,
   CircleDollarSign,
   Coins,
@@ -22,6 +22,7 @@ import {
   fa,
 } from './ui'
 import {
+  MessageFlowChart,
   MonthlyBarChart,
   NetRevenueChart,
   TrendChart,
@@ -34,7 +35,6 @@ import {
   conversationsMonthly,
   errorsDailyByLevel,
   newUsersDaily,
-  revenueIRRDaily,
   paymentsDaily,
   usageChargesDaily,
   providerCostUSDDaily,
@@ -43,6 +43,7 @@ import {
   planMix,
   revenueNetDaily,
   topActiveUsers,
+  messageFlow24h,
 } from '@/lib/admin/charts'
 import { getRevenueKPIs, getFinanceSummary } from '@/lib/admin/revenue'
 import { getAiOverview, getOpenRouterAccountUsage } from '@/lib/admin/ai-usage'
@@ -75,6 +76,17 @@ function relativeFromNow(date: Date | null): string {
   if (days < 30) return `${fa(days)} روز پیش`
   const months = Math.floor(days / 30)
   return `${fa(months)} ماه پیش`
+}
+
+const CHANNEL_LABEL: Record<string, string> = {
+  INSTAGRAM: 'اینستاگرام',
+  WEB_WIDGET: 'ویجت وب',
+  TELEGRAM: 'تلگرام',
+  WHATSAPP: 'واتساپ',
+  RUBIKA: 'روبیکا',
+  BALE: 'بله',
+  CHAT_LINK: 'لینک چت',
+  API: 'API',
 }
 
 const PLAN_LABEL: Record<string, string> = {
@@ -142,6 +154,7 @@ export default async function AdminOverviewPage(
     newUsersToday,
     channelHealth,
     responseHealth,
+    messageFlow,
   ] = await Promise.all([
     getRevenueKPIs(),
     getFinanceSummary(),
@@ -153,7 +166,6 @@ export default async function AdminOverviewPage(
     // ─ 7-day series for KPI card sparklines (always 7d, regardless of the
     //   range switch, so the cards always show recent site-wide momentum).
     Promise.all([
-      revenueIRRDaily(7),
       conversationsDaily(7),
       newUsersDaily(7),
       errorsDailyByLevel('error', 7),
@@ -161,8 +173,8 @@ export default async function AdminOverviewPage(
       usageChargesDaily(7),
       connectionsDaily(7),
       providerCostUSDDaily(7),
-    ]).then(([rev, conv, users, err, pays, ai, conns, orCost]) => ({
-      rev, conv, users, err, pays, ai, conns, orCost,
+    ]).then(([conv, users, err, pays, ai, conns, orCost]) => ({
+      conv, users, err, pays, ai, conns, orCost,
     })),
     getAiOverview(30),
     getOpenRouterAccountUsage(),
@@ -178,6 +190,7 @@ export default async function AdminOverviewPage(
       prisma.conversation.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, createdAt: { gte: since30d } } }),
       prisma.conversation.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, createdAt: { gte: since30d }, messages: { some: { role: 'ASSISTANT' } } } }),
     ]).then(([total, answered]) => ({ total, answered, rate: total > 0 ? Math.round((answered / total) * 100) : 100 })),
+    messageFlow24h(),
   ])
 
   // ── OpenRouter wallet balance (live from the OpenRouter API) ──
@@ -238,14 +251,13 @@ export default async function AdminOverviewPage(
           seriesValueFormat="irr"
         />
         <StatCard
-          label="درآمد ماه"
-          value={fmtIRR(revenueKPIs.thisMonthIRR)}
-          sub={`${fa(revenueKPIs.momChange)}٪ نسبت به ماه قبل`}
-          icon={<TrendingUp className="h-5 w-5" />}
-          tone="success"
-          series={kpiTrends.rev.map((point) => point.value)}
-          seriesLabels={kpiTrends.rev.map((point) => point.day)}
-          seriesValueFormat="irr"
+          label="پاسخ به پیام‌ها — ۲۴ ساعت"
+          value={`${fa(messageFlow.rate)}٪`}
+          sub={`${fa(messageFlow.answered)} پاسخ از ${fa(messageFlow.incoming)} پیام ورودی`}
+          icon={<MessageSquareReply className="h-5 w-5" />}
+          tone={messageFlow.incoming === 0 || messageFlow.rate >= 80 ? 'success' : 'warning'}
+          series={messageFlow.hours.map((point) => point.incoming)}
+          seriesLabels={messageFlow.hours.map((point) => `ساعت ${point.hour}`)}
         />
         <StatCard
           label="درآمد کل (پس از کسر هزینه AI)"
@@ -305,6 +317,15 @@ export default async function AdminOverviewPage(
         />
         </div>
       </section>
+
+      {/* ─── 24h message flow: every channel summed, hour by hour ─── */}
+      <MessageFlowChart
+        title="پیام‌های ورودی و پاسخ‌ها — ۲۴ ساعت اخیر"
+        subtitle="همه کانال‌ها با هم، ساعت به ساعت · کنار هر کانال: ورودی/پاسخ"
+        data={messageFlow.hours}
+        channels={messageFlow.channels.map((c) => ({ label: CHANNEL_LABEL[c.channel] ?? c.channel, incoming: c.incoming, answered: c.answered }))}
+        height={240}
+      />
 
       {/* ─── Active users list + customers and revenue per plan ─── */}
       <div className="grid gap-4 lg:grid-cols-2">
