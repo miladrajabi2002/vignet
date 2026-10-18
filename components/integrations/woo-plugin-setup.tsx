@@ -40,6 +40,8 @@ export function wooCreateErrorMessage(code: unknown, fa: boolean): string {
             return fa ? 'آدرس سایت درست نیست. مثلاً: https://example.com' : 'The site address is not valid. Example: https://example.com'
         case 'UNSAFE_STORE_URL':
             return fa ? 'این آدرس را به‌خاطر مسائل امنیتی نمی‌توانیم قبول کنیم.' : 'This site address cannot be accepted for security reasons.'
+        case 'STORE_ALREADY_CONNECTED':
+            return fa ? 'یک سایت دیگر از قبل وصل است. برای اتصال این سایت، اول اتصال قبلی را حذف کنید.' : 'Another site is already connected. Delete that connection first to connect this one.'
         case 'PLAN_BLOCKED':
             return fa ? 'پلن شما اجازه اتصال سایت را نمی‌دهد.' : 'Your plan does not include a site connection.'
         case 'UNAUTHORIZED':

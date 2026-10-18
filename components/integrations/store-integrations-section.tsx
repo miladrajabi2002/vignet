@@ -48,8 +48,9 @@ import {
 
 /**
  * The WooCommerce tab's store section: the empty state, the add-site form
- * and one card per connected site (status, numbers, where to manage the
- * data, recent sync activity). Building blocks live in `woo-ui.tsx`.
+ * and the connected site's card (status, numbers, where to manage the data,
+ * recent sync activity). A workspace connects a single site; the API refuses
+ * a second one. Building blocks live in `woo-ui.tsx`.
  */
 
 export interface StoreIntegrationItem {
@@ -239,7 +240,8 @@ export function StoreIntegrationsSection({
 
             <PlanLimitsNotice limits={planLimits} locale={locale} syncContext compact />
 
-            {showForm && (
+            {/* A workspace connects one site, so the form only opens from the empty state. */}
+            {showForm && integrations.length === 0 && (
                 <AddSiteForm
                     onClose={() => setShowForm(false)}
                     onSubmit={submit}
@@ -263,13 +265,6 @@ export function StoreIntegrationsSection({
                     storeAccessHref={storeAccessHref}
                 />
             ))}
-
-            {integrations.length > 0 && !showForm && (
-                <button type="button" onClick={() => setShowForm(true)} className={cn(WOO_BTN_GHOST, 'min-h-10 text-[12.5px]')}>
-                    <Plus className="h-4 w-4" />
-                    {fa ? 'افزودن سایت دیگر' : 'Add another site'}
-                </button>
-            )}
 
             {/* Branded confirm for removing a store connection (replaces the
                 native confirm(): focus trap, Esc, scroll lock, focus return). */}

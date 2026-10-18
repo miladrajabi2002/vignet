@@ -142,6 +142,27 @@ export async function POST(req: Request) {
                 return NextResponse.json({ error: 'UNSAFE_STORE_URL' }, { status: 400 })
         }
 
+        const matchingStoreUrls = type === 'WOOCOMMERCE'
+                ? [storeUrl, `${storeUrl}/`]
+                : [storeUrl]
+
+        // A workspace connects a single WooCommerce site. The same URL falls
+        // through to the idempotent/reconnect paths below; any other URL is
+        // refused while a connection (active or paused) still exists.
+        if (type === 'WOOCOMMERCE') {
+                const otherSite = await prisma.storeIntegration.findFirst({
+                        where: {
+                                workspaceId: user.workspaceId,
+                                type,
+                                storeUrl: { notIn: matchingStoreUrls },
+                        },
+                        select: { id: true },
+                })
+                if (otherSite) {
+                        return NextResponse.json({ error: 'STORE_ALREADY_CONNECTED' }, { status: 409 })
+                }
+        }
+
         // ── Idempotent create ───────────────────────────────────────────
         // If an ACTIVE integration already exists for the same type + storeUrl
         // in this workspace, return it instead of creating a duplicate. This
@@ -154,9 +175,6 @@ export async function POST(req: Request) {
         // sides in sync.
         // Inactive rows are handled below by reconnecting in place; they must
         // not be deleted because StoreOrder rows intentionally cascade.
-        const matchingStoreUrls = type === 'WOOCOMMERCE'
-                ? [storeUrl, `${storeUrl}/`]
-                : [storeUrl]
         const existing = await prisma.storeIntegration.findFirst({
                 where: {
                         workspaceId: user.workspaceId,
