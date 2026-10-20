@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ChevronRight, ChevronLeft } from "lucide-react";
 import { Sparkline } from "@/components/admin/sparkline";
-import { computeTrend, isTrendGood } from "@/components/admin/series-trend";
+import { computePeriodTrend, computeTrend, isTrendGood } from "@/components/admin/series-trend";
 import { TableLabels } from "@/components/admin/table-labels";
 import { cn } from "@/lib/utils";
 import { PERSIAN_DATE_LOCALE } from "@/lib/localized-date";
@@ -145,6 +145,8 @@ export function StatCard({
   seriesLabels,
   seriesValueFormat = "number",
   seriesInvert = false,
+  trendSeries,
+  trendDays = 7,
 }: {
   label: string;
   value: string | number;
@@ -156,8 +158,12 @@ export function StatCard({
   seriesLabels?: string[]; // optional per-point labels (e.g. Persian short dates) for the hover tooltip
   seriesValueFormat?: "number" | "irr" | "usd"; // value formatting inside the hover tooltip
   seriesInvert?: boolean; // up is bad (errors, costs): a rising series turns red
+  trendSeries?: number[]; // daily history ending today, 2×trendDays+1 long: the % chip compares the last trendDays complete days with the ones before
+  trendDays?: number;
 }) {
-  const seriesTrend = computeTrend(series ?? []);
+  const seriesTrend = trendSeries
+    ? computePeriodTrend(trendSeries, trendDays)
+    : computeTrend(series ?? []);
   const seriesGood = isTrendGood(seriesTrend.direction, seriesInvert);
 
   // Split a trailing currency unit («تومان») off the value string so it can
@@ -241,6 +247,7 @@ export function StatCard({
               data={series}
               color="auto"
               invert={seriesInvert}
+              direction={trendSeries ? seriesTrend.direction : undefined}
               width={200}
               height={28}
               fluid
@@ -250,6 +257,11 @@ export function StatCard({
             />
           </div>
           <span
+            title={
+              trendSeries
+                ? `میانگین ${fa(trendDays)} روز اخیر نسبت به ${fa(trendDays)} روز قبل از آن (بدون احتساب امروز)`
+                : undefined
+            }
             className={cn(
               "ui-chip shrink-0 tabular-nums",
               seriesGood === null

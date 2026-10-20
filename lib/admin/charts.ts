@@ -84,9 +84,9 @@ function fillMonthly(rows: { m: string; v: number }[], months: number): MonthPoi
 // ─── DAILY SERIES ─────────────────────────────────────────────────
 
 export async function conversationsDaily(days = 14): Promise<DailyPoint[]> {
-        const since = new Date(Date.now() - days * 86400000)
+        const since = new Date(Date.now() - (days + 1) * 86400000)
         const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`
-    SELECT to_char(date_trunc('day', "createdAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
+    SELECT to_char(date_trunc('day', ("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
     FROM "Conversation"
     WHERE "createdAt" >= ${since} AND "deletedAt" IS NULL
       AND ${adminVisibleWorkspaceSql(Prisma.sql`"workspaceId"`)}
@@ -105,7 +105,7 @@ export async function conversationsMonthly(months = 12): Promise<MonthPoint[]> {
         since.setDate(1)
         since.setHours(0, 0, 0, 0)
         const rows = await prisma.$queryRaw<{ m: string; c: bigint }[]>`
-    SELECT to_char(date_trunc('month', "createdAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM') AS m,
+    SELECT to_char(date_trunc('month', ("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM') AS m,
            count(*) AS c
     FROM "Conversation"
     WHERE "createdAt" >= ${since} AND "deletedAt" IS NULL
@@ -119,9 +119,9 @@ export async function conversationsMonthly(months = 12): Promise<MonthPoint[]> {
 }
 
 export async function errorsDaily(days = 14): Promise<DailyPoint[]> {
-        const since = new Date(Date.now() - days * 86400000)
+        const since = new Date(Date.now() - (days + 1) * 86400000)
         const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`
-    SELECT to_char(date_trunc('day', "createdAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
+    SELECT to_char(date_trunc('day', ("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
     FROM "ErrorLog"
     WHERE "createdAt" >= ${since}
       AND ${adminVisibleWorkspaceSql(Prisma.sql`"workspaceId"`)}
@@ -138,9 +138,9 @@ export async function errorsDailyByLevel(
         level: 'error' | 'warn',
         days = 14,
 ): Promise<DailyPoint[]> {
-        const since = new Date(Date.now() - days * 86400000)
+        const since = new Date(Date.now() - (days + 1) * 86400000)
         const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`
-    SELECT to_char(date_trunc('day', "createdAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
+    SELECT to_char(date_trunc('day', ("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
     FROM "ErrorLog"
     WHERE "createdAt" >= ${since} AND "level" = ${level}
       AND ${adminVisibleWorkspaceSql(Prisma.sql`"workspaceId"`)}
@@ -150,9 +150,9 @@ export async function errorsDailyByLevel(
 }
 
 export async function usageChargesDaily(days = 14): Promise<DailyPoint[]> {
-        const since = new Date(Date.now() - days * 86400000)
+        const since = new Date(Date.now() - (days + 1) * 86400000)
         const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`
-    SELECT to_char(date_trunc('day', "date" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d,
+    SELECT to_char(date_trunc('day', ("date" AT TIME ZONE 'UTC') AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d,
            COALESCE(sum("chargedIRR"), 0) AS c
     FROM "UsageLog"
     WHERE "date" >= ${since} AND "status" = 'CAPTURED'
@@ -164,9 +164,9 @@ export async function usageChargesDaily(days = 14): Promise<DailyPoint[]> {
 
 /** New user sign-ups per day. */
 export async function newUsersDaily(days = 14): Promise<DailyPoint[]> {
-        const since = new Date(Date.now() - days * 86400000)
+        const since = new Date(Date.now() - (days + 1) * 86400000)
         const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`
-    SELECT to_char(date_trunc('day', "createdAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
+    SELECT to_char(date_trunc('day', ("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
     FROM "User"
     WHERE "createdAt" >= ${since}
       AND ${adminVisibleWorkspaceSql(Prisma.sql`"workspaceId"`)}
@@ -180,9 +180,9 @@ export async function newUsersDaily(days = 14): Promise<DailyPoint[]> {
 
 /** New channel connections (AgentChannel rows) created per day. */
 export async function connectionsDaily(days = 14): Promise<DailyPoint[]> {
-        const since = new Date(Date.now() - days * 86400000)
+        const since = new Date(Date.now() - (days + 1) * 86400000)
         const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`
-    SELECT to_char(date_trunc('day', "AgentChannel"."createdAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
+    SELECT to_char(date_trunc('day', ("AgentChannel"."createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
     FROM "AgentChannel"
     JOIN "Agent" ON "Agent"."id" = "AgentChannel"."agentId"
     WHERE "AgentChannel"."createdAt" >= ${since}
@@ -196,9 +196,9 @@ export async function connectionsDaily(days = 14): Promise<DailyPoint[]> {
 }
 
 /** Successful payments count per day. */
-export async function paymentsDaily(days = 14): Promise<DailyPoint[]> {        const since = new Date(Date.now() - days * 86400000)
+export async function paymentsDaily(days = 14): Promise<DailyPoint[]> {        const since = new Date(Date.now() - (days + 1) * 86400000)
         const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`
-    SELECT to_char(date_trunc('day', "paidAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
+    SELECT to_char(date_trunc('day', ("paidAt" AT TIME ZONE 'UTC') AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
     FROM "Payment"
     WHERE "status" = 'PAID' AND "paidAt" >= ${since}
       AND ${adminVisibleWorkspaceSql(Prisma.sql`"workspaceId"`)}
@@ -218,9 +218,9 @@ export async function paymentsDaily(days = 14): Promise<DailyPoint[]> {        c
 
 /** Daily revenue in IRR (ZarinPay PAID payments). */
 export async function revenueIRRDaily(days = 14): Promise<DailyPoint[]> {
-        const since = new Date(Date.now() - days * 86400000)
+        const since = new Date(Date.now() - (days + 1) * 86400000)
         const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`
-    SELECT to_char(date_trunc('day', "paidAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, COALESCE(sum("amount"), 0) AS c
+    SELECT to_char(date_trunc('day', ("paidAt" AT TIME ZONE 'UTC') AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, COALESCE(sum("amount"), 0) AS c
     FROM "Payment"
     WHERE "status" = 'PAID' AND "currency" = 'IRR' AND "paidAt" >= ${since}
       AND ${adminVisibleWorkspaceSql(Prisma.sql`"workspaceId"`)}
@@ -349,7 +349,7 @@ export async function conversationsDailyByAgent(
         const since = new Date(Date.now() - days * 86_400_000)
         const rows = await prisma.$queryRaw<{ agentId: string; d: string; c: bigint }[]>`
     SELECT "agentId",
-           to_char(date_trunc('day', "createdAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d,
+           to_char(date_trunc('day', ("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d,
            count(*) AS c
     FROM "Conversation"
     WHERE "createdAt" >= ${since} AND "deletedAt" IS NULL
@@ -392,7 +392,7 @@ export async function conversationsDailyByWorkspace(
         const since = new Date(Date.now() - days * 86_400_000)
         const rows = await prisma.$queryRaw<{ workspaceId: string; d: string; c: bigint }[]>`
     SELECT "workspaceId",
-           to_char(date_trunc('day', "createdAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d,
+           to_char(date_trunc('day', ("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d,
            count(*) AS c
     FROM "Conversation"
     WHERE "createdAt" >= ${since} AND "deletedAt" IS NULL
@@ -439,7 +439,7 @@ export async function errorsDailyBySource(days = 7): Promise<Map<string, ErrorSp
         const since = new Date(Date.now() - days * 86_400_000)
         const rows = await prisma.$queryRaw<{ source: string | null; d: string; c: bigint }[]>`
     SELECT "source",
-           to_char(date_trunc('day', "createdAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d,
+           to_char(date_trunc('day', ("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d,
            count(*) AS c
     FROM "ErrorLog"
     WHERE "createdAt" >= ${since}
@@ -489,7 +489,7 @@ export async function paymentsDailyByWorkspace(
         const since = new Date(Date.now() - days * 86_400_000)
         const rows = await prisma.$queryRaw<{ workspaceId: string; d: string; c: bigint }[]>`
     SELECT "workspaceId",
-           to_char(date_trunc('day', "paidAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d,
+           to_char(date_trunc('day', ("paidAt" AT TIME ZONE 'UTC') AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d,
            count(*) AS c
     FROM "Payment"
     WHERE "status" = 'PAID' AND "paidAt" >= ${since}
@@ -556,7 +556,7 @@ export async function revenueNetDaily(days = 7): Promise<NetRevenuePoint[]> {
                 : 0
 
         const rows = await prisma.$queryRaw<{ d: string; gross: bigint; costUSD: number | null }[]>`
-    SELECT to_char(date_trunc('day', "date" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d,
+    SELECT to_char(date_trunc('day', ("date" AT TIME ZONE 'UTC') AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d,
            COALESCE(sum("chargedIRR"), 0) AS gross,
            COALESCE(sum("cost"), 0)    AS "costUSD"
     FROM "UsageLog"
@@ -598,7 +598,7 @@ export async function revenueNetDaily(days = 7): Promise<NetRevenuePoint[]> {
 export async function providerCostUSDDaily(days = 7): Promise<DailyPoint[]> {
         const since = new Date(Date.now() - days * 86_400_000)
         const rows = await prisma.$queryRaw<{ d: string; c: number | null }[]>`
-    SELECT to_char(date_trunc('day', "date" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d,
+    SELECT to_char(date_trunc('day', ("date" AT TIME ZONE 'UTC') AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d,
            COALESCE(sum("cost"), 0) AS c
     FROM "UsageLog"
     WHERE "date" >= ${since}

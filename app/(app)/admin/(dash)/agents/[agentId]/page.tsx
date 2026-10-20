@@ -44,7 +44,7 @@ export default async function AdminAgentDetailPage({ params }: { params: Promise
 
   const [dailyRows, usage] = await Promise.all([
     prisma.$queryRaw<{ d: string; c: bigint }[]>`
-      SELECT to_char(date_trunc('day', "createdAt" AT TIME ZONE 'Asia/Tehran'), 'YYYY-MM-DD') AS d, count(*) AS c
+      SELECT to_char(date_trunc('day', ("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Tehran'), 'YYYY-MM-DD') AS d, count(*) AS c
       FROM "Conversation" WHERE "agentId" = ${agentId} AND "createdAt" >= ${new Date(Date.now() - 7 * 86_400_000)} AND "deletedAt" IS NULL
       GROUP BY 1 ORDER BY 1`,
     prisma.usageLog.aggregate({ where: { agentId, date: { gte: since }, status: 'CAPTURED' }, _sum: { chargedIRR: true, cost: true }, _count: { _all: true } }),

@@ -411,7 +411,7 @@ export async function getAiUsageReport(days = 30) {
         AND ${adminVisibleWorkspaceSql(Prisma.sql`"workspaceId"`)}
     `,
     prisma.$queryRaw<DailyRow[]>`
-      SELECT to_char(date_trunc('day', "date" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS "dayKey",
+      SELECT to_char(date_trunc('day', ("date" AT TIME ZONE 'UTC') AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS "dayKey",
              count(*) AS "requests",
              COALESCE(sum("promptTokens" + "completionTokens"), 0) AS "tokens",
              COALESCE(sum("cost"), 0) AS "providerCostUSD",

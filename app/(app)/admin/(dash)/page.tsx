@@ -95,6 +95,17 @@ export default async function AdminOverviewPage(
   const searchParams = await props.searchParams
   const range = parseRange(searchParams.range)
   const days = range === '7d' ? 7 : range === '30d' ? 30 : 7
+  // KPI cards follow the range switch: the % chip compares the last
+  // `trendDays` complete days with the `trendDays` before them, so a window
+  // of 2×trendDays + today is fetched; the sparkline shows the last trendDays.
+  const trendDays = range === '7d' ? 7 : 30
+  const trendFetchDays = trendDays * 2 + 1
+  const kpiSeries = (points: { day: string; value: number }[]) => ({
+    series: points.slice(-trendDays).map((point) => point.value),
+    seriesLabels: points.slice(-trendDays).map((point) => point.day),
+    trendSeries: points.map((point) => point.value),
+    trendDays,
+  })
 
   const startToday = startOfToday()
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000)
@@ -158,13 +169,13 @@ export default async function AdminOverviewPage(
     // ─ 7-day series for KPI card sparklines (always 7d, regardless of the
     //   range switch, so the cards always show recent site-wide momentum).
     Promise.all([
-      conversationsDaily(7),
-      newUsersDaily(7),
-      errorsDailyByLevel('error', 7),
-      paymentsDaily(7),
-      usageChargesDaily(7),
-      connectionsDaily(7),
-      providerCostUSDDaily(7),
+      conversationsDaily(trendFetchDays),
+      newUsersDaily(trendFetchDays),
+      errorsDailyByLevel('error', trendFetchDays),
+      paymentsDaily(trendFetchDays),
+      usageChargesDaily(trendFetchDays),
+      connectionsDaily(trendFetchDays),
+      providerCostUSDDaily(trendFetchDays),
     ]).then(([conv, users, err, pays, ai, conns, orCost]) => ({
       conv, users, err, pays, ai, conns, orCost,
     })),
@@ -239,8 +250,7 @@ export default async function AdminOverviewPage(
           sub={`${fa(aiOverview.requests)} پاسخ موفق — ۳۰ روز`}
           icon={<Coins className="h-5 w-5" />}
           tone="info"
-          series={kpiTrends.ai.map((point) => point.value)}
-          seriesLabels={kpiTrends.ai.map((point) => point.day)}
+          {...kpiSeries(kpiTrends.ai)}
           seriesValueFormat="irr"
         />
         <StatCard
@@ -258,8 +268,7 @@ export default async function AdminOverviewPage(
           sub={`کسر هزینه AI: ${fmtUSD(finance.openRouterCostUSD)} · ${fa(revenueKPIs.paidCount)} پرداخت موفق`}
           icon={<CircleDollarSign className="h-5 w-5" />}
           tone={netRevenueIRR >= 0 ? 'success' : 'danger'}
-          series={kpiTrends.pays.map((point) => point.value)}
-          seriesLabels={kpiTrends.pays.map((point) => point.day)}
+          {...kpiSeries(kpiTrends.pays)}
         />
         <StatCard
           label="موجودی OpenRouter"
@@ -267,8 +276,7 @@ export default async function AdminOverviewPage(
           sub={openRouterBalanceSub}
           icon={<Wallet className="h-5 w-5" />}
           tone={openRouterBalanceTone}
-          series={kpiTrends.orCost.map((point) => point.value)}
-          seriesLabels={kpiTrends.orCost.map((point) => point.day)}
+          {...kpiSeries(kpiTrends.orCost)}
           seriesValueFormat="usd"
           seriesInvert
         />
@@ -277,8 +285,7 @@ export default async function AdminOverviewPage(
           value={newUsersToday}
           sub={`${fa(workspaceCount)} کسب‌وکار کل`}
           icon={<UserPlus className="h-5 w-5" />}
-          series={kpiTrends.users.map((point) => point.value)}
-          seriesLabels={kpiTrends.users.map((point) => point.day)}
+          {...kpiSeries(kpiTrends.users)}
         />
         <StatCard
           label="مکالمات امروز"
@@ -286,8 +293,7 @@ export default async function AdminOverviewPage(
           sub={`${fa(responseHealth.rate)}٪ دارای پاسخ ایجنت`}
           icon={<MessagesSquare className="h-5 w-5" />}
           tone="info"
-          series={kpiTrends.conv.map((point) => point.value)}
-          seriesLabels={kpiTrends.conv.map((point) => point.day)}
+          {...kpiSeries(kpiTrends.conv)}
         />
         <StatCard
           label="اتصال فعال"
@@ -295,8 +301,7 @@ export default async function AdminOverviewPage(
           sub={`${fa(channelHealth.silent)} اتصال ساکت (۷۲ ساعت بدون ورودی)`}
           icon={<PlugZap className="h-5 w-5" />}
           tone={channelHealth.total === 0 || channelHealth.silent / channelHealth.total <= 0.25 ? 'success' : 'warning'}
-          series={kpiTrends.conns.map((point) => point.value)}
-          seriesLabels={kpiTrends.conns.map((point) => point.day)}
+          {...kpiSeries(kpiTrends.conns)}
         />
         <StatCard
           label="خطاهای ۲۴ ساعت"
@@ -304,8 +309,7 @@ export default async function AdminOverviewPage(
           sub={errors24h > 0 ? 'نیازمند بررسی' : 'وضعیت پایدار'}
           tone={errors24h > 0 ? 'danger' : 'success'}
           icon={<AlertTriangle className="h-5 w-5" />}
-          series={kpiTrends.err.map((point) => point.value)}
-          seriesLabels={kpiTrends.err.map((point) => point.day)}
+          {...kpiSeries(kpiTrends.err)}
           seriesInvert
         />
         </div>

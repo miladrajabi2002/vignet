@@ -148,7 +148,7 @@ export async function loadGatewaySummary() {
     prisma.cardPayment.count({ where: { status: 'EXPIRED', createdAt: { gte: since } } }),
     prisma.cardPayment.count({ where: { createdAt: { gte: since }, NOT: { reference: { startsWith: 'TEST-' } } } }),
     prisma.$queryRaw<Array<{ day: Date; volume: bigint | number | null; count: bigint | number }>>`
-      SELECT date_trunc('day', "paidAt" AT TIME ZONE 'Asia/Tehran') AS day, SUM("baseAmount") AS volume, COUNT(*) AS count
+      SELECT date_trunc('day', ("paidAt" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Tehran') AS day, SUM("baseAmount") AS volume, COUNT(*) AS count
       FROM "CardPayment" WHERE status = 'PAID' AND "paidAt" >= ${from}
       GROUP BY 1 ORDER BY 1`,
   ])

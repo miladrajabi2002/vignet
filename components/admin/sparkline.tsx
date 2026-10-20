@@ -2,7 +2,7 @@
 
 import { useId } from "react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip } from "recharts";
-import { computeTrend, isTrendGood } from "./series-trend";
+import { computeTrend, isTrendGood, type TrendDirection } from "./series-trend";
 
 function fa(n: number): string {
   return Number(n).toLocaleString("fa-IR");
@@ -68,6 +68,8 @@ function SparkTooltipBubble({
  * @param width    rendered width in px (ignored when fluid=true)
  * @param height   rendered height in px
  * @param fluid    when true, the chart fills its container width
+ * @param direction overrides the line's own first-vs-last direction when the
+ *                 caller already computed the trend (e.g. period-over-period)
  * @param invert   when true, up = bad (red), down = good (green) — for errors
  * @param labels   optional per-point labels (e.g. Persian short dates,
  *                 oldest → newest) shown in the hover chip
@@ -82,6 +84,7 @@ export function Sparkline({
   height = 32,
   fluid = false,
   invert = false,
+  direction,
   labels,
   valueFormat = "number",
 }: {
@@ -91,6 +94,7 @@ export function Sparkline({
   height?: number;
   fluid?: boolean;
   invert?: boolean;
+  direction?: TrendDirection;
   labels?: string[];
   valueLabel?: string;
   valueFormat?: "number" | "irr" | "usd";
@@ -107,7 +111,7 @@ export function Sparkline({
   // Determine stroke color.
   let stroke: string;
   if (color === "auto") {
-    const isGood = isTrendGood(computeTrend(data).direction, invert);
+    const isGood = isTrendGood(direction ?? computeTrend(data).direction, invert);
     if (isGood === null) {
       stroke = "#8c8780"; // --text-hint: a quiet line when nothing moved
     } else {

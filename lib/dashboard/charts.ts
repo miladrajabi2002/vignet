@@ -76,7 +76,7 @@ export async function conversationsDailyByWorkspace(
 ): Promise<DailySeries> {
 	const since = new Date(Date.now() - days * 86_400_000)
 	const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`
-    SELECT to_char(date_trunc('day', "createdAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
+    SELECT to_char(date_trunc('day', ("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
     FROM "Conversation"
     WHERE "workspaceId" = ${workspaceId} AND "createdAt" >= ${since} AND "deletedAt" IS NULL
     GROUP BY 1 ORDER BY 1
@@ -91,7 +91,7 @@ export async function chargesDailyByWorkspace(
 ): Promise<DailySeries> {
 	const since = new Date(Date.now() - days * 86_400_000)
 	const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`
-    SELECT to_char(date_trunc('day', "date" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d,
+    SELECT to_char(date_trunc('day', ("date" AT TIME ZONE 'UTC') AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d,
            COALESCE(sum("chargedIRR"), 0) AS c
     FROM "UsageLog"
     WHERE "workspaceId" = ${workspaceId} AND "date" >= ${since} AND "status" = 'CAPTURED'
@@ -107,7 +107,7 @@ export async function contactsDailyByWorkspace(
 ): Promise<DailySeries> {
 	const since = new Date(Date.now() - days * 86_400_000)
 	const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`
-    SELECT to_char(date_trunc('day', "createdAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
+    SELECT to_char(date_trunc('day', ("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
     FROM "Contact"
     WHERE "workspaceId" = ${workspaceId} AND "createdAt" >= ${since} AND "deletedAt" IS NULL
     GROUP BY 1 ORDER BY 1
@@ -122,7 +122,7 @@ export async function productsDailyByWorkspace(
 ): Promise<DailySeries> {
 	const since = new Date(Date.now() - days * 86_400_000)
 	const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`
-    SELECT to_char(date_trunc('day', "createdAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
+    SELECT to_char(date_trunc('day', ("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
     FROM "Product"
     WHERE "workspaceId" = ${workspaceId} AND "createdAt" >= ${since} AND "deletedAt" IS NULL
     GROUP BY 1 ORDER BY 1
@@ -137,7 +137,7 @@ export async function resolvedDailyByWorkspace(
 ): Promise<DailySeries> {
 	const since = new Date(Date.now() - days * 86_400_000)
 	const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`
-    SELECT to_char(date_trunc('day', "createdAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
+    SELECT to_char(date_trunc('day', ("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
     FROM "Conversation"
     WHERE "workspaceId" = ${workspaceId} AND "status" = 'RESOLVED' AND "createdAt" >= ${since} AND "deletedAt" IS NULL
     GROUP BY 1 ORDER BY 1
@@ -159,7 +159,7 @@ export async function conversationsDailyByAgent(
 	const since = new Date(Date.now() - days * 86_400_000)
 	const rows = await prisma.$queryRaw<{ agentId: string; d: string; c: bigint }[]>`
     SELECT "agentId",
-           to_char(date_trunc('day', "createdAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d,
+           to_char(date_trunc('day', ("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d,
            count(*) AS c
     FROM "Conversation"
     WHERE "workspaceId" = ${workspaceId} AND "createdAt" >= ${since} AND "deletedAt" IS NULL
