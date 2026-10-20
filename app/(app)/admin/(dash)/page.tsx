@@ -22,7 +22,6 @@ import {
   fa,
 } from './ui'
 import {
-  MessageFlowChart,
   MonthlyBarChart,
   NetRevenueChart,
   TrendChart,
@@ -30,6 +29,7 @@ import {
 import { CHART_ACCENT } from '@/components/admin/chart-palette'
 import { RangeSwitch, type RangeKind } from '@/components/admin/range-switch'
 import { PlanMixPanel } from '@/components/admin/plan-mix-panel'
+import { UserMessageTable } from '@/components/admin/user-message-table'
 import {
   conversationsDaily,
   conversationsMonthly,
@@ -44,6 +44,7 @@ import {
   revenueNetDaily,
   topActiveUsers,
   messageFlow24h,
+  messageFlowByUser24h,
 } from '@/lib/admin/charts'
 import { getRevenueKPIs, getFinanceSummary } from '@/lib/admin/revenue'
 import { getAiOverview, getOpenRouterAccountUsage } from '@/lib/admin/ai-usage'
@@ -76,17 +77,6 @@ function relativeFromNow(date: Date | null): string {
   if (days < 30) return `${fa(days)} روز پیش`
   const months = Math.floor(days / 30)
   return `${fa(months)} ماه پیش`
-}
-
-const CHANNEL_LABEL: Record<string, string> = {
-  INSTAGRAM: 'اینستاگرام',
-  WEB_WIDGET: 'ویجت وب',
-  TELEGRAM: 'تلگرام',
-  WHATSAPP: 'واتساپ',
-  RUBIKA: 'روبیکا',
-  BALE: 'بله',
-  CHAT_LINK: 'لینک چت',
-  API: 'API',
 }
 
 const PLAN_LABEL: Record<string, string> = {
@@ -155,6 +145,7 @@ export default async function AdminOverviewPage(
     channelHealth,
     responseHealth,
     messageFlow,
+    userMessageFlow,
   ] = await Promise.all([
     getRevenueKPIs(),
     getFinanceSummary(),
@@ -191,6 +182,7 @@ export default async function AdminOverviewPage(
       prisma.conversation.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, createdAt: { gte: since30d }, messages: { some: { role: 'ASSISTANT' } } } }),
     ]).then(([total, answered]) => ({ total, answered, rate: total > 0 ? Math.round((answered / total) * 100) : 100 })),
     messageFlow24h(),
+    messageFlowByUser24h(),
   ])
 
   // ── OpenRouter wallet balance (live from the OpenRouter API) ──
@@ -318,13 +310,11 @@ export default async function AdminOverviewPage(
         </div>
       </section>
 
-      {/* ─── 24h message flow: every channel summed, hour by hour ─── */}
-      <MessageFlowChart
+      {/* ─── 24h message flow per user: who got messages and who answered them ─── */}
+      <UserMessageTable
         title="پیام‌های ورودی و پاسخ‌ها — ۲۴ ساعت اخیر"
-        subtitle="همه کانال‌ها با هم، ساعت به ساعت · کنار هر کانال: ورودی/پاسخ"
-        data={messageFlow.hours}
-        channels={messageFlow.channels.map((c) => ({ label: CHANNEL_LABEL[c.channel] ?? c.channel, incoming: c.incoming, answered: c.answered }))}
-        height={240}
+        subtitle="هر کاربر: گفتگوها، پیام‌های ورودی و اینکه ایجنت یا اتوماسیون جواب داده · روی سرستون‌ها کلیک کنید"
+        rows={userMessageFlow}
       />
 
       {/* ─── Active users list + customers and revenue per plan ─── */}

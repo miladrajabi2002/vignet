@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { PERSIAN_DATE_LOCALE } from '@/lib/localized-date'
 import { adminVisibleWorkspaceSql } from '@/lib/admin/reporting-scope'
 import { getPlatformCommercialConfig } from '@/lib/platform/commercial-config'
+import { planStanding } from '@/lib/billing/plan-standing'
 
 export interface DailyPoint {
         day: string // Persian label, e.g. "۲۱ تیر"
@@ -798,4 +799,148 @@ export async function messageFlow24h(): Promise<MessageFlow24h> {
                 answered,
                 rate: incoming > 0 ? Math.round((answered / incoming) * 100) : 100,
         }
+}
+
+// ─── PER-USER MESSAGE FLOW ────────────────────────────────────────
+
+export interface UserMessageHour {
+        incoming: number
+        /** Answered by the AI agent (or an operator) */
+        agent: number
+        /** Answered by an Instagram automation scenario */
+        automation: number
+}
+
+export interface UserMessageFlowRow {
+        workspaceId: string
+        workspaceName: string
+        ownerId: string | null
+        ownerName: string | null
+        ownerPhone: string | null
+        plan: 'TRIAL' | 'STARTER' | 'PRO' | 'BUSINESS'
+        /** Whether the plan still grants access (trial not over, subscription live) */
+        planActive: boolean
+        /** Conversations that received at least one customer message */
+        conversations: number
+        incoming: number
+        agent: number
+        automation: number
+        unanswered: number
+        /** (agent + automation) ÷ incoming as a whole percent; 100 when nothing came in */
+        rate: number
+        /** 24 hourly buckets, oldest first, same window as messageFlow24h */
+        hours: UserMessageHour[]
+}
+
+/**
+ * Customer messages per workspace over the last 24 hours, split by who
+ * answered them. A message counts as answered by the first assistant reply
+ * at or after it in the same conversation, like messageFlow24h; that reply is
+ * an automation when it carries the scenario receipt (`vigentoOutbound`),
+ * which only the Instagram automation pipeline writes.
+ */
+export async function messageFlowByUser24h(): Promise<UserMessageFlowRow[]> {
+        const now = Date.now()
+        const since = new Date(now - 25 * 3_600_000)
+        const keys: string[] = []
+        for (let i = 23; i >= 0; i -= 1) keys.push(tzHourKey(new Date(now - i * 3_600_000)))
+        const oldestKey = keys[0]
+
+        // Grouping sets: one row per (workspace, hour) for the sparkline, and one
+        // per workspace for the totals, since distinct conversations can't be summed.
+        const rows = await prisma.$queryRaw<{
+                ws: string
+                h: string | null
+                incoming: bigint
+                agent: bigint
+                automation: bigint
+                conversations: bigint
+        }[]>`
+    WITH inbound AS (
+      SELECT c."workspaceId" AS ws,
+             m."conversationId" AS conv,
+             to_char(date_trunc('hour', (m."createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD HH24') AS h,
+             reply.automated
+      FROM "Message" m
+      JOIN "Conversation" c ON c."id" = m."conversationId"
+      LEFT JOIN LATERAL (
+        SELECT (r."metadata" -> 'vigentoOutbound') IS NOT NULL AS automated
+        FROM "Message" r
+        WHERE r."conversationId" = m."conversationId"
+          AND r."role" = 'ASSISTANT'
+          AND r."createdAt" >= m."createdAt"
+        ORDER BY r."createdAt"
+        LIMIT 1
+      ) reply ON true
+      WHERE m."role" = 'USER'
+        AND m."createdAt" >= (${since} AT TIME ZONE 'UTC')
+        AND c."deletedAt" IS NULL
+        AND ${adminVisibleWorkspaceSql(Prisma.sql`c."workspaceId"`)}
+    )
+    SELECT ws, h,
+           count(*) AS incoming,
+           count(*) FILTER (WHERE automated = false) AS agent,
+           count(*) FILTER (WHERE automated) AS automation,
+           count(DISTINCT conv) AS conversations
+    FROM inbound
+    WHERE h >= ${oldestKey}
+    GROUP BY GROUPING SETS ((ws, h), (ws))
+  `
+        if (rows.length === 0) return []
+
+        const keyIndex = new Map(keys.map((k, i) => [k, i]))
+        const byWs = new Map<string, { totals?: (typeof rows)[number]; hours: UserMessageHour[] }>()
+        for (const r of rows) {
+                let entry = byWs.get(r.ws)
+                if (!entry) {
+                        entry = { hours: keys.map(() => ({ incoming: 0, agent: 0, automation: 0 })) }
+                        byWs.set(r.ws, entry)
+                }
+                if (r.h === null) {
+                        entry.totals = r
+                        continue
+                }
+                const i = keyIndex.get(r.h)
+                if (i === undefined) continue
+                entry.hours[i] = { incoming: Number(r.incoming), agent: Number(r.agent), automation: Number(r.automation) }
+        }
+
+        const workspaces = await prisma.workspace.findMany({
+                where: { id: { in: [...byWs.keys()] } },
+                select: {
+                        id: true,
+                        name: true,
+                        plan: true,
+                        trialEndsAt: true,
+                        subscriptions: { where: { status: 'ACTIVE' }, select: { currentPeriodEnd: true }, take: 1 },
+                        owner: { select: { id: true, name: true, phone: true } },
+                },
+        })
+
+        const nowDate = new Date(now)
+        return workspaces
+                .map((w) => {
+                        const entry = byWs.get(w.id)!
+                        const t = entry.totals
+                        const incoming = Number(t?.incoming ?? 0)
+                        const agent = Number(t?.agent ?? 0)
+                        const automation = Number(t?.automation ?? 0)
+                        return {
+                                workspaceId: w.id,
+                                workspaceName: w.name,
+                                ownerId: w.owner?.id ?? null,
+                                ownerName: w.owner?.name ?? null,
+                                ownerPhone: w.owner?.phone ?? null,
+                                plan: w.plan,
+                                planActive: planStanding({ plan: w.plan, trialEndsAt: w.trialEndsAt, periodEnd: w.subscriptions[0]?.currentPeriodEnd ?? null }, nowDate).active,
+                                conversations: Number(t?.conversations ?? 0),
+                                incoming,
+                                agent,
+                                automation,
+                                unanswered: Math.max(0, incoming - agent - automation),
+                                rate: incoming > 0 ? Math.round(((agent + automation) / incoming) * 100) : 100,
+                                hours: entry.hours,
+                        }
+                })
+                .sort((a, b) => b.incoming - a.incoming)
 }
