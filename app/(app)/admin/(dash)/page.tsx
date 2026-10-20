@@ -30,6 +30,7 @@ import { CHART_ACCENT } from '@/components/admin/chart-palette'
 import { RangeSwitch, type RangeKind } from '@/components/admin/range-switch'
 import { PlanMixPanel } from '@/components/admin/plan-mix-panel'
 import { UserMessageTable } from '@/components/admin/user-message-table'
+import { UserMessageFlowChart } from '@/components/admin/user-message-flow-chart'
 import {
   conversationsDaily,
   conversationsMonthly,
@@ -314,7 +315,13 @@ export default async function AdminOverviewPage(
       <UserMessageTable
         title="پیام‌های ورودی و پاسخ‌ها — ۲۴ ساعت اخیر"
         subtitle="هر کاربر: گفتگوها، پیام‌های ورودی و اینکه ایجنت یا اتوماسیون جواب داده · روی سرستون‌ها کلیک کنید"
-        rows={userMessageFlow}
+        rows={userMessageFlow.rows}
+      />
+      <UserMessageFlowChart
+        title="جریان پیام‌ها ساعت به ساعت — ۲۴ ساعت اخیر"
+        subtitle="همه کاربران با هم یا هر کاربر جدا · روی نمودار بایستید تا عددهای هر ساعت را ببینید"
+        hours={userMessageFlow.hours}
+        rows={userMessageFlow.rows}
       />
 
       {/* ─── Active users list + customers and revenue per plan ─── */}

@@ -832,6 +832,13 @@ export interface UserMessageFlowRow {
         hours: UserMessageHour[]
 }
 
+export interface UserMessageFlow24h {
+        /** Hour labels of the 24 buckets, oldest first, e.g. "۱۴:۰۰" */
+        hours: string[]
+        /** Busiest first */
+        rows: UserMessageFlowRow[]
+}
+
 /**
  * Customer messages per workspace over the last 24 hours, split by who
  * answered them. A message counts as answered by the first assistant reply
@@ -839,12 +846,13 @@ export interface UserMessageFlowRow {
  * an automation when it carries the scenario receipt (`vigentoOutbound`),
  * which only the Instagram automation pipeline writes.
  */
-export async function messageFlowByUser24h(): Promise<UserMessageFlowRow[]> {
+export async function messageFlowByUser24h(): Promise<UserMessageFlow24h> {
         const now = Date.now()
         const since = new Date(now - 25 * 3_600_000)
         const keys: string[] = []
         for (let i = 23; i >= 0; i -= 1) keys.push(tzHourKey(new Date(now - i * 3_600_000)))
         const oldestKey = keys[0]
+        const hours = keys.map(hourLabel)
 
         // Grouping sets: one row per (workspace, hour) for the sparkline, and one
         // per workspace for the totals, since distinct conversations can't be summed.
@@ -886,7 +894,7 @@ export async function messageFlowByUser24h(): Promise<UserMessageFlowRow[]> {
     WHERE h >= ${oldestKey}
     GROUP BY GROUPING SETS ((ws, h), (ws))
   `
-        if (rows.length === 0) return []
+        if (rows.length === 0) return { hours, rows: [] }
 
         const keyIndex = new Map(keys.map((k, i) => [k, i]))
         const byWs = new Map<string, { totals?: (typeof rows)[number]; hours: UserMessageHour[] }>()
@@ -918,8 +926,8 @@ export async function messageFlowByUser24h(): Promise<UserMessageFlowRow[]> {
         })
 
         const nowDate = new Date(now)
-        return workspaces
-                .map((w) => {
+        const result = workspaces
+                .map((w): UserMessageFlowRow => {
                         const entry = byWs.get(w.id)!
                         const t = entry.totals
                         const incoming = Number(t?.incoming ?? 0)
@@ -943,4 +951,5 @@ export async function messageFlowByUser24h(): Promise<UserMessageFlowRow[]> {
                         }
                 })
                 .sort((a, b) => b.incoming - a.incoming)
+        return { hours, rows: result }
 }

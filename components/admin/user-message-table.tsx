@@ -10,9 +10,9 @@ type Plan = UserMessageFlowRow['plan']
 type SortKey = 'name' | 'plan' | 'conversations' | 'incoming' | 'agent' | 'automation' | 'unanswered' | 'rate'
 
 /** Not a series colour: the share of messages nobody answered. */
-const UNANSWERED = '#dcd7cf'
+export const UNANSWERED = '#dcd7cf'
 const PLAN_ORDER: Plan[] = ['BUSINESS', 'PRO', 'STARTER', 'TRIAL']
-const PLAN_LABEL: Record<Plan, string> = {
+export const PLAN_LABEL: Record<Plan, string> = {
   BUSINESS: 'بیزینس',
   PRO: 'حرفه‌ای',
   STARTER: 'استارتر',
@@ -37,15 +37,15 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: 'name', label: 'نام' },
 ]
 
-const fa = (n: number) => n.toLocaleString('fa-IR')
+export const fa = (n: number) => n.toLocaleString('fa-IR')
 
-function rateTone(rate: number): string {
+export function rateTone(rate: number): string {
   if (rate >= 80) return 'bg-[#e7f5ec] text-[#15803d]'
   if (rate >= 60) return 'bg-[#fdf1e2] text-[#b45309]'
   return 'bg-[#fdeaea] text-[#dc2626]'
 }
 
-function PlanChip({ plan, active }: { plan: Plan; active: boolean }) {
+export function PlanChip({ plan, active }: { plan: Plan; active: boolean }) {
   return (
     <span className="inline-flex flex-col items-start gap-0.5">
       <span
