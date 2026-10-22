@@ -2,9 +2,10 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { BadgeCheck, Banknote, Clock, ExternalLink, Smartphone, Zap } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
-import { BankCardFace } from '@/components/payments/bank-card'
+import { BankCardFace, BankMark } from '@/components/payments/bank-card'
 import { GatewayActiveToggle, GatewayBusinessControls, GatewaySmsResolve } from '@/components/admin/gateway-admin-controls'
 import { bankByKey } from '@/lib/payments/card/bins'
+import { NOT_TEST } from '@/lib/payments/card/dashboard'
 import { effectiveMonthlyCap, getPlatformGatewaySettings, monthStart } from '@/lib/payments/card/platform'
 import { readPayGatewaySettings } from '@/lib/payments/card/settings'
 import { suggestPaymentsForSms } from '@/lib/payments/card/ingest'
@@ -34,17 +35,22 @@ export default async function AdminGatewayBusinessPage(props: { params: Promise<
   if (!workspace) notFound()
 
   const since = monthStart()
-  const [platform, cards, devices, sites, payments, sms, month, auto, created, timing, received, agents] = await Promise.all([
+  const [platform, cards, deletedCards, devices, sites, payments, sms, month, auto, created, timing, received, agents] = await Promise.all([
     getPlatformGatewaySettings(true),
     prisma.payCard.findMany({ where: { workspaceId, deletedAt: null }, orderBy: { sortOrder: 'asc' } }),
+    prisma.payCard.findMany({
+      where: { workspaceId, deletedAt: { not: null } },
+      orderBy: { deletedAt: 'desc' },
+      select: { id: true, bankKey: true, last4: true, holderName: true, deletedAt: true, _count: { select: { payments: { where: { ...NOT_TEST, status: 'PAID' } } } } },
+    }),
     prisma.payDevice.findMany({ where: { workspaceId }, orderBy: { createdAt: 'asc' }, include: { _count: { select: { messages: true } } } }),
     prisma.paySite.findMany({ where: { workspaceId }, orderBy: { createdAt: 'asc' }, include: { _count: { select: { payments: true } } } }),
-    prisma.cardPayment.findMany({ where: { workspaceId }, orderBy: { createdAt: 'desc' }, take: 40, include: { card: { select: { bankKey: true, last4: true } }, site: { select: { name: true } } } }),
+    prisma.cardPayment.findMany({ where: { workspaceId }, orderBy: { createdAt: 'desc' }, take: 40, include: { card: { select: { bankKey: true, last4: true, deletedAt: true } }, site: { select: { name: true } } } }),
     prisma.bankSms.findMany({ where: { workspaceId }, orderBy: { receivedAt: 'desc' }, take: 15 }),
-    prisma.cardPayment.aggregate({ where: { workspaceId, status: 'PAID', paidAt: { gte: since } }, _count: { _all: true }, _sum: { baseAmount: true } }),
-    prisma.cardPayment.count({ where: { workspaceId, status: 'PAID', paidAt: { gte: since }, confirmedBy: 'AUTO' } }),
-    prisma.cardPayment.count({ where: { workspaceId, createdAt: { gte: since }, NOT: { reference: { startsWith: 'TEST-' } } } }),
-    prisma.$queryRaw<Array<{ minutes: number | null }>>`SELECT AVG(EXTRACT(EPOCH FROM ("paidAt" - "createdAt")) / 60)::float AS minutes FROM "CardPayment" WHERE "workspaceId" = ${workspaceId} AND status = 'PAID' AND "paidAt" >= ${since}`,
+    prisma.cardPayment.aggregate({ where: { workspaceId, ...NOT_TEST, status: 'PAID', paidAt: { gte: since } }, _count: { _all: true }, _sum: { baseAmount: true } }),
+    prisma.cardPayment.count({ where: { workspaceId, ...NOT_TEST, status: 'PAID', paidAt: { gte: since }, confirmedBy: 'AUTO' } }),
+    prisma.cardPayment.count({ where: { workspaceId, ...NOT_TEST, createdAt: { gte: since } } }),
+    prisma.$queryRaw<Array<{ minutes: number | null }>>`SELECT AVG(EXTRACT(EPOCH FROM ("paidAt" - "createdAt")) / 60)::float AS minutes FROM "CardPayment" WHERE "workspaceId" = ${workspaceId} AND status = 'PAID' AND "paidAt" >= ${since} AND reference NOT LIKE 'TEST-%'`,
     receivedTodayByCard(workspaceId),
     prisma.agent.findMany({ where: { workspaceId }, select: { id: true, name: true, cardPayEnabled: true, payLinkEnabled: true, orderCaptureEnabled: true } }),
   ])
@@ -110,7 +116,21 @@ export default async function AdminGatewayBusinessPage(props: { params: Promise<
                 </li>
               ))}
             </ul>
-          ) : <EmptyState>کارتی اضافه نشده است.</EmptyState>}
+          ) : <EmptyState>{deletedCards.length ? 'کارت فعالی نمانده؛ همهٔ کارت‌ها حذف شده‌اند.' : 'کارتی اضافه نشده است.'}</EmptyState>}
+          {deletedCards.length ? (
+            <details className="mt-4 border-t border-[var(--border-subtle)] pt-3">
+              <summary className="cursor-pointer text-[13px] font-bold text-[var(--text-secondary)]">کارت‌های حذف‌شده · {fa(deletedCards.length)}</summary>
+              <ul className="mt-2 divide-y divide-[var(--border-subtle)]">
+                {deletedCards.map((card) => (
+                  <li key={card.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-[12.5px]">
+                    <span className="inline-flex items-center gap-1.5 text-[var(--text-primary)]"><BankMark bankKey={card.bankKey} size={20} /><span dir="ltr" className="font-mono">…{card.last4}</span></span>
+                    <span className="text-[var(--text-secondary)]">{bankByKey(card.bankKey).fa}{card.holderName ? ` · ${card.holderName}` : ''}</span>
+                    <span className="ms-auto text-[var(--text-muted)]">{fa(card._count.payments)} پرداخت · حذف {card.deletedAt ? fmtDate(card.deletedAt) : '—'}</span>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          ) : null}
         </Panel>
 
         <Panel title="گوشی‌های دریافت پیامک" subtitle="فقط پیامک همین شماره‌ها/نشانی‌ها خوانده می‌شود">

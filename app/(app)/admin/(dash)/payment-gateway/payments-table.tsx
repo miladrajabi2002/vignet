@@ -6,7 +6,7 @@ import { Badge, TableShell, Td, Th, fa, fmtDate } from '../ui'
 import { CONFIRMED_BY, PAYMENT_STATUS, purposeLabel, toman } from './shared'
 
 export type AdminPaymentRow = CardPayment & {
-  card: { bankKey: string; last4: string }
+  card: { bankKey: string; last4: string; deletedAt?: Date | null }
   workspace?: { id: string; name: string }
   site: { name: string } | null
 }
@@ -54,13 +54,17 @@ export function AdminPaymentsTable({ rows, showBusiness }: { rows: AdminPaymentR
               <Td><span dir="ltr" className="font-mono">{payment.payAmount.toLocaleString('en-US')}</span></Td>
               <Td>
                 <span className="block">{purposeLabel(payment)}</span>
+                {payment.reference.startsWith('TEST-') ? <Badge tone="muted">واریز آزمایشی</Badge> : null}
                 {payment.site ? <span className="block text-[11.5px] text-[var(--text-muted)]">{payment.site.name}</span> : payment.description ? <span className="block max-w-[14rem] truncate text-[11.5px] text-[var(--text-muted)]" title={payment.description}>{payment.description}</span> : null}
               </Td>
               <Td>
                 <span className="block">{payment.customerName ?? '—'}</span>
                 {payment.customerPhone ? <span dir="ltr" className="block text-[11.5px] text-[var(--text-muted)]">{payment.customerPhone}</span> : null}
               </Td>
-              <Td><span className="inline-flex items-center gap-1.5"><BankMark bankKey={payment.card.bankKey} size={22} /><span dir="ltr" className="font-mono">…{payment.card.last4}</span></span></Td>
+              <Td>
+                <span className="inline-flex items-center gap-1.5"><BankMark bankKey={payment.card.bankKey} size={22} /><span dir="ltr" className="font-mono">…{payment.card.last4}</span></span>
+                {payment.card.deletedAt ? <span className="block text-[11.5px] text-[var(--text-muted)]">کارت حذف‌شده</span> : null}
+              </Td>
               <Td>
                 <Badge tone={status.tone}>{status.label}</Badge>
                 {payment.status === 'PAID' && payment.confirmedBy ? <span className="mt-1 block text-[11.5px] text-[var(--text-muted)]">{CONFIRMED_BY[payment.confirmedBy] ?? payment.confirmedBy}</span> : null}

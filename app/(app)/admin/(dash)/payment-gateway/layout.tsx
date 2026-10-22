@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { WalletCards } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
+import { NOT_TEST } from '@/lib/payments/card/dashboard'
 import { GatewayAdminTabs } from '@/components/admin/gateway-admin-controls'
 import { PageHeader } from '../ui'
 
@@ -9,7 +10,7 @@ export const dynamic = 'force-dynamic'
 /** Admin «درگاه پرداخت»: one header and five sections. */
 export default async function AdminPaymentGatewayLayout({ children }: { children: ReactNode }) {
   const [review, unmatched] = await Promise.all([
-    prisma.cardPayment.count({ where: { status: 'CLAIMED' } }).catch(() => 0),
+    prisma.cardPayment.count({ where: { ...NOT_TEST, status: 'CLAIMED' } }).catch(() => 0),
     prisma.bankSms.count({ where: { status: 'UNMATCHED' } }).catch(() => 0),
   ])
   return (

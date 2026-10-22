@@ -23,7 +23,7 @@ export default async function AdminGatewayPaymentsPage(props: { searchParams: Pr
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE + 1,
-      include: { card: { select: { bankKey: true, last4: true } }, workspace: { select: { id: true, name: true } }, site: { select: { name: true } } },
+      include: { card: { select: { bankKey: true, last4: true, deletedAt: true } }, workspace: { select: { id: true, name: true } }, site: { select: { name: true } } },
     }),
   ])
   const href = (next: { filter?: AdminPaymentFilter; page?: number }) => {

@@ -5,7 +5,7 @@ import { Badge, Progress, TableShell, Td, Th, fa, fmtDate } from '../ui'
 
 type Tone = 'default' | 'info' | 'muted' | 'success' | 'warning' | 'danger'
 
-export const PLAN_FA: Record<string, string> = { TRIAL: 'آزمایشی', STARTER: 'استارتر', PRO: 'حرفه‌ای', BUSINESS: 'بیزینس' }
+export const PLAN_FA: Record<string, string> = { TRIAL: 'آزمایشی', STARTER: 'استارتر', PRO: 'حرفه‌ای', BUSINESS: 'سازمانی' }
 
 export const STATE_BADGE: Record<GatewayBusinessState, { label: string; tone: Tone }> = {
   live: { label: 'فعال و آماده', tone: 'success' },
@@ -94,7 +94,10 @@ export function GatewayBusinessesTable({ rows }: { rows: GatewayBusinessRow[] })
               <Td className="tabular-nums">{toman(row.monthVolume)}</Td>
               <Td className="tabular-nums">{row.autoRate == null ? '—' : `${fa(row.autoRate)}٪`}</Td>
               <Td>{row.devices ? <span title={row.lastSmsAt ? fmtDate(row.lastSmsAt) : undefined}>{fa(row.devices)} · {ago(row.lastSmsAt)}</span> : <span className="text-[var(--text-muted)]">وصل نشده</span>}</Td>
-              <Td className="tabular-nums">{fa(row.activeCards)}{row.cards > row.activeCards ? <span className="text-[var(--text-muted)]"> از {fa(row.cards)}</span> : null}</Td>
+              <Td className="tabular-nums">
+                {fa(row.activeCards)}{row.cards > row.activeCards ? <span className="text-[var(--text-muted)]"> از {fa(row.cards)}</span> : null}
+                {row.deletedCards ? <span className="block text-[11.5px] text-[var(--text-muted)]">{fa(row.deletedCards)} حذف‌شده</span> : null}
+              </Td>
               <Td>
                 {chips.length ? <div className="flex flex-wrap gap-1">{chips.map((chip) => <Badge key={chip.label} tone={chip.tone}>{chip.label}</Badge>)}</div> : <span className="text-[var(--text-muted)]">—</span>}
               </Td>

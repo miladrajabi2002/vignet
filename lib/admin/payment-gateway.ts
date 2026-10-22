@@ -4,6 +4,7 @@
  */
 import type { Plan, Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { NOT_TEST } from '@/lib/payments/card/dashboard'
 import { effectiveMonthlyCap, getPlatformGatewaySettings, monthStart } from '@/lib/payments/card/platform'
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -21,6 +22,8 @@ export interface GatewayBusinessRow {
   suspendReason: string | null
   cards: number
   activeCards: number
+  /** Cards the owner removed; their payments stay in the history. */
+  deletedCards: number
   devices: number
   lastSmsAt: Date | null
   silentDevice: boolean
@@ -43,15 +46,21 @@ function stateOf(row: { enabled: boolean; suspended: boolean; activeCards: numbe
   return row.activeCards > 0 && row.connected ? 'live' : 'setup'
 }
 
-/** Every business that switched the gateway on or added a card, with its numbers. */
+/**
+ * Every business that switched the gateway on, added a card or took a payment
+ * — a business that later deleted its cards still has money in the history —
+ * with its numbers. The setup's test transfers never count as payments, the
+ * same rule the monthly cap itself follows (lib/payments/card/platform.ts).
+ */
 export async function loadGatewayBusinesses(): Promise<GatewayBusinessRow[]> {
   const since = monthStart()
-  const [platform, withCards, enabled] = await Promise.all([
+  const [platform, withCards, enabled, withPayments] = await Promise.all([
     getPlatformGatewaySettings(true),
-    prisma.payCard.findMany({ where: { deletedAt: null }, distinct: ['workspaceId'], select: { workspaceId: true } }),
+    prisma.payCard.groupBy({ by: ['workspaceId'] }),
     prisma.workspace.findMany({ where: { OR: [{ payGatewayEnabled: true }, { payGatewaySuspendedAt: { not: null } }] }, select: { id: true } }),
+    prisma.cardPayment.groupBy({ by: ['workspaceId'], where: NOT_TEST }),
   ])
-  const ids = [...new Set([...withCards.map((row) => row.workspaceId), ...enabled.map((row) => row.id)])]
+  const ids = [...new Set([...withCards.map((row) => row.workspaceId), ...enabled.map((row) => row.id), ...withPayments.map((row) => row.workspaceId)])]
   if (!ids.length) return []
   const scope = { workspaceId: { in: ids } }
   const [workspaces, cards, devices, paid, auto, review, unmatched, pending, lastPaid] = await Promise.all([
@@ -68,14 +77,14 @@ export async function loadGatewayBusinesses(): Promise<GatewayBusinessRow[]> {
         owner: { select: { phone: true } },
       },
     }),
-    prisma.payCard.groupBy({ by: ['workspaceId', 'active'], where: { ...scope, deletedAt: null }, _count: { _all: true } }),
+    prisma.payCard.groupBy({ by: ['workspaceId', 'active', 'deletedAt'], where: scope, _count: { _all: true } }),
     prisma.payDevice.groupBy({ by: ['workspaceId'], where: { ...scope, active: true }, _count: { _all: true }, _max: { lastSmsAt: true, connectedAt: true } }),
-    prisma.cardPayment.groupBy({ by: ['workspaceId'], where: { ...scope, status: 'PAID', paidAt: { gte: since } }, _count: { _all: true }, _sum: { baseAmount: true } }),
-    prisma.cardPayment.groupBy({ by: ['workspaceId'], where: { ...scope, status: 'PAID', paidAt: { gte: since }, confirmedBy: 'AUTO' }, _count: { _all: true } }),
-    prisma.cardPayment.groupBy({ by: ['workspaceId'], where: { ...scope, status: 'CLAIMED' }, _count: { _all: true } }),
+    prisma.cardPayment.groupBy({ by: ['workspaceId'], where: { ...scope, ...NOT_TEST, status: 'PAID', paidAt: { gte: since } }, _count: { _all: true }, _sum: { baseAmount: true } }),
+    prisma.cardPayment.groupBy({ by: ['workspaceId'], where: { ...scope, ...NOT_TEST, status: 'PAID', paidAt: { gte: since }, confirmedBy: 'AUTO' }, _count: { _all: true } }),
+    prisma.cardPayment.groupBy({ by: ['workspaceId'], where: { ...scope, ...NOT_TEST, status: 'CLAIMED' }, _count: { _all: true } }),
     prisma.bankSms.groupBy({ by: ['workspaceId'], where: { ...scope, status: 'UNMATCHED' }, _count: { _all: true } }),
-    prisma.cardPayment.groupBy({ by: ['workspaceId'], where: { ...scope, status: 'PENDING' }, _count: { _all: true } }),
-    prisma.cardPayment.groupBy({ by: ['workspaceId'], where: { ...scope, status: 'PAID' }, _max: { paidAt: true } }),
+    prisma.cardPayment.groupBy({ by: ['workspaceId'], where: { ...scope, ...NOT_TEST, status: 'PENDING' }, _count: { _all: true } }),
+    prisma.cardPayment.groupBy({ by: ['workspaceId'], where: { ...scope, ...NOT_TEST, status: 'PAID' }, _max: { paidAt: true } }),
   ])
   const count = <T extends { workspaceId: string; _count: { _all: number } }>(rows: T[]) => new Map(rows.map((row) => [row.workspaceId, row._count._all]))
   const autoBy = count(auto)
@@ -89,8 +98,10 @@ export async function loadGatewayBusinesses(): Promise<GatewayBusinessRow[]> {
 
   return workspaces.map((workspace) => {
     const cardRows = cards.filter((row) => row.workspaceId === workspace.id)
-    const activeCards = cardRows.filter((row) => row.active).reduce((sum, row) => sum + row._count._all, 0)
-    const allCards = cardRows.reduce((sum, row) => sum + row._count._all, 0)
+    const liveCards = cardRows.filter((row) => !row.deletedAt)
+    const activeCards = liveCards.filter((row) => row.active).reduce((sum, row) => sum + row._count._all, 0)
+    const allCards = liveCards.reduce((sum, row) => sum + row._count._all, 0)
+    const deletedCards = cardRows.filter((row) => row.deletedAt).reduce((sum, row) => sum + row._count._all, 0)
     const device = deviceBy.get(workspace.id)
     const month = paidBy.get(workspace.id) ?? { count: 0, sum: 0 }
     const lastSmsAt = device?._max.lastSmsAt ?? null
@@ -104,6 +115,7 @@ export async function loadGatewayBusinesses(): Promise<GatewayBusinessRow[]> {
       suspendReason: workspace.payGatewaySuspendReason,
       cards: allCards,
       activeCards,
+      deletedCards,
       devices: device?._count._all ?? 0,
       lastSmsAt,
       // Payments wait, yet the phone has said nothing for a day.
@@ -141,15 +153,15 @@ export async function loadGatewaySummary() {
   const from = new Date(Date.now() - 29 * DAY_MS)
   from.setUTCHours(0, 0, 0, 0)
   const [paid, auto, claimed, unmatched, expired, created, daily] = await Promise.all([
-    prisma.cardPayment.aggregate({ where: { status: 'PAID', paidAt: { gte: since } }, _count: { _all: true }, _sum: { baseAmount: true } }),
-    prisma.cardPayment.count({ where: { status: 'PAID', paidAt: { gte: since }, confirmedBy: 'AUTO' } }),
-    prisma.cardPayment.count({ where: { status: 'CLAIMED' } }),
+    prisma.cardPayment.aggregate({ where: { ...NOT_TEST, status: 'PAID', paidAt: { gte: since } }, _count: { _all: true }, _sum: { baseAmount: true } }),
+    prisma.cardPayment.count({ where: { ...NOT_TEST, status: 'PAID', paidAt: { gte: since }, confirmedBy: 'AUTO' } }),
+    prisma.cardPayment.count({ where: { ...NOT_TEST, status: 'CLAIMED' } }),
     prisma.bankSms.count({ where: { status: 'UNMATCHED' } }),
-    prisma.cardPayment.count({ where: { status: 'EXPIRED', createdAt: { gte: since } } }),
-    prisma.cardPayment.count({ where: { createdAt: { gte: since }, NOT: { reference: { startsWith: 'TEST-' } } } }),
+    prisma.cardPayment.count({ where: { ...NOT_TEST, status: 'EXPIRED', createdAt: { gte: since } } }),
+    prisma.cardPayment.count({ where: { ...NOT_TEST, createdAt: { gte: since } } }),
     prisma.$queryRaw<Array<{ day: Date; volume: bigint | number | null; count: bigint | number }>>`
       SELECT date_trunc('day', ("paidAt" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Tehran') AS day, SUM("baseAmount") AS volume, COUNT(*) AS count
-      FROM "CardPayment" WHERE status = 'PAID' AND "paidAt" >= ${from}
+      FROM "CardPayment" WHERE status = 'PAID' AND "paidAt" >= ${from} AND reference NOT LIKE 'TEST-%'
       GROUP BY 1 ORDER BY 1`,
   ])
   const byDay = new Map(daily.map((row) => [row.day.toISOString().slice(0, 10), { volume: Number(row.volume ?? 0), count: Number(row.count) }]))
