@@ -54,10 +54,9 @@ const ROOT_METADATA_COPY = {
         },
 } as const
 
-// app/opengraph-image.tsx and app/twitter-image.tsx sit above both root
-// layouts, where Next no longer attaches them by convention, so the share card
-// is listed here. A page that sets its own openGraph/twitter object replaces
-// it, exactly as the file convention behaved.
+// The share card is served by the route handlers app/opengraph-image/route.tsx
+// and app/twitter-image/route.tsx (see lib/seo/share-image.tsx), so it is
+// listed here. A page that sets its own openGraph/twitter object replaces it.
 function shareImage(url: string) {
         return { url, alt: shareImageAlt, type: shareImageType, ...shareImageSize }
 }

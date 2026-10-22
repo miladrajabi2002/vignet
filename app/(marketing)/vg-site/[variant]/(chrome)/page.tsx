@@ -75,9 +75,9 @@ export async function generateMetadata({ params }: { params: SiteParams }): Prom
                         alternateLocale: locale === 'fa' ? ['en_US'] : ['fa_IR'],
                         title: copy.openGraphTitle,
                         description: copy.openGraphDescription,
-                        // app/opengraph-image.tsx renders the 1200x630 branded card. A page
+                        // app/opengraph-image/route.tsx renders the 1200x630 branded card. A page
                         // that defines its own openGraph object replaces the parent's, which
-                        // drops the file-convention image — so reference it explicitly
+                        // drops the root share image — so reference it explicitly
                         // instead of the old square 512x512 PWA logo override.
                         images: [{
                                 url: `${SITE_URL}/opengraph-image`,
