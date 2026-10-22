@@ -41,7 +41,7 @@ const COPY = {
                 faqEyebrow: 'سؤال‌های متداول',
                 faqH2: 'قبل از انتخاب پلن، شفاف بدانید',
                 faqIntro: 'پاسخ کوتاه سؤال‌هایی که خریداران قبل از شروع می‌پرسند. برای جزئیات بیشتر، راهنمای پلن‌ها و پرداخت را ببینید.',
-                planNames: { STARTER: 'استارتر', PRO: 'حرفه‌ای', BUSINESS: 'بیزینس' } as Record<PaidPlan, string>,
+                planNames: { STARTER: 'استارتر', PRO: 'حرفه‌ای', BUSINESS: 'سازمانی' } as Record<PaidPlan, string>,
                 appDescription: 'ایجنت هوشمند فروش و پشتیبانی فارسی برای اینستاگرام، تلگرام، بله، روبیکا و وب‌سایت — با شروع رایگان.',
                 offerName: (plan: string) => `پلن ${plan}`,
                 offerDescription: (plan: string, priceToman: string, creditToman: string, channels: string) =>

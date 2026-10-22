@@ -126,7 +126,7 @@ const CHANNEL_ICON: Record<ChannelType, string> = {
   API: '🧩',
 }
 
-const PLAN_FA: Record<string, string> = { TRIAL: 'آزمایشی', STARTER: 'استارتر', PRO: 'حرفه‌ای', BUSINESS: 'بیزینس' }
+const PLAN_FA: Record<string, string> = { TRIAL: 'آزمایشی', STARTER: 'استارتر', PRO: 'حرفه‌ای', BUSINESS: 'سازمانی' }
 
 const ORDER_STATUS_FA: Record<string, string> = {
   pending: 'در انتظار پرداخت',

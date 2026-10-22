@@ -97,5 +97,5 @@ export async function getEffectivePlanReplyPricesIRR(plan: Plan): Promise<Record
   ) as Record<ModelAlias, number>
 }
 
-/** Subscription period granted per successful payment. */
-export const PERIOD_DAYS = 30
+/** Subscription period granted per successful payment. Lives beside the plan standing so client components can draw it. */
+export { PERIOD_DAYS } from '@/lib/billing/plan-standing'

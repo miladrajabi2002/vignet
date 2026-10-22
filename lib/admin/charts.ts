@@ -312,7 +312,7 @@ export async function planMix(): Promise<PlanMixRow[]> {
                 TRIAL: 'آزمایشی',
                 STARTER: 'استارتر',
                 PRO: 'حرفه‌ای',
-                BUSINESS: 'بیزینس',
+                BUSINESS: 'سازمانی',
         }
         const byPlan = new Map(rows.map((r) => [r.plan, r]))
         return PLAN_MIX_ORDER.map((plan) => {

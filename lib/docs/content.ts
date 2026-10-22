@@ -1783,7 +1783,7 @@ POST https://graph.instagram.com/v21.0/me/messages`,
                 blocks: [
                         {
                                 type: 'p',
-                                fa: 'با اولین ورود، یک ماه دورهٔ آزمایشی با همان اعتبار اولیهٔ پاسخ فعال می‌شود. در دورهٔ آزمایشی یا اشتراک فعال، اتوماسیون‌های ثابت اینستاگرام اعتبار مصرف نمی‌کنند؛ درخواست‌های موفق هوش مصنوعی—پاسخ، تحلیل یا تست—از اعتبار کم می‌شوند. پس از آن یکی از اشتراک‌های استارتر، حرفه‌ای یا بیزینس را از بخش «صورتحساب» انتخاب کنید.',
+                                fa: 'با اولین ورود، یک ماه دورهٔ آزمایشی با همان اعتبار اولیهٔ پاسخ فعال می‌شود. در دورهٔ آزمایشی یا اشتراک فعال، اتوماسیون‌های ثابت اینستاگرام اعتبار مصرف نمی‌کنند؛ درخواست‌های موفق هوش مصنوعی—پاسخ، تحلیل یا تست—از اعتبار کم می‌شوند. پس از آن یکی از اشتراک‌های استارتر، حرفه‌ای یا سازمانی را از بخش «صورتحساب» انتخاب کنید.',
                                 en: 'Your first login starts a one-month trial with starter reply credit. During an active trial or subscription, static Instagram automations use no credit; successful AI requests—replies, analyses, and tests—consume credit. Afterwards, choose Starter, Pro or Business from Billing.',
                         },
                         { type: 'h2', fa: 'اعتبار پاسخ', en: 'Reply credit' },

@@ -76,7 +76,7 @@ const PLAN_LABELS: Record<string, string> = {
   TRIAL: 'آزمایشی',
   STARTER: 'استارتر',
   PRO: 'حرفه‌ای',
-  BUSINESS: 'بیزینس',
+  BUSINESS: 'سازمانی',
 }
 
 function parseRange(value: string | undefined): UsageRange {

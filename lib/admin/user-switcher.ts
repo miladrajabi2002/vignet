@@ -1,16 +1,15 @@
-import type { Plan } from '@prisma/client'
+import type { Plan, Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { isPlatformOwnerPhone } from '@/lib/admin/owner'
-import { planStanding } from '@/lib/billing/plan-standing'
+import { planStanding, SOON_DAYS, type PlanStanding } from '@/lib/billing/plan-standing'
 
 export type SwitchableUser = {
   id: string
   name: string | null
   phone: string
   workspaceName: string
-  plan: Plan
-  /** Whether that plan still grants access (trial running, subscription live). */
-  planActive: boolean
+  /** The plan, whether it still grants access, and the days left in its period. */
+  standing: PlanStanding
   /** ISO timestamp of the newest sign-in or conversation activity. */
   lastActivityAt: string
 }
@@ -77,16 +76,40 @@ export async function listSwitchableUsers(): Promise<SwitchableUser[]> {
     LIMIT ${SWITCHABLE_USER_LIMIT}
   `
   const now = new Date()
-  return rows.map((row) => {
-    const standing = planStanding(row, now)
-    return {
-      id: row.id,
-      name: row.name,
-      phone: row.phone,
-      workspaceName: row.workspaceName,
-      plan: standing.plan,
-      planActive: standing.active,
-      lastActivityAt: row.lastActivityAt.toISOString(),
-    }
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    phone: row.phone,
+    workspaceName: row.workspaceName,
+    standing: planStanding(row, now),
+    lastActivityAt: row.lastActivityAt.toISOString(),
+  }))
+}
+
+/**
+ * Customer plans (trials included) that run out within the next week: the
+ * count on the switcher button. Same scope as the switcher's own list.
+ */
+export async function countPlansEndingSoon(now: Date = new Date()): Promise<number> {
+  return prisma.workspace.count({
+    where: {
+      excludeFromAdminReports: false,
+      owner: { is: { platformRole: 'USER' } },
+      ...planEndingSoonWhere(now),
+    },
   })
+}
+
+/** Workspaces whose trial or live subscription period ends within the next week. */
+export function planEndingSoonWhere(now: Date = new Date()): Prisma.WorkspaceWhereInput {
+  const until = new Date(now.getTime() + SOON_DAYS * 86_400_000)
+  return {
+    OR: [
+      { plan: 'TRIAL', trialEndsAt: { gte: now, lte: until } },
+      {
+        plan: { not: 'TRIAL' },
+        subscriptions: { some: { status: 'ACTIVE', currentPeriodEnd: { gte: now, lte: until } } },
+      },
+    ],
+  }
 }

@@ -57,7 +57,7 @@ const PLAN_NAMES_FA: Record<string, string> = {
   TRIAL: 'آزمایشی',
   STARTER: 'استارتر',
   PRO: 'حرفه‌ای',
-  BUSINESS: 'بیزینس',
+  BUSINESS: 'سازمانی',
 }
 
 export default async function OverviewPage() {

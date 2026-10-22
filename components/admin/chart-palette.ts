@@ -44,6 +44,6 @@ export const CHART_COLORS = [
 export const PLAN_COLOR: Record<string, string> = {
   BUSINESS: CHART_INK,
   PRO: CHART_ACCENT,
-  STARTER: '#b9adff', // iris 300
+  STARTER: '#9b8afb', // iris 400: iris 300 faded out as a thin ring on white
   TRIAL: CHART_GREY,
 }

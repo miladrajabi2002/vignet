@@ -498,7 +498,7 @@ function planLabelFa(plan: string): string {
     case 'PRO':
       return 'حرفه‌ای'
     case 'BUSINESS':
-      return 'بیزینس'
+      return 'سازمانی'
     case 'TRIAL':
       return 'آزمایشی'
     default:

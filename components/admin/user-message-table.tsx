@@ -13,7 +13,7 @@ type SortKey = 'name' | 'plan' | 'conversations' | 'incoming' | 'agent' | 'autom
 export const UNANSWERED = '#dcd7cf'
 const PLAN_ORDER: Plan[] = ['BUSINESS', 'PRO', 'STARTER', 'TRIAL']
 export const PLAN_LABEL: Record<Plan, string> = {
-  BUSINESS: 'بیزینس',
+  BUSINESS: 'سازمانی',
   PRO: 'حرفه‌ای',
   STARTER: 'استارتر',
   TRIAL: 'آزمایشی',

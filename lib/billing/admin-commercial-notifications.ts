@@ -37,7 +37,7 @@ function planLabelFa(plan: string | null): string {
     case 'PRO':
       return 'حرفه‌ای'
     case 'BUSINESS':
-      return 'بیزینس'
+      return 'سازمانی'
     default:
       return plan ?? 'نامشخص'
   }

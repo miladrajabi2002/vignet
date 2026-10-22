@@ -13,7 +13,8 @@ import { VerticalChangeNotice } from '@/components/dashboard/vertical-change-not
 import { ScopedIntlProvider } from '@/components/i18n/scoped-intl-provider'
 import { DASHBOARD_CLIENT_MESSAGE_PATHS } from '@/lib/i18n/client-messages'
 import { UserSwitcher } from '@/components/dashboard/user-switcher'
-import { canSwitchUsers } from '@/lib/admin/user-switcher'
+import { canSwitchUsers, countPlansEndingSoon } from '@/lib/admin/user-switcher'
+import { daysUntil } from '@/lib/billing/plan-standing'
 import { GlobalUndoToast } from '@/components/ui/global-undo-toast'
 import { ScrollRestoration } from '@/components/dashboard/scroll-restoration'
 import { DashboardPageEffects } from '@/components/dashboard/dashboard-page-effects'
@@ -37,6 +38,7 @@ export default async function DashboardLayout({
         currentUserId: user.id,
         currentName: user.name ?? user.phone,
         impersonating: user.impersonatedByAdmin === true,
+        endingSoonCount: await countPlansEndingSoon(),
       }
     : undefined
 
@@ -129,9 +131,8 @@ export default async function DashboardLayout({
   const planEnd = plan === 'TRIAL'
     ? workspace?.trialEndsAt
     : workspace?.subscriptions[0]?.currentPeriodEnd
-  const daysLeft = planEnd
-    ? Math.max(0, Math.ceil((planEnd.getTime() - Date.now()) / 86_400_000))
-    : null
+  // Negative once the period has ended, so the header can say how long ago.
+  const daysLeft = planEnd ? daysUntil(planEnd) : null
   const accessExpired = plan === 'TRIAL'
     ? Boolean(workspace?.trialEndsAt && workspace.trialEndsAt < new Date())
     : Boolean(planEnd && planEnd < new Date())

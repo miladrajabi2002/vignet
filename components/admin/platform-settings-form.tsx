@@ -21,7 +21,7 @@ const PLAN_META = {
   TRIAL: { title: 'آزمایشی', hint: 'یک ماه تجربه محصول', locked: true },
   STARTER: { title: 'استارتر', hint: 'شروع کسب‌وکار کوچک', locked: false },
   PRO: { title: 'حرفه‌ای', hint: 'پیشنهاد اصلی ویجنت', locked: false },
-  BUSINESS: { title: 'بیزینس', hint: 'ظرفیت عملیات بزرگ', locked: false },
+  BUSINESS: { title: 'سازمانی', hint: 'ظرفیت عملیات بزرگ', locked: false },
 } as const
 
 const MODEL_META = Object.fromEntries(

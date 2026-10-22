@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Users, CreditCard, Clock, UserRound, UserRoundSearch } from 'lucide-react'
+import { Users, CreditCard, Clock, UserRoundSearch } from 'lucide-react'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { AdminUsersSearchForm } from '@/components/admin/admin-users-search-form'
@@ -27,8 +27,10 @@ import { ADMIN_VISIBLE_USER_WHERE, ADMIN_VISIBLE_WORKSPACE_WHERE } from '@/lib/a
 import { AdminFilterSheet } from '@/components/admin/admin-filter-sheet'
 import { AdminUserMobileCards, type AdminMobileUser } from '@/components/admin/admin-user-mobile-cards'
 import { searchVariants } from '@/lib/search/persian'
-import { PlanRing, PlanRingLegend } from '@/components/ui/plan-ring'
-import { planStanding } from '@/lib/billing/plan-standing'
+import { PLAN_ICON, PLAN_SHORT_NAME, PlanRing, PlanRingLegend, planDaysLabel, URGENCY_TEXT } from '@/components/ui/plan-ring'
+import { planStanding, planUrgency, type PlanStanding } from '@/lib/billing/plan-standing'
+import { cn } from '@/lib/utils'
+import { countPlansEndingSoon, planEndingSoonWhere } from '@/lib/admin/user-switcher'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,18 +42,37 @@ const PLAN_LABEL: Record<string, { label: string; tone: BadgeTone }> = {
   TRIAL: { label: 'آزمایشی', tone: 'muted' },
   STARTER: { label: 'استارتر', tone: 'info' },
   PRO: { label: 'حرفه‌ای', tone: 'success' },
-  BUSINESS: { label: 'بیزینس', tone: 'default' },
+  BUSINESS: { label: 'سازمانی', tone: 'default' },
 }
 
 const PLAN_OPTIONS = [
   { value: 'TRIAL', label: 'آزمایشی' },
   { value: 'STARTER', label: 'استارتر' },
   { value: 'PRO', label: 'حرفه‌ای' },
-  { value: 'BUSINESS', label: 'بیزینس' },
+  { value: 'BUSINESS', label: 'سازمانی' },
 ] as const
 
 const VALID_PLANS = ['TRIAL', 'STARTER', 'PRO', 'BUSINESS'] as const
-type PlanFilter = (typeof VALID_PLANS)[number]
+/** A plan, or `ending`: any plan whose period ends within the week. */
+const ENDING_FILTER = 'ending'
+type PlanFilter = (typeof VALID_PLANS)[number] | typeof ENDING_FILTER
+
+/** The plan column: the plan's icon and name, and the days left under it. */
+function PlanCell({ standing }: { standing: PlanStanding }) {
+  const Icon = PLAN_ICON[standing.plan]
+  const urgency = planUrgency(standing)
+  return (
+    <span className="grid gap-0.5 whitespace-nowrap">
+      <span className={cn('inline-flex items-center gap-1.5 font-bold', urgency === 'expired' ? 'text-red-700' : 'text-[var(--text-primary)]')}>
+        <Icon aria-hidden="true" className="h-3.5 w-3.5 stroke-[2]" />
+        {PLAN_SHORT_NAME[standing.plan].fa}
+      </span>
+      <span className={cn('text-[12px] tabular-nums', URGENCY_TEXT[urgency])}>
+        {planDaysLabel(standing)}
+      </span>
+    </span>
+  )
+}
 
 function startOfToday(): Date {
   const d = new Date()
@@ -72,7 +93,7 @@ export default async function AdminUsersPage(
   // matches that plan. This merges the old "workspaces" filter into this page.
   const planParam = searchParams.plan
   const planFilter: PlanFilter | null =
-    planParam && (VALID_PLANS as readonly string[]).includes(planParam)
+    planParam && ([...VALID_PLANS, ENDING_FILTER] as readonly string[]).includes(planParam)
       ? (planParam as PlanFilter)
       : null
 
@@ -84,12 +105,14 @@ export default async function AdminUsersPage(
       { workspace: { name: { contains: term, mode: 'insensitive' } } },
     ])
   }
-  if (planFilter) {
+  if (planFilter === ENDING_FILTER) {
+    where.workspace = planEndingSoonWhere()
+  } else if (planFilter) {
     where.workspace = { plan: planFilter }
   }
 
   const stalledSince = new Date(Date.now() - 48 * 60 * 60 * 1000)
-  const [totalCount, todayCount, contactCount, paidWorkspaces, stalledWorkspaces, rows, messageUsers] =
+  const [totalCount, todayCount, contactCount, paidWorkspaces, stalledWorkspaces, rows, messageUsers, endingSoonCount] =
     await Promise.all([
       prisma.user.count({ where: ADMIN_VISIBLE_USER_WHERE }),
       prisma.user.count({ where: { ...ADMIN_VISIBLE_USER_WHERE, createdAt: { gte: startOfToday() } } }),
@@ -145,6 +168,7 @@ export default async function AdminUsersPage(
           workspace: { select: { name: true, plan: true } },
         },
       }),
+      countPlansEndingSoon(),
     ])
 
   const hasNext = rows.length > PAGE_SIZE
@@ -198,6 +222,11 @@ export default async function AdminUsersPage(
       href: planHref(p.value),
       active: planFilter === p.value,
     })),
+    {
+      label: endingSoonCount > 0 ? `رو به پایان · ${fa(endingSoonCount)}` : 'رو به پایان',
+      href: planHref(ENDING_FILTER),
+      active: planFilter === ENDING_FILTER,
+    },
   ]
 
   const now = new Date()
@@ -335,7 +364,7 @@ export default async function AdminUsersPage(
         </EmptyState>
       ) : (
         <div className="space-y-2.5">
-        <PlanRingLegend className="px-1" />
+        <PlanRingLegend showDays className="px-1" />
         <AdminUserMobileCards users={mobileUsers} />
         <div className="hidden md:block">
         <TableShell>
@@ -354,7 +383,7 @@ export default async function AdminUsersPage(
           <tbody>
             {items.map((u) => {
               const ws = u.workspace
-              const plan = ws ? (PLAN_LABEL[ws.plan] ?? { label: ws.plan, tone: 'muted' as BadgeTone }) : null
+              const standing = ws ? standingOf(ws) : null
               const spark = ws ? sparks.get(ws.id) : undefined
               const onboarding = ws
                 ? getOnboardingProgress({
@@ -375,13 +404,7 @@ export default async function AdminUsersPage(
                 <tr key={u.id}>
                   <Td>
                     <Link href={`/admin/users/${u.id}`} className="group flex items-center gap-2.5 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-                      <PlanRing
-                        standing={ws ? standingOf(ws) : null}
-                        className="h-10 w-10"
-                        innerClassName="bg-[var(--bg-muted)] text-[var(--text-secondary)]"
-                      >
-                        <UserRound className="h-4 w-4 stroke-[1.8]" />
-                      </PlanRing>
+                      <PlanRing standing={standing} showDays className="h-10 w-10" />
                       <div className="min-w-0">
                         <div className="truncate font-medium text-[var(--text-primary)] transition-colors group-hover:text-[var(--signal-strong)]">
                           {u.name ?? 'بدون نام'}
@@ -408,11 +431,7 @@ export default async function AdminUsersPage(
                     )}
                   </Td>
                   <Td>
-                    {plan ? (
-                      <Badge tone={plan.tone}>{plan.label}</Badge>
-                    ) : (
-                      <span className="text-[var(--text-muted)]">—</span>
-                    )}
+                    {standing ? <PlanCell standing={standing} /> : <span className="text-[var(--text-muted)]">—</span>}
                   </Td>
                   <Td className="text-[var(--text-secondary)] tabular-nums" title={ws ? 'کانال‌های فعال + لینک‌های چت منتشرشده' : undefined}>
                     {fa(ws ? connectionsByWorkspace.get(ws.id) ?? 0 : 0)}

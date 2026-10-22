@@ -14,7 +14,7 @@ export interface PlanLimitInfo {
 }
 
 const PLAN_LABELS = {
-  fa: { TRIAL: 'آزمایشی', STARTER: 'استارتر', PRO: 'حرفه‌ای', BUSINESS: 'بیزینس' },
+  fa: { TRIAL: 'آزمایشی', STARTER: 'استارتر', PRO: 'حرفه‌ای', BUSINESS: 'سازمانی' },
   en: { TRIAL: 'Trial', STARTER: 'Starter', PRO: 'Pro', BUSINESS: 'Business' },
 } satisfies Record<'fa' | 'en', Record<Plan, string>>
 

@@ -205,7 +205,9 @@ describe('shared adaptive mobile UI contract', () => {
     expect(actionGroup.indexOf('<HeaderPlan')).toBeLessThan(
       actionGroup.indexOf('<NotificationBell'),
     )
-    expect(dashboardHeader).toContain('(daysLeft / PERIOD_DAYS) * 100')
+    // The ring itself lives in the shared PlanRing, drawn from the days left in the period.
+    expect(dashboardHeader).toContain('<PlanRing standing={standing}')
+    expect(source('components/ui/plan-ring.tsx')).toContain('(standing.daysLeft ?? 0) / PERIOD_DAYS) * 100')
     expect(dashboardHeader).toContain('daysLeft !== null && daysLeft > 0')
     expect(dashboardHeader).toContain('bg-emerald-500')
     // The Vigento shortcut lives in the sidebar and the mobile bottom nav, not the header.

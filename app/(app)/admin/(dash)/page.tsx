@@ -84,7 +84,7 @@ const PLAN_LABEL: Record<string, string> = {
   TRIAL: 'آزمایشی',
   STARTER: 'استارتر',
   PRO: 'حرفه‌ای',
-  BUSINESS: 'بیزینس',
+  BUSINESS: 'سازمانی',
 }
 
 export default async function AdminOverviewPage(

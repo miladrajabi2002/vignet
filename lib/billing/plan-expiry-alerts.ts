@@ -18,7 +18,7 @@ const PLAN_FA: Record<string, string> = {
   TRIAL: 'آزمایشی',
   STARTER: 'استارتر',
   PRO: 'حرفه‌ای',
-  BUSINESS: 'بیزینس',
+  BUSINESS: 'سازمانی',
 }
 
 /** The tightest stage the remaining time falls in, or null when too early. */

@@ -37,7 +37,7 @@ const PLAN_BADGE: Record<
   TRIAL: { tone: 'muted', label: 'آزمایشی' },
   STARTER: { tone: 'info', label: 'استارتر' },
   PRO: { tone: 'success', label: 'حرفه‌ای' },
-  BUSINESS: { tone: 'default', label: 'بیزینس' },
+  BUSINESS: { tone: 'default', label: 'سازمانی' },
 }
 
 const GATEWAY_BADGE: Record<string, { tone: 'info' | 'default'; label: string }> = {

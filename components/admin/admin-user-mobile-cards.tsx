@@ -10,13 +10,13 @@ import {
   MessageSquareText,
   Package,
   Phone,
-  UserRound,
 } from 'lucide-react'
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
 import { CopyButton } from '@/components/ui/copy-button'
 import { LEGACY_TONE, StatusChip } from '@/components/ui/status-chip'
-import { PlanRing } from '@/components/ui/plan-ring'
-import type { PlanStanding } from '@/lib/billing/plan-standing'
+import { PlanRing, planDaysLabel, URGENCY_TEXT } from '@/components/ui/plan-ring'
+import { planUrgency, type PlanStanding } from '@/lib/billing/plan-standing'
+import { cn } from '@/lib/utils'
 
 type Tone = 'default' | 'info' | 'muted' | 'success' | 'warning' | 'danger'
 
@@ -71,16 +71,15 @@ export function AdminUserMobileCards({ users }: { users: AdminMobileUser[] }) {
             className="admin-record spatial-press w-full text-start outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
           >
             <span className="flex items-start gap-3">
-              <PlanRing
-                standing={user.workspace?.standing ?? null}
-                className="h-11 w-11"
-                innerClassName="bg-[var(--bg-muted)] text-[var(--text-secondary)]"
-              >
-                <UserRound className="h-[1.1rem] w-[1.1rem]" />
-              </PlanRing>
+              <PlanRing standing={user.workspace?.standing ?? null} showDays className="h-11 w-11" />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-bold text-[var(--text-primary)]">{user.name}</span>
                 <span dir="ltr" className="mt-1 block truncate text-start text-xs text-[var(--text-muted)]">{user.phone}</span>
+                {user.workspace && (
+                  <span className={cn('mt-1 block truncate text-xs tabular-nums', URGENCY_TEXT[planUrgency(user.workspace.standing)])}>
+                    {planDaysLabel(user.workspace.standing)}
+                  </span>
+                )}
               </span>
               {user.workspace && <StatusBadge label={user.workspace.planLabel} tone={user.workspace.planTone} />}
             </span>

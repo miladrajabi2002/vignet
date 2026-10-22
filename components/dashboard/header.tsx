@@ -2,85 +2,32 @@ import { getLocale, getTranslations } from 'next-intl/server'
 import Link from 'next/link'
 import type { Plan } from '@prisma/client'
 import type { NavStatusMap } from '@/lib/dashboard/nav-status'
-import { Building2, ChevronRight, Gem, Hourglass, LogOut, Rocket, type LucideIcon } from 'lucide-react'
+import { ChevronRight, LogOut } from 'lucide-react'
 import { NotificationBell } from '@/components/dashboard/notification-bell'
 import { MobileNav } from '@/components/dashboard/mobile-nav'
 import { logout } from '@/app/actions/auth'
 import { getVerticalPack, type BusinessTypeValue, type CapabilityKey } from '@/lib/verticals/registry'
 import { AdminPanelButton, UserSwitcher } from '@/components/dashboard/user-switcher'
 import { cn } from '@/lib/utils'
-import { PERIOD_DAYS } from '@/lib/billing/plans'
+import { planUrgency, type PlanStanding, type PlanUrgency } from '@/lib/billing/plan-standing'
+import { PlanRing, planDaysLabel, URGENCY_TEXT } from '@/components/ui/plan-ring'
 import { ImprovementActivityIndicator } from '@/components/dashboard/improvement-activity-indicator'
 import { AnimatedNumber } from '@/components/dashboard/animated-number'
 import { SupportButton } from '@/components/dashboard/support-button'
 
-const PLAN_PRESENTATION = {
-  TRIAL: { fa: 'دوره آزمایشی', en: 'Trial', icon: Hourglass },
-  STARTER: { fa: 'پلن استارتر', en: 'Starter plan', icon: Rocket },
-  PRO: { fa: 'پلن حرفه‌ای', en: 'Professional plan', icon: Gem },
-  BUSINESS: { fa: 'پلن بیزینس', en: 'Business plan', icon: Building2 },
-} as const satisfies Record<Plan, {
-  fa: string
-  en: string
-  icon: LucideIcon
-}>
+const PLAN_TITLE = {
+  TRIAL: { fa: 'دوره آزمایشی', en: 'Trial' },
+  STARTER: { fa: 'پلن استارتر', en: 'Starter plan' },
+  PRO: { fa: 'پلن حرفه‌ای', en: 'Professional plan' },
+  BUSINESS: { fa: 'پلن سازمانی', en: 'Business plan' },
+} as const satisfies Record<Plan, { fa: string; en: string }>
 
-type PlanState = {
-  PlanIcon: LucideIcon
-  periodProgress: number | null
-  expired: boolean
-  isTrial: boolean
-}
-
-/** Plan icon inside its billing-period progress ring. */
-function PlanBadge({
-  compact = false,
-  PlanIcon,
-  periodProgress,
-  expired,
-  isTrial,
-}: PlanState & { compact?: boolean }) {
-  return (
-    <span className={cn(
-      'relative grid shrink-0 place-items-center',
-      compact ? 'h-9 w-9' : 'h-10 w-10 xl:h-12 xl:w-12',
-    )}>
-      <svg aria-hidden="true" viewBox="0 0 44 44" className="absolute inset-0 h-full w-full -rotate-90">
-        <circle cx="22" cy="22" r="19" fill="none" strokeWidth="2" className="stroke-black/[0.09]" />
-        {periodProgress !== null && (
-          <circle
-            cx="22"
-            cy="22"
-            r="19"
-            pathLength={100}
-            fill="none"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            style={{ strokeDasharray: `${periodProgress} 100` }}
-            className={cn(
-              'transition-[stroke-dasharray] duration-300 motion-reduce:transition-none',
-              expired
-                ? 'stroke-red-500'
-                : isTrial || periodProgress <= 20
-                  ? 'stroke-amber-500'
-                  : 'stroke-black',
-            )}
-          />
-        )}
-      </svg>
-      <span className={cn(
-        'grid place-items-center rounded-full border shadow-[var(--shadow-xs)]',
-        compact ? 'h-7 w-7' : 'h-8 w-8 xl:h-9 xl:w-9',
-        expired
-          ? 'border-red-200 bg-red-50 text-red-700'
-          : isTrial
-            ? 'border-amber-200/80 bg-amber-50 text-amber-700'
-            : 'border-black/[0.06] bg-[var(--bg-surface)] text-black',
-      )}>
-        <PlanIcon aria-hidden="true" className={cn('stroke-[1.9]', compact ? 'h-3.5 w-3.5' : 'h-4 w-4 xl:h-[1.05rem] xl:w-[1.05rem]')} />
-      </span>
-    </span>
-  )
+/** The status dot beside the plan name. */
+const STATUS_TONE: Record<PlanUrgency, { dot: string; text: string }> = {
+  ok: { dot: 'bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.09)]', text: 'text-emerald-700' },
+  soon: { dot: 'bg-amber-500', text: 'text-amber-700' },
+  critical: { dot: 'bg-red-500', text: 'text-red-600' },
+  expired: { dot: 'bg-red-500', text: 'text-red-600' },
 }
 
 /** "<credit> toman - <n> days" line under the plan or account name. */
@@ -88,17 +35,23 @@ function PlanCredit({
   compact = false,
   fa,
   creditToman,
-  active,
-  daysLeft,
+  standing,
   nf,
 }: {
   compact?: boolean
   fa: boolean
   creditToman: number
-  active: boolean
-  daysLeft: number | null
+  standing: PlanStanding
   nf: Intl.NumberFormat
 }) {
+  const urgency = planUrgency(standing)
+  const { daysLeft } = standing
+  // A running period reads as "<n> days"; one that has ended says how long ago.
+  const days = daysLeft === null
+    ? null
+    : standing.active
+      ? (fa ? `${nf.format(daysLeft)} روز` : `${nf.format(daysLeft)} days`)
+      : daysLeft < 0 ? planDaysLabel(standing, fa) : null
   return (
     <span className={cn(
       'block min-w-0 truncate whitespace-nowrap text-[12px] leading-4 text-[var(--text-muted)]',
@@ -106,10 +59,10 @@ function PlanCredit({
     )}>
       <span className="font-bold tabular-nums text-[var(--text-secondary)]"><AnimatedNumber value={creditToman} locale={fa ? 'fa-IR' : 'en-US'} /></span>
       <span className="ms-1">{fa ? 'تومان' : 'toman'}</span>
-      {active && daysLeft !== null && (
+      {days && (
         <>
           <span aria-hidden="true" className="mx-1 text-[var(--text-muted)]">-</span>
-          <span className="tabular-nums">{fa ? `${nf.format(daysLeft)} روز` : `${nf.format(daysLeft)} days`}</span>
+          <span className={cn('tabular-nums', urgency !== 'ok' && cn('font-bold', URGENCY_TEXT[urgency]))}>{days}</span>
         </>
       )}
     </span>
@@ -119,32 +72,27 @@ function PlanCredit({
 function HeaderPlan({
   compact = false,
   fa,
-  PlanIcon,
+  standing,
   planTitle,
   billingLabel,
   creditToman,
-  periodProgress,
-  daysLeft,
-  active,
-  expired,
-  isTrial,
   statusLabel,
   nf,
 }: {
   compact?: boolean
   fa: boolean
-  PlanIcon: LucideIcon
+  standing: PlanStanding
   planTitle: string
   billingLabel: string
   creditToman: number
-  periodProgress: number | null
-  daysLeft: number | null
-  active: boolean
-  expired: boolean
-  isTrial: boolean
   statusLabel: string
   nf: Intl.NumberFormat
 }) {
+  const urgency = planUrgency(standing)
+  // No end date at all (a paid plan without a live subscription) reads as inactive, not ended.
+  const tone = standing.daysLeft === null
+    ? { dot: 'bg-zinc-400', text: 'text-[var(--text-muted)]' }
+    : STATUS_TONE[urgency]
   return (
     <Link
       href="/billing"
@@ -157,7 +105,7 @@ function HeaderPlan({
           : 'h-14 w-[14rem] gap-2.5 rounded-card px-3 lg:w-[14.5rem] xl:h-[4.25rem] xl:w-[16rem] xl:rounded-card xl:px-3.5',
       )}
     >
-      <PlanBadge compact={compact} PlanIcon={PlanIcon} periodProgress={periodProgress} expired={expired} isTrial={isTrial} />
+      <PlanRing standing={standing} fa={fa} className={compact ? 'h-9 w-9' : 'h-10 w-10 xl:h-12 xl:w-12'} />
 
       <span className="min-w-0 flex-1">
         <span className={cn(
@@ -165,33 +113,32 @@ function HeaderPlan({
           compact ? 'text-[12px] leading-4' : 'text-[13px] leading-4 xl:text-[15px] xl:leading-5',
         )}>
           <span className="truncate">{planTitle}</span>
-          <span className="ms-1.5 inline-flex shrink-0 items-center gap-1" aria-label={statusLabel}>
-            <span
-              aria-hidden="true"
-              className={cn(
-                'h-1.5 w-1.5 rounded-full',
-                active
-                  ? 'bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.09)]'
-                  : expired
-                    ? 'bg-red-500'
-                    : 'bg-zinc-400',
-              )}
-            />
-            <span className={cn(
-              'text-[12px] font-medium',
-              active ? 'text-emerald-700' : expired ? 'text-red-600' : 'text-[var(--text-muted)]',
-            )}>
-              {statusLabel}
+          {!compact && (
+            <span className="ms-1.5 inline-flex shrink-0 items-center gap-1" aria-label={statusLabel}>
+              <span aria-hidden="true" className={cn('h-1.5 w-1.5 rounded-full', tone.dot)} />
+              <span className={cn('text-[12px] font-medium', tone.text)}>{statusLabel}</span>
             </span>
-          </span>
+          )}
         </span>
 
-        <PlanCredit compact={compact} fa={fa} creditToman={creditToman} active={active} daysLeft={daysLeft} nf={nf} />
+        <PlanCredit compact={compact} fa={fa} creditToman={creditToman} standing={standing} nf={nf} />
       </span>
 
-      {!compact && (
-        <span className="flex shrink-0 items-center text-[var(--text-secondary)]">
-          <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transform-none motion-reduce:transition-none rtl:rotate-180 rtl:group-hover:-translate-x-0.5 xl:h-[1.1rem] xl:w-[1.1rem]" />
+      {urgency === 'ok' ? (
+        !compact && (
+          <span className="flex shrink-0 items-center text-[var(--text-secondary)]">
+            <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transform-none motion-reduce:transition-none rtl:rotate-180 rtl:group-hover:-translate-x-0.5 xl:h-[1.1rem] xl:w-[1.1rem]" />
+          </span>
+        )
+      ) : (
+        // The last week of a period, or after it: the card becomes the way to renew.
+        <span className={cn(
+          'shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-[11.5px] font-extrabold leading-4 text-white',
+          urgency === 'soon' ? 'bg-amber-600' : 'bg-red-600',
+        )}>
+          {standing.plan === 'TRIAL'
+            ? (fa ? 'خرید اشتراک' : 'Subscribe')
+            : (fa ? 'تمدید' : 'Renew')}
         </span>
       )}
     </Link>
@@ -216,13 +163,14 @@ export async function Header({
   capabilities?: readonly CapabilityKey[]
   plan: Plan
   creditIRR: number
+  /** Days left in the period; negative once it has ended. */
   daysLeft: number | null
   handedOffCount?: number
   instagramConnected?: boolean
   storeConnected?: boolean
   navStatus?: NavStatusMap
   /** Platform owner only: replaces the plan card with the account switcher. */
-  userSwitcher?: { currentUserId: string; currentName: string; impersonating: boolean }
+  userSwitcher?: { currentUserId: string; currentName: string; impersonating: boolean; endingSoonCount?: number }
 }) {
   const [t, locale] = await Promise.all([
     getTranslations('dashboard'),
@@ -230,25 +178,20 @@ export async function Header({
   ])
 
   const fa = locale === 'fa'
-  const isTrial = plan === 'TRIAL'
-  const planPresentation = PLAN_PRESENTATION[plan]
-  const PlanIcon = planPresentation.icon
-  const planTitle = fa ? planPresentation.fa : planPresentation.en
-  const periodProgress = daysLeft === null
-    ? null
-    : Math.max(0, Math.min(100, Math.round((daysLeft / PERIOD_DAYS) * 100)))
+  const planTitle = PLAN_TITLE[plan][fa ? 'fa' : 'en']
   const nf = new Intl.NumberFormat(fa ? 'fa-IR' : 'en-US')
   const creditToman = Math.max(0, Math.round(creditIRR / 10))
   const active = daysLeft !== null && daysLeft > 0
-  const expired = daysLeft !== null && daysLeft <= 0
+  const standing: PlanStanding = { plan, active, daysLeft }
+  const urgency = planUrgency(standing)
   const statusLabel = active
-    ? (fa ? 'فعال' : 'Active')
-    : expired
+    ? urgency === 'ok' ? (fa ? 'فعال' : 'Active') : (fa ? 'رو به پایان' : 'Ending soon')
+    : daysLeft !== null
       ? (fa ? 'پایان‌یافته' : 'Expired')
       : (fa ? 'غیرفعال' : 'Inactive')
   const billingLabel = fa
-    ? `مشاهده جزئیات پلن و اعتبار؛ ${planTitle}، ${statusLabel}، ${nf.format(creditToman)} تومان اعتبار پاسخ${daysLeft !== null ? `، ${nf.format(daysLeft)} روز باقی‌مانده` : ''}`
-    : `View plan and credit details; ${planTitle}, ${statusLabel}, ${nf.format(creditToman)} toman reply credit${daysLeft !== null ? `, ${nf.format(daysLeft)} days remaining` : ''}`
+    ? `مشاهده جزئیات پلن و اعتبار؛ ${planTitle}، ${statusLabel}، ${nf.format(creditToman)} تومان اعتبار پاسخ${daysLeft !== null ? `، ${planDaysLabel(standing, fa)}` : ''}`
+    : `View plan and credit details; ${planTitle}, ${statusLabel}, ${nf.format(creditToman)} toman reply credit${daysLeft !== null ? `, ${planDaysLabel(standing, fa)}` : ''}`
   const businessLabel = fa
     ? getVerticalPack(businessType).titleFa
     : getVerticalPack(businessType).titleEn
@@ -264,22 +207,17 @@ export async function Header({
                 key={userSwitcher.currentUserId}
                 compact fa={fa}
                 {...userSwitcher}
-                badge={<PlanBadge compact PlanIcon={PlanIcon} periodProgress={periodProgress} expired={expired} isTrial={isTrial} />}
-                detail={<PlanCredit compact fa={fa} creditToman={creditToman} active={active} daysLeft={daysLeft} nf={nf} />}
+                badge={<PlanRing standing={standing} fa={fa} showDays className="h-9 w-9" />}
+                detail={<PlanCredit compact fa={fa} creditToman={creditToman} standing={standing} nf={nf} />}
               />
             ) : (
               <HeaderPlan
                 compact
                 fa={fa}
-                PlanIcon={PlanIcon}
+                standing={standing}
                 planTitle={planTitle}
                 billingLabel={billingLabel}
                 creditToman={creditToman}
-                periodProgress={periodProgress}
-                daysLeft={daysLeft}
-                active={active}
-                expired={expired}
-                isTrial={isTrial}
                 statusLabel={statusLabel}
                 nf={nf}
               />
@@ -307,21 +245,16 @@ export async function Header({
                 key={userSwitcher.currentUserId}
                 fa={fa}
                 {...userSwitcher}
-                badge={<PlanBadge PlanIcon={PlanIcon} periodProgress={periodProgress} expired={expired} isTrial={isTrial} />}
-                detail={<PlanCredit fa={fa} creditToman={creditToman} active={active} daysLeft={daysLeft} nf={nf} />}
+                badge={<PlanRing standing={standing} fa={fa} showDays className="h-10 w-10 xl:h-12 xl:w-12" />}
+                detail={<PlanCredit fa={fa} creditToman={creditToman} standing={standing} nf={nf} />}
               />
             ) : (
               <HeaderPlan
                 fa={fa}
-                PlanIcon={PlanIcon}
+                standing={standing}
                 planTitle={planTitle}
                 billingLabel={billingLabel}
                 creditToman={creditToman}
-                periodProgress={periodProgress}
-                daysLeft={daysLeft}
-                active={active}
-                expired={expired}
-                isTrial={isTrial}
                 statusLabel={statusLabel}
                 nf={nf}
               />

@@ -69,7 +69,7 @@ const PLAN_LABEL: Record<string, { label: string; tone: BadgeTone }> = {
   TRIAL: { label: 'آزمایشی', tone: 'muted' },
   STARTER: { label: 'استارتر', tone: 'info' },
   PRO: { label: 'حرفه‌ای', tone: 'success' },
-  BUSINESS: { label: 'بیزینس', tone: 'default' },
+  BUSINESS: { label: 'سازمانی', tone: 'default' },
 }
 
 const CONV_STATUS_LABEL: Record<string, string> = {
