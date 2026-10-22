@@ -97,3 +97,20 @@ export function audienceBlockMessage(plan: PaidPlan, audience: InstagramAudience
     ? `${page} ${formatFollowers(audience.followers, 'fa')} فالوور دارد؛ این پلن برای پیج‌های تا ${formatFollowers(cap, 'fa')} فالوور است.`
     : `${page} has ${formatFollowers(audience.followers, 'en')} followers; this plan serves pages up to ${formatFollowers(cap, 'en')}.`
 }
+
+/**
+ * Connecting a page: a workspace that already holds a live Starter/Pro plan
+ * cannot add a page bigger than that plan serves (otherwise «buy small, then
+ * connect big» walks around the checkout gate). Trials and lapsed plans
+ * connect freely — they still have to pass checkout. Null when allowed.
+ */
+export async function connectAudienceBlock(workspaceId: string, followers: number | undefined): Promise<{ plan: PaidPlan; cap: number } | null> {
+  if (typeof followers !== 'number') return null
+  const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId }, select: { plan: true } })
+  if (!workspace || workspace.plan === 'TRIAL') return null
+  const plan = workspace.plan as PaidPlan
+  const sub = await prisma.subscription.findUnique({ where: { workspaceId }, select: { status: true, currentPeriodEnd: true } })
+  if (!sub || sub.status !== 'ACTIVE' || sub.currentPeriodEnd < new Date()) return null
+  const cap = PLAN_MAX_IG_FOLLOWERS[plan]
+  return cap != null && followers > cap ? { plan, cap } : null
+}

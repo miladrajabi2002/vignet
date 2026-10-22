@@ -18,6 +18,7 @@ import {
 import { getCurrentUser } from '@/lib/session'
 import { consumeOAuthState } from '@/lib/security/oauth-state'
 import { checkChannelConnectAllowed } from '@/lib/billing/entitlements'
+import { connectAudienceBlock } from '@/lib/billing/instagram-audience'
 import { enableWorkspaceCapability } from '@/lib/verticals/workspace-capabilities'
 
 export const dynamic = 'force-dynamic'
@@ -158,6 +159,15 @@ export async function GET(req: Request) {
 
     // 3) fetch the IG profile (username, avatar, followers)
     const profile = await getInstagramProfile(longTok.token)
+
+    // A live Starter/Pro plan cannot take a page bigger than it serves —
+    // refused before anything is saved, so the plan has to grow first.
+    if (await connectAudienceBlock(state.workspaceId, profile.followersCount)) {
+      return NextResponse.redirect(
+        new URL(`${returnPath(state.agentId)}?ig_error=audience_limit`, base),
+        { status: 303 },
+      )
+    }
 
     // 4) persist the channel — single IG account, no page picker
     const previousChannel = await prisma.agentChannel.findUnique({

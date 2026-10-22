@@ -312,7 +312,14 @@ export default async function AgentChannelsPage(
               {igError === 'exchange' && t('igErrorExchange')}
               {igError === 'state' && t('igErrorState')}
               {igError === 'channel_limit' && t('igErrorChannelLimit')}
+              {igError === 'audience_limit' && t('igErrorAudienceLimit')}
             </p>
+            {igError === 'audience_limit' && (
+              <a href="/billing#vigent-plans" className="mt-2 me-4 inline-flex items-center gap-1 text-xs font-bold text-danger hover:underline">
+                {t('igUpgradePlan')}
+                <ArrowRight className="h-3 w-3 rtl:rotate-180" />
+              </a>
+            )}
             <a
               href="/docs/instagram-connection"
               target="_blank"

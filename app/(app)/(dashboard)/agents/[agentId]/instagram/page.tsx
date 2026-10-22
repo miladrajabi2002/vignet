@@ -125,7 +125,14 @@ async function InstagramAutomationContent({
                                         {igError === 'denied' && tc('igErrorDenied')}
                                         {igError === 'exchange' && tc('igErrorExchange')}
                                         {igError === 'state' && tc('igErrorState')}
+                                        {igError === 'channel_limit' && tc('igErrorChannelLimit')}
+                                        {igError === 'audience_limit' && tc('igErrorAudienceLimit')}
                                 </p>
+                                {igError === 'audience_limit' && (
+                                        <a href="/billing#vigent-plans" className="mt-2 inline-flex text-xs font-bold text-danger hover:underline">
+                                                {tc('igUpgradePlan')}
+                                        </a>
+                                )}
                         </div>
                 </div>
         ) : igConnected ? (

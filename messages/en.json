@@ -762,6 +762,8 @@
     "igErrorExchange": "(the code could not be verified)",
     "igErrorState": "(the session was not valid)",
     "igErrorChannelLimit": "(your plan has no app connections left)",
+    "igErrorAudienceLimit": "(this page has more followers than your plan serves — Starter up to 20K, Pro up to 50K. Upgrade the plan to connect it.)",
+    "igUpgradePlan": "Upgrade plan",
     "igGuide": "Instagram connection guide",
     "igConnectTitle": "Connect Instagram",
     "igConnectHint": "With an active subscription, Instagram automations run without using reply credit."
