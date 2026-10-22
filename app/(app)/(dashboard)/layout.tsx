@@ -23,6 +23,7 @@ import { loadGatewayNavState } from '@/lib/payments/card/dashboard'
 import type { NavStatusMap } from '@/lib/dashboard/nav-status'
 
 export const metadata: Metadata = {
+  title: { template: '%s · پنل ویجنت', default: 'پنل ویجنت' },
   robots: { index: false, follow: false, noarchive: true, nosnippet: true },
 }
 

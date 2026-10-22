@@ -15,6 +15,8 @@ import { Prisma, PrismaClient } from '@prisma/client'
  *      invisible everywhere (lists, dashboards, AI runtime, widget, admin),
  *      inside and outside transactions. A query that filters on `deletedAt`
  *      itself (restore endpoints, purge) is respected and never overwritten.
+ *      Conversation reads also get `isPlayground: false` the same way, so the
+ *      dashboard's test chats never reach the inbox, stats or alerts.
  *
  *   2. delete / deleteMany become UPDATE … SET "deletedAt" = now(). Callers
  *      keep receiving the same result shape, and database cascades (messages,
@@ -111,6 +113,12 @@ const softDeleteExtension = Prisma.defineExtension((client) =>
                 ...(where ?? {}),
                 deletedAt: null,
               }
+            }
+            // «Test the agent» chats stay out of every list and count unless the
+            // caller asks for them (`isPlayground: true`, or `undefined` for both).
+            if (model === 'Conversation') {
+              const scoped = (args as { where: Record<string, unknown> }).where
+              if (!('isPlayground' in scoped)) scoped.isPlayground = false
             }
             return query(args)
           }

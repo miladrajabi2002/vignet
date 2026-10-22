@@ -28,6 +28,9 @@ import { searchVariants } from '@/lib/search/persian'
 import { LiveEmptyState } from '@/components/ui/live-empty-state'
 import { PRODUCTS_VIEW_COOKIE } from '@/lib/products/view-preference'
 import { STOCK_FILTER_KEYS, stockFilterWhere, type StockFilter } from '@/lib/products/stock-filter'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('محصولات', 'Products')
 
 const PAGE_SIZE = 20
 

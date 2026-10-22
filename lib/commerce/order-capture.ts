@@ -36,6 +36,8 @@ export interface OrderDraftItem {
   url: string | null
   /** Stock ceiling when the catalog tracks an exact quantity. */
   maxQuantity: number | null
+  /** False for digital goods, services and pickup: nothing to post, so no address. Missing = shipped. */
+  shipped?: boolean
 }
 
 export interface OrderDraftState {
@@ -260,6 +262,11 @@ export function newDraftCode(random: () => number = Math.random): string {
   return code
 }
 
+/** Only a cart with something to post needs an address (an empty cart may still get one). */
+export function needsShippingAddress(draft: Pick<OrderDraftState, 'items'>): boolean {
+  return !draft.items.length || draft.items.some((item) => item.shipped !== false)
+}
+
 export function hasFullAddress(draft: Pick<OrderDraftState, 'city' | 'address'>): boolean {
   return Boolean(draft.address && (draft.city || findIranianCity(draft.address)))
 }
@@ -271,7 +278,7 @@ export function missingOrderSlots(draft: OrderDraftState, needsVariant: boolean)
   else if (needsVariant) missing.push('variant')
   if (!draft.customerName) missing.push('name')
   if (!draft.customerPhone) missing.push('phone')
-  if (!hasFullAddress(draft)) missing.push('address')
+  if (needsShippingAddress(draft) && !hasFullAddress(draft)) missing.push('address')
   return missing
 }
 
@@ -405,7 +412,7 @@ export function composeOrderAsk(params: {
     if (lang === 'en') {
       return `Great, I’ll set up ${joinEn(names)} for you right here.\nPlease send:\n${labels.map((label) => `• ${label}`).join('\n')}`
     }
-    return `عالیه 🌿 ${joinFa(names)} رو همین‌جا براتون ثبت می‌کنم.\nبرای ارسال این‌ها رو بفرستید:\n${labels.map((label) => `• ${label}`).join('\n')}`
+    return `عالیه 🌿 ${joinFa(names)} رو همین‌جا براتون ثبت می‌کنم.\n${needsShippingAddress(draft) ? 'برای ارسال' : 'برای ثبت سفارش'} این‌ها رو بفرستید:\n${labels.map((label) => `• ${label}`).join('\n')}`
   }
   if (params.unparsed) {
     return lang === 'en'
@@ -456,7 +463,7 @@ export function composeOrderSummary(
     if (quote?.couponErrors.length) lines.push(`⚠️ Coupon not applied: ${couponErrorText(quote.couponErrors[0], 'en')}`)
     if (quote?.total != null) lines.push(`💳 To pay: ${quote.total.toLocaleString('en-US')} Toman`)
     lines.push(`👤 ${draft.customerName} · ${displayPhone(draft.customerPhone) ?? draft.customerPhone}`)
-    lines.push(`📍 ${[draft.city, draft.address].filter(Boolean).join(', ')}${draft.postalCode ? ` · postal code ${draft.postalCode}` : ''}`)
+    if (draft.city || draft.address) lines.push(`📍 ${[draft.city, draft.address].filter(Boolean).join(', ')}${draft.postalCode ? ` · postal code ${draft.postalCode}` : ''}`)
     if (payLink && quote?.gateways.length) lines.push(`Payment on the store's website: ${quote.gateways.join(', ')}`)
     else if (payLink && !quote) lines.push('Shipping is calculated on the store\'s payment page.')
     lines.push(payLink
@@ -480,7 +487,7 @@ export function composeOrderSummary(
   const address = draft.address && draft.city && normalizeOrderText(draft.address).includes(normalizeOrderText(draft.city))
     ? draft.address
     : [draft.city, draft.address].filter(Boolean).join('، ')
-  lines.push(`📍 ${address}${draft.postalCode ? ` · کد پستی ${draft.postalCode}` : ''}`)
+  if (address) lines.push(`📍 ${address}${draft.postalCode ? ` · کد پستی ${draft.postalCode}` : ''}`)
   if (payLink && quote?.gateways.length) lines.push(`پرداخت روی سایت فروشگاه: ${quote.gateways.join('، ')}`)
   else if (payLink && !quote) lines.push('هزینهٔ ارسال در صفحهٔ پرداخت سایت حساب می‌شه.')
   lines.push(payLink

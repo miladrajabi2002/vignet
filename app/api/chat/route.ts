@@ -62,6 +62,8 @@ export async function POST(req: Request) {
     message: parsed.data.message,
     conversationId: parsed.data.conversationId,
     channel: 'API',
+    // This route serves only the dashboard's «test the agent» panel.
+    playground: true,
   })
 
   if ('error' in result) {

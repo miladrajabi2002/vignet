@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
+import { getCurrentUser } from '@/lib/session'
+import { workspaceCapabilities } from '@/lib/verticals/profile'
 import { jsonLdScript } from '@/lib/seo/json-ld'
 import { MENU_ITEM_LIMIT, menuChatSlug, publicSiteUrl } from '@/lib/menu/public-menu'
 import { menuPalette, readMenuSettings, readTable } from '@/lib/menu/settings'
@@ -16,10 +18,19 @@ type Props = {
 export const dynamic = 'force-dynamic'
 
 async function loadWorkspace(slug: string) {
-  return prisma.workspace.findUnique({
+  const workspace = await prisma.workspace.findUnique({
     where: { slug },
-    select: { id: true, name: true, menuSettings: true },
+    select: { id: true, name: true, menuSettings: true, businessType: true, businessProfile: true },
   })
+  if (!workspace) return null
+  // The public menu exists only while «digital menu» is on; with it off the
+  // catalog stays private. The owner can still preview it from the dashboard.
+  const enabled = workspaceCapabilities(workspace).includes('digital-menu')
+  const viewer = enabled ? null : await getCurrentUser().catch(() => null)
+  if (!enabled && viewer?.workspaceId !== workspace.id) return null
+  const profile = (workspace.businessProfile ?? {}) as { businessName?: unknown }
+  const name = typeof profile.businessName === 'string' && profile.businessName.trim() ? profile.businessName.trim() : workspace.name
+  return { id: workspace.id, name, menuSettings: workspace.menuSettings, enabled }
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -32,6 +43,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: `منوی ${workspace.name}`,
     description,
     alternates: { canonical: `/menu/${slug}` },
+    ...(workspace.enabled ? {} : { robots: { index: false, follow: false } }),
     openGraph: {
       title: `منوی ${workspace.name}`,
       description,

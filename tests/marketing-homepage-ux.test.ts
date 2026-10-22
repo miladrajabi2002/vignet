@@ -43,10 +43,11 @@ describe('marketing homepage UX contracts', () => {
 
 		expect(mobileNav).toContain('grid-cols-5')
 		expect(mobileNav).toContain('env(safe-area-inset-bottom)')
-		expect(mobileNav).toContain("href={authenticated ? '/overview' : '/login'}")
-		expect(mobileNav).toContain('href="/login?next=/onboarding"')
+		// Signed in, the centre button is the dashboard and the last slot the blog;
+		// signed out, they are sign-up and log-in.
+		expect(mobileNav).toContain("href={authenticated ? '/overview' : '/login?next=/onboarding'}")
+		expect(mobileNav).toContain("href={authenticated ? '/blog' : '/login'}")
 		expect(mobileNav).toContain('copy.startFree')
-		expect(mobileNav).toContain('bg-emerald-500')
 		expect(mobileNav).toContain("window.matchMedia('(prefers-reduced-motion: reduce)')")
 		expect(navbar).toContain('<MarketingMobileBottomNav')
 		expect(navbar).toContain('col-start-3 hidden items-center')

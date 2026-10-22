@@ -88,7 +88,7 @@ describe('admin mailbox', () => {
     expect(isAdminMailboxRecipient(['sales@vigent.ir'])).toBe(false)
   })
 
-  it('stores, notifies and forwards a verified inbound email', async () => {
+  it('stores and forwards a verified inbound email without a workspace notification', async () => {
     await expect(ingestAdminMailboxEmail({
       email_id: 'provider-1',
       created_at: '2026-08-08T10:00:00.000Z',
@@ -98,9 +98,8 @@ describe('admin mailbox', () => {
       message_id: stored.messageId,
     }, 'svix-1')).resolves.toEqual({ created: true, forwarded: true })
 
-    expect(mocks.notificationCreate).toHaveBeenCalledWith({
-      data: expect.objectContaining({ workspaceId: 'admin-workspace', link: '/admin/mail' }),
-    })
+    // The admin panel counts unread mail itself; the admin's business inbox stays clean.
+    expect(mocks.notificationCreate).not.toHaveBeenCalled()
     expect(mocks.forward).toHaveBeenCalledWith(expect.objectContaining({
       emailId: 'provider-1',
       to: 'owner@example.com',

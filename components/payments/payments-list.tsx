@@ -207,6 +207,16 @@ function LateConfirm({ row, onDone }: { row: PaymentRowData; onDone?: () => void
 				{busy === 'confirm' ? '…' : confirmArmed ? (fa ? 'بله، واریز رسیده؛ تأیید شود' : 'Yes, it arrived; confirm') : (fa ? 'واریز رسیده، تأیید دستی' : 'It arrived, confirm by hand')}
 			</button>
 			{error ? <span role="alert" className="text-[12px] text-red-600">{error}</span> : null}
+			{/* The usual next step after an expiry: send the same amount again. */}
+			{row.source !== 'API' ? (
+				<Link
+					href={`/payments?again=${row.baseAmount}&desc=${encodeURIComponent(row.title)}`}
+					onClick={onDone}
+					className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-[var(--border-default)] px-4 text-[13.5px] font-bold text-[var(--text-primary)] hover:border-[var(--border-hover)]"
+				>
+					{fa ? 'ساخت لینک تازه با همین مبلغ' : 'New link for the same amount'}
+				</Link>
+			) : null}
 		</div>
 	)
 }
@@ -249,7 +259,14 @@ function Detail({ row, onClose }: { row: PaymentRowData; onClose: () => void }) 
 					<PaymentStatusChip status={row.status} confirmedBy={row.confirmedBy} />
 					<p className="text-[28px] font-extrabold tabular-nums leading-10 text-[var(--text-primary)]">{num(row.baseAmount)} <span className="text-[13px] font-normal text-[var(--text-muted)]">{fa ? 'تومان' : 'Toman'}</span></p>
 					<p className="text-[12.5px] text-[var(--text-muted)]">
-						{fa ? 'واریز دقیق' : 'Exact transfer'} <span dir="ltr" className="font-mono">{row.payAmount.toLocaleString('en-US')}</span> · {fa ? 'به کارت' : 'to'} <span dir="ltr" className="font-mono">••{row.last4}</span>
+						{fa ? 'واریز دقیق' : 'Exact transfer'} <span className="font-bold tabular-nums text-[var(--text-secondary)]">{num(row.payAmount)}</span> · {fa ? 'به کارت' : 'to'} <span dir="ltr" className="font-mono">••{row.last4}</span>
+						{row.payAmount > row.baseAmount ? (
+							<span className="mt-0.5 block text-[12px]">
+								{fa
+									? `${num(row.payAmount - row.baseAmount)} تومانِ اضافه شناسهٔ این واریز است تا پیامک بانک خودکار به همین سفارش وصل شود.`
+									: `The extra ${num(row.payAmount - row.baseAmount)} Toman identifies this transfer so the bank SMS matches it automatically.`}
+							</span>
+						) : null}
 						{row.status === 'PENDING' && minutes > 0 ? <> · {fa ? `${num(minutes)} دقیقه مانده` : `${minutes} min left`}</> : null}
 					</p>
 					{row.partialAmount ? (
@@ -367,7 +384,7 @@ export function PaymentsList({ rows }: { rows: PaymentRowData[] }) {
 								</div>
 								<div className="text-end md:text-start">
 									<p className="whitespace-nowrap text-[14px] font-bold tabular-nums text-[var(--text-primary)]">{num(row.baseAmount)} <span className="text-[11.5px] font-normal text-[var(--text-muted)]">{fa ? 'تومان' : 'Toman'}</span></p>
-									<p className="hidden truncate text-[12px] text-[var(--text-muted)] md:block">{fa ? 'واریز دقیق' : 'Exact'} <span dir="ltr" className="font-mono">{row.payAmount.toLocaleString('en-US')}</span> · <span dir="ltr" className="font-mono">••{row.last4}</span></p>
+									<p className="hidden truncate text-[12px] text-[var(--text-muted)] md:block">{fa ? 'واریز دقیق' : 'Exact'} <span className="tabular-nums">{num(row.payAmount)}</span> · <span dir="ltr" className="font-mono">••{row.last4}</span></p>
 								</div>
 								{/* Phones: status and where it came from on the second line, a chevron at the end. */}
 								<div className="col-start-2 col-end-4 flex min-w-0 items-center gap-1.5 md:col-auto">

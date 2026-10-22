@@ -564,6 +564,13 @@ export function AgentSettingsForm({
                                         onChange={setRequireCustomerInfo}
                                 />
                                 {requireCustomerInfo && (
+                                        <p className="rounded-xl bg-amber-50 px-3 py-2 text-[12px] leading-5 text-amber-900">
+                                                {locale === 'fa'
+                                                        ? 'فرم پیش از اولین سؤال، بخشی از بازدیدکننده‌های چت لینک و ویجت را پیش از حرف زدن می‌پراند. اگر شماره را فقط برای سفارش یا رزرو لازم دارید، خاموشش کنید؛ ایجنت همان موقع خودش می‌پرسد.'
+                                                        : 'A form before the first question loses some chat-link and widget visitors before they say anything. If you need the number only for orders or bookings, switch this off; the agent asks for it then.'}
+                                        </p>
+                                )}
+                                {requireCustomerInfo && (
                                         <Field label={tf('customerInfoPrompt')}>
                                                 <textarea
                                                         value={customerInfoPrompt}
@@ -616,7 +623,7 @@ export function AgentSettingsForm({
                                                         </p>
                                                 </Field>
                                                 <p className="rounded-xl bg-[var(--bg-base)] p-3 text-xs text-[var(--text-secondary)]">
-                                                        {tf('longChatAutoHandoffHint', { threshold: longChatThreshold })}
+                                                        {tf('longChatAutoHandoffHint', { threshold: longChatThreshold.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US') })}
                                                 </p>
                                         </>
                                 )}

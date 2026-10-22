@@ -27,6 +27,9 @@ import { ChannelBoard, type ChannelBoardItem } from '@/components/channels/chann
 import { ChannelMark } from '@/components/ui/channel-mark'
 import { loadChatLinkShowcase } from '@/lib/chat-link/showcase'
 import { PlanLimitNotice, type PlanLimitInfo } from '@/components/billing/plan-limit-notice'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('اتصال‌های ایجنت', 'Agent connections')
 
 export default async function AgentChannelsPage(
   props: {

@@ -19,6 +19,53 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+export interface SetupGap {
+  key: 'products' | 'services' | 'knowledge' | 'channel'
+  href: string
+}
+
+const GAP_COPY: Record<SetupGap['key'], { fa: [string, string]; en: [string, string]; cta: [string, string] }> = {
+  products: { fa: ['ایجنت هنوز هیچ محصولی نمی‌شناسد', 'بدون محصول قیمت و موجودی نمی‌داند و سفارش نمی‌گیرد.'], en: ['The agent knows no products yet', 'Without products it knows no prices and takes no orders.'], cta: ['افزودن محصول', 'Add a product'] },
+  services: { fa: ['هیچ خدمت فعالی برای رزرو نیست', 'ایجنت فقط از روی خدمت و ساعت کاری، نوبت آزاد پیشنهاد می‌دهد.'], en: ['No active service to book', 'The agent offers times only from a service and its hours.'], cta: ['ساخت خدمت', 'Add a service'] },
+  knowledge: { fa: ['ایجنت هیچ منبع دانشی ندارد', 'آدرس، ساعت کاری، شرایط ارسال و پرسش‌های پرتکرار را اضافه کنید.'], en: ['The agent has no knowledge source', 'Add your address, hours, shipping terms and common questions.'], cta: ['افزودن دانش', 'Add knowledge'] },
+  channel: { fa: ['هیچ اتصالی روشن نیست', 'تا یک پیام‌رسان یا چت لینک وصل نشود، پیام مشتری نمی‌رسد.'], en: ['No connection is on', 'Until an app or chat link is connected, no customer message arrives.'], cta: ['افزودن اتصال', 'Connect an app'] },
+}
+
+/**
+ * Shown after the first-run checklist is gone (finished or dismissed) when
+ * something the agent cannot work without goes missing again. It cannot be
+ * dismissed for good: it disappears when the gap is filled.
+ */
+export function SetupGapsCard({ locale, gaps }: { locale: 'fa' | 'en'; gaps: SetupGap[] }) {
+  const fa = locale === 'fa'
+  const Arrow = fa ? ArrowLeft : ArrowRight
+  if (!gaps.length) return null
+  return (
+    <section aria-label={fa ? 'کارهای لازم راه‌اندازی' : 'Setup that needs you'} className="spatial-surface overflow-hidden rounded-sheet border border-amber-500/25">
+      <ul className="divide-y divide-[var(--border-subtle)]">
+        {gaps.map((gap) => {
+          const copy = GAP_COPY[gap.key]
+          return (
+            <li key={gap.key}>
+              <Link href={gap.href} className="group flex flex-wrap items-center gap-3 bg-amber-50/60 px-4 py-3.5 hover:bg-amber-50 sm:px-5">
+                <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-amber-500" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-bold text-[var(--text-primary)]">{fa ? copy.fa[0] : copy.en[0]}</span>
+                  <span className="block text-xs leading-5 text-[var(--text-secondary)]">{fa ? copy.fa[1] : copy.en[1]}</span>
+                </span>
+                <span className="inline-flex items-center gap-1 text-[12px] font-bold text-[var(--text-primary)]">
+                  {fa ? copy.cta[0] : copy.cta[1]}
+                  <Arrow className="h-3 w-3" />
+                </span>
+              </Link>
+            </li>
+          )
+        })}
+      </ul>
+    </section>
+  )
+}
+
 export interface DashboardChecklistFacts {
   agentId: string | null
   hasConfiguredAgent: boolean

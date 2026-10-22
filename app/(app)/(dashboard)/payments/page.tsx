@@ -16,6 +16,9 @@ import { payPageUrl } from '@/lib/payments/card/service'
 import { readPayItems, type PayItem } from '@/lib/payments/card/items'
 import { channelAvatarFor, channelHandleFor, contactDisplayName } from '@/lib/crm/display'
 import { contactAvatarSrc } from '@/lib/crm/avatar'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('درگاه پرداخت', 'Payment gateway')
 
 export const dynamic = 'force-dynamic'
 

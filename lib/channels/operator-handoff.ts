@@ -83,6 +83,13 @@ export async function getConnectedMessengerChannels(
  */
 export async function createHandoffAlert(ctx: HandoffContext): Promise<string | null> {
         try {
+                // A test chat from the dashboard shows the handoff inline; it never
+                // queues an alert, a notification or a Telegram push for real staff.
+                const playground = await prisma.conversation.count({
+                        where: { id: ctx.conversationId, isPlayground: true },
+                })
+                if (playground > 0) return null
+
                 // Snapshot the conversation summary if not provided.
                 let summary = ctx.summary ?? null
                 if (!summary) {

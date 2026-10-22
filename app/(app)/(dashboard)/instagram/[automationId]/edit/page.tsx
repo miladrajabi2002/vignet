@@ -7,6 +7,9 @@ import {
   type AutomationAction,
   type AutomationTrigger,
 } from '@/components/instagram/types'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('ویرایش سناریو', 'Edit scenario')
 
 export const dynamic = 'force-dynamic'
 

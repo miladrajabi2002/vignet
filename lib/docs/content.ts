@@ -189,7 +189,7 @@ const ALL_DOCS: DocPage[] = [
                         { type: 'h2', fa: 'هزینهٔ شفاف و قابل پیگیری', en: 'Transparent, trackable charges' },
                         {
                                 type: 'p',
-                                fa: 'قیمت هر حالت پیش از استفاده مشخص است. پیش از تحلیل و تست هم تعداد درخواست و برآورد هزینه نمایش داده می‌شود؛ موجودی و مبلغ کسرشده در صورتحساب قابل پیگیری است.',
+                                fa: 'قیمت هر حالت پیش از استفاده مشخص است. پیش از تحلیل و تست هم تعداد درخواست و برآورد هزینه نمایش داده می‌شود؛ موجودی و مبلغ کسرشده در «اشتراک و اعتبار» قابل پیگیری است.',
                                 en: 'Each mode price is shown before use. Analysis and testing also show request count and estimated cost in advance; your balance and deductions remain traceable in Billing.',
                         },
                         {
@@ -1783,7 +1783,7 @@ POST https://graph.instagram.com/v21.0/me/messages`,
                 blocks: [
                         {
                                 type: 'p',
-                                fa: 'با اولین ورود، یک ماه دورهٔ آزمایشی با همان اعتبار اولیهٔ پاسخ فعال می‌شود. در دورهٔ آزمایشی یا اشتراک فعال، اتوماسیون‌های ثابت اینستاگرام اعتبار مصرف نمی‌کنند؛ درخواست‌های موفق هوش مصنوعی—پاسخ، تحلیل یا تست—از اعتبار کم می‌شوند. پس از آن یکی از اشتراک‌های استارتر، حرفه‌ای یا سازمانی را از بخش «صورتحساب» انتخاب کنید.',
+                                fa: 'با اولین ورود، یک ماه دورهٔ آزمایشی با همان اعتبار اولیهٔ پاسخ فعال می‌شود. در دورهٔ آزمایشی یا اشتراک فعال، اتوماسیون‌های ثابت اینستاگرام اعتبار مصرف نمی‌کنند؛ درخواست‌های موفق هوش مصنوعی—پاسخ، تحلیل یا تست—از اعتبار کم می‌شوند. پس از آن یکی از اشتراک‌های استارتر، حرفه‌ای یا سازمانی را از بخش «اشتراک و اعتبار» انتخاب کنید.',
                                 en: 'Your first login starts a one-month trial with starter reply credit. During an active trial or subscription, static Instagram automations use no credit; successful AI requests—replies, analyses, and tests—consume credit. Afterwards, choose Starter, Pro or Business from Billing.',
                         },
                         { type: 'h2', fa: 'اعتبار پاسخ', en: 'Reply credit' },
@@ -1814,7 +1814,7 @@ POST https://graph.instagram.com/v21.0/me/messages`,
                         },
                         {
                                 type: 'callout',
-                                fa: 'نیازی به حساب یا کلید هوش مصنوعی جداگانه ندارید. اشتراک و اعتبار پاسخ هر دو در ویجنت مدیریت می‌شوند و ریز مصرف در صورتحساب قابل مشاهده است.',
+                                fa: 'نیازی به حساب یا کلید هوش مصنوعی جداگانه ندارید. اشتراک و اعتبار پاسخ هر دو در ویجنت مدیریت می‌شوند و ریز مصرف در «اشتراک و اعتبار» قابل مشاهده است.',
                                 en: 'You do not need a separate AI account or key. Vigent manages both the subscription and reply credit, with an itemized usage history in Billing.',
                         },
                 ],

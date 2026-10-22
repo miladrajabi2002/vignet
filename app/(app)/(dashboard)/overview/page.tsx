@@ -23,7 +23,9 @@ import { computeOnboarding } from '@/lib/onboarding'
 import { DashboardPanel } from '@/components/dashboard/panel'
 import {
   DashboardCompletionChecklist,
+  SetupGapsCard,
   type DashboardChecklistFacts,
+  type SetupGap,
 } from '@/components/dashboard/completion-checklist'
 import { OperatorBotCard, OpsCenter, VigentoCard } from '@/components/dashboard/overview-ops'
 import { LiveStage, type FlowInput, type FlowOutput } from '@/components/dashboard/live-stage'
@@ -42,6 +44,8 @@ import { ContactAvatar } from '@/components/crm/contact-avatar'
 import { contactDisplayName, channelHandleFor, channelAvatarFor } from '@/lib/crm/display'
 import { contactAvatarSrc } from '@/lib/crm/avatar'
 import { cn } from '@/lib/utils'
+import { summaryHeadline } from '@/lib/conversations/summary-view'
+import { loadGatewayOrders } from '@/lib/payments/card/fulfilment'
 import { Sparkline } from '@/components/admin/sparkline'
 import {
   chargesDailyByWorkspace,
@@ -49,6 +53,9 @@ import {
   conversationsDailyByWorkspace,
   resolvedDailyByWorkspace,
 } from '@/lib/dashboard/charts'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('نمای کلی', 'Overview')
 
 const TREND_DAYS = 14
 
@@ -134,11 +141,15 @@ export default async function OverviewPage() {
     prisma.conversation.count({ where: { workspaceId, status: 'HANDED_OFF' } }),
     prisma.conversation.count({ where: { workspaceId, status: 'OPEN' } }),
     prisma.conversation.count({ where: { workspaceId } }),
-    prisma.conversation.count({ where: { workspaceId, status: 'RESOLVED' } }),
+    prisma.conversation.count({ where: { workspaceId, status: 'RESOLVED', OR: [{ resolvedReason: null }, { resolvedReason: { not: 'IDLE' } }] } }),
     prisma.improvementSuggestion.count({ where: { workspaceId, status: 'PENDING' } }),
     prisma.agent.count({ where: { workspaceId, active: true } }),
     prisma.product.count({ where: { workspaceId, active: true } }),
-    prisma.agentChannel.count({ where: { active: true, agent: { workspaceId } } }),
+    // The public chat link is a connection too; the agent's own connections tab counts it.
+    Promise.all([
+      prisma.agentChannel.count({ where: { active: true, agent: { workspaceId } } }),
+      prisma.chatLink.count({ where: { workspaceId, enabled: true } }),
+    ]).then(([channels, chatLinks]) => channels + chatLinks),
     prisma.appointment.count({
       where: { workspaceId, startsAt: { gte: now }, status: { in: ['PENDING', 'CONFIRMED'] } },
     }),
@@ -212,9 +223,13 @@ export default async function OverviewPage() {
     chargesDailyByWorkspace(workspaceId, 30),
     prisma.conversation.groupBy({ by: ['channel'], where: { workspaceId, createdAt: { gte: sevenDaysAgo } }, _count: { _all: true } }),
     prisma.agentChannel.groupBy({ by: ['type'], where: { active: true, agent: { workspaceId } } }),
-    prisma.conversation.count({ where: { workspaceId, status: 'RESOLVED', createdAt: { gte: sevenDaysAgo } } }),
+    prisma.conversation.count({ where: { workspaceId, status: 'RESOLVED', OR: [{ resolvedReason: null }, { resolvedReason: { not: 'IDLE' } }], createdAt: { gte: sevenDaysAgo } } }),
     prisma.conversation.count({ where: { workspaceId, status: 'HANDED_OFF', createdAt: { gte: sevenDaysAgo } } }),
-    prisma.storeOrder.count({ where: { workspaceId, deletedAt: null, createdAt: { gte: sevenDaysAgo } } }),
+    // Store orders plus card-to-card orders paid through the gateway (the orders page lists both).
+    Promise.all([
+      prisma.storeOrder.count({ where: { workspaceId, deletedAt: null, createdAt: { gte: sevenDaysAgo } } }),
+      loadGatewayOrders(workspaceId, { take: 200 }).then((rows) => rows.filter((row) => row.paidAt >= sevenDaysAgo).length),
+    ]).then(([store, gateway]) => store + gateway),
     prisma.conversation.count({ where: { workspaceId, createdAt: { gte: startOfToday() } } }),
     prisma.contact.count({ where: { workspaceId, createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } } }),
     loadGatewayWeek(workspaceId).catch(() => null),
@@ -287,6 +302,26 @@ export default async function OverviewPage() {
     knowledgePostponed: onboarding.checks.knowledgeSkipped,
     channelPostponed: onboarding.checks.channelSkipped,
   }
+  // A subscription payment that failed in the last two days, with nothing paid
+  // since: the owner wanted to buy, so the overview asks them to try again.
+  const lastPlanPayment = await prisma.payment.findFirst({
+    where: { workspaceId, kind: 'SUBSCRIPTION', createdAt: { gte: new Date(now.getTime() - 48 * 3_600_000) } },
+    orderBy: { createdAt: 'desc' },
+    select: { status: true, plan: true, amount: true, currency: true },
+  })
+  const failedPlanPayment = lastPlanPayment && (lastPlanPayment.status === 'FAILED' || lastPlanPayment.status === 'EXPIRED')
+    ? lastPlanPayment
+    : null
+  // What the agent cannot work without, by what this business does. Unlike the
+  // first-run checklist this never goes away for good: only filling the gap
+  // removes a line.
+  const agentBaseHref = primaryAgent ? `/agents/${primaryAgent.id}` : '/agents/new'
+  const setupGaps: SetupGap[] = [
+    ...(capabilities.includes('products') && activeProducts === 0 ? [{ key: 'products' as const, href: '/products/new' }] : []),
+    ...(capabilities.includes('bookings') && activeServices === 0 ? [{ key: 'services' as const, href: '/appointments?tab=services' }] : []),
+    ...(readyKnowledgeSources === 0 ? [{ key: 'knowledge' as const, href: `${agentBaseHref}/improve?tab=knowledge` }] : []),
+    ...(activeChannels === 0 ? [{ key: 'channel' as const, href: `${agentBaseHref}/channels` }] : []),
+  ]
   const checklistCompleted = checklistFacts.hasConfiguredAgent
     && checklistFacts.hasKnowledge
     && checklistFacts.hasActiveChannel
@@ -327,11 +362,28 @@ export default async function OverviewPage() {
 
   return (
     <div className="mx-auto max-w-none space-y-5 sm:space-y-6">
-      {!workspace.dashboardChecklistDismissedAt && !checklistCompleted && (
+      {failedPlanPayment && (
+        <section role="status" className="flex flex-wrap items-center gap-3 rounded-card border border-amber-500/30 bg-amber-50 p-4">
+          <p className="min-w-0 flex-1 text-sm leading-6 text-amber-900">
+            <span className="font-bold">{fa ? 'پرداخت اشتراک کامل نشد' : 'Your plan payment did not go through'}</span>
+            {' · '}
+            {failedPlanPayment.currency === 'IRR'
+              ? `${nf.format(Math.round(failedPlanPayment.amount / 10))} ${fa ? 'تومان' : 'toman'}`
+              : `$${failedPlanPayment.amount}`}
+            {fa ? ' — اگر پولی از حسابتان کم شده، تا ۷۲ ساعت برمی‌گردد.' : ' — any amount taken from your account returns within 72 hours.'}
+          </p>
+          <Link href={failedPlanPayment.plan ? `/billing?plan=${failedPlanPayment.plan}#plan-${failedPlanPayment.plan}` : '/billing#vigent-plans'} className="inline-flex min-h-11 items-center rounded-xl bg-[var(--text-primary)] px-4 text-sm font-bold text-white">
+            {fa ? 'دوباره پرداخت' : 'Try again'}
+          </Link>
+        </section>
+      )}
+      {!workspace.dashboardChecklistDismissedAt && !checklistCompleted ? (
         <DashboardCompletionChecklist
           locale={lang}
           facts={checklistFacts}
         />
+      ) : (
+        <SetupGapsCard locale={lang} gaps={setupGaps} />
       )}
 
       <OpsCenter
@@ -405,7 +457,7 @@ export default async function OverviewPage() {
           href="/analytics"
           label={fa ? 'نرخ حل گفتگو' : 'Resolution rate'}
           value={`${nf.format(resolveRate)}${fa ? '٪' : '%'}`}
-          hint={fa ? 'نتیجه ثبت‌شده در CRM' : 'recorded outcomes in CRM'}
+          hint={fa ? 'بدون گفتگوهایی که فقط ساکت ماندند' : 'not counting chats that just went quiet'}
           series={resolvedMiniTrend.series}
         />
         <OutcomeCard
@@ -492,16 +544,17 @@ export default async function OverviewPage() {
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center justify-between gap-2">
                     <span dir={fa ? 'rtl' : 'ltr'} className="min-w-0 truncate text-xs font-semibold text-[var(--text-primary)]">{who}</span>
-                    <span className="shrink-0 text-[12px] text-[var(--text-muted)]">{formatDateTime(timestamp, lang)}</span>
+                    {/* Today's chats show the time only; the date is noise on a phone. */}
+                    <span className="shrink-0 whitespace-nowrap text-[12px] text-[var(--text-muted)]">{timestamp.toDateString() === now.toDateString() ? timestamp.toLocaleTimeString(fa ? 'fa-IR' : 'en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tehran' }) : formatDateTime(timestamp, lang)}</span>
                   </span>
                   <span className="mt-1 flex min-w-0 items-center gap-1.5 text-[12px] text-[var(--text-muted)]">
                     <ChannelBadge type={conversation.channel} />
                     <span>·</span>
-                    <span className="tabular-nums">{nf.format(conversation._count.messages)} {fa ? 'پیام' : 'messages'}</span>
-                    {(conversation.summary || conversation.agent.name) && (
+                    <span className="whitespace-nowrap tabular-nums">{nf.format(conversation._count.messages)} {fa ? 'پیام' : 'messages'}</span>
+                    {(summaryHeadline(conversation.summary) || conversation.agent.name) && (
                       <>
                         <span>·</span>
-                        <span dir={fa ? 'rtl' : 'ltr'} className="min-w-0 truncate">{conversation.summary || conversation.agent.name}</span>
+                        <span dir={fa ? 'rtl' : 'ltr'} className="min-w-0 truncate">{summaryHeadline(conversation.summary) || conversation.agent.name}</span>
                       </>
                     )}
                   </span>

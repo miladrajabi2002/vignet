@@ -14,6 +14,9 @@ import { getCapabilityReadiness } from '@/lib/verticals/readiness'
 import type { BusinessTypeValue } from '@/lib/verticals/registry'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { SettingsMobileTabs } from '@/components/settings/settings-mobile-tabs'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('تنظیمات', 'Settings')
 
 export default async function SettingsPage() {
   const t = await getTranslations()

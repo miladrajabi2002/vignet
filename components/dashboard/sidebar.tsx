@@ -21,6 +21,22 @@ import { getDashboardModuleLabel, getVerticalPack } from '@/lib/verticals/regist
 // the business profile had no capabilities.
 const NO_CAPABILITIES: readonly CapabilityKey[] = []
 
+// One word per item, for the 68px tablet rail where the full label cannot fit.
+const RAIL_LABEL: Record<'fa' | 'en', Partial<Record<DashboardModuleKey, string>>> = {
+        fa: {
+                overview: 'نمای کلی', conversations: 'گفتگوها', contacts: 'مشتریان', analytics: 'تحلیل‌ها',
+                appointments: 'رزروها', courses: 'دوره‌ها', products: 'محصولات', services: 'خدمات', menu: 'منو',
+                instagram: 'اینستا', payments: 'درگاه', store: 'فروشگاه', agents: 'ایجنت‌ها',
+                integrations: 'اتصال‌ها', billing: 'اشتراک', settings: 'تنظیمات',
+        },
+        en: {
+                overview: 'Home', conversations: 'Chats', contacts: 'Customers', analytics: 'Stats',
+                appointments: 'Bookings', courses: 'Courses', products: 'Products', services: 'Services', menu: 'Menu',
+                instagram: 'Instagram', payments: 'Gateway', store: 'Store', agents: 'Agents',
+                integrations: 'Apps', billing: 'Plan', settings: 'Settings',
+        },
+}
+
 const GROUP_LABEL_KEY: Record<DashboardNavGroup, 'navGroupDaily' | 'navGroupBusiness' | 'navGroupSetup'> = {
 	daily: 'navGroupDaily',
 	business: 'navGroupBusiness',
@@ -112,7 +128,8 @@ export function Sidebar({ businessType, capabilities = NO_CAPABILITIES, handedOf
                                                                         title={status ? `${label} · ${status.label}` : label}
                                                                         aria-current={active ? 'page' : undefined}
                                                                         className={cn(
-                                                                                'group relative flex min-h-10 items-center justify-center gap-2.5 rounded-control text-[13px] transition-[background-color,color,transform] duration-150 active:scale-[0.98] lg:min-h-9 lg:justify-start lg:px-3 lg:py-1',
+                                                                                // Tablet rail: icon over a short label (no hover there to show a tooltip).
+                                                                                'group relative flex min-h-10 flex-col items-center justify-center gap-0.5 rounded-control py-1.5 text-[13px] transition-[background-color,color,transform] duration-150 active:scale-[0.98] lg:min-h-9 lg:flex-row lg:justify-start lg:gap-2.5 lg:px-3 lg:py-1',
                                                                                 // The rail is a white card, so the current page is an ink-tinted
                                                                                 // row with a bold ink label and icon.
                                                                                 active
@@ -122,6 +139,7 @@ export function Sidebar({ businessType, capabilities = NO_CAPABILITIES, handedOf
                                                                 >
                                                                         <Icon className={cn('h-[1.05rem] w-[1.05rem] shrink-0', active ? 'text-[var(--text-primary)]' : 'text-[var(--text-hint)] group-hover:text-[var(--text-muted)]')} strokeWidth={active ? 2.2 : 1.9} />
                                                                         <span className="hidden min-w-0 flex-1 truncate lg:block">{label}</span>
+                                                                        <span aria-hidden className="block max-w-full truncate px-0.5 text-[10px] font-medium leading-3 lg:hidden">{RAIL_LABEL[locale === 'en' ? 'en' : 'fa'][key] ?? label}</span>
                                                                         {key === 'conversations' && (
                                                                                 <>
                                                                                         <NavigationCountBadge

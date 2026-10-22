@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { requireUser } from '@/lib/session'
 import { syncOnboarding } from '@/lib/onboarding'
 import { prisma } from '@/lib/prisma'
-import { readBusinessProfile } from '@/lib/verticals/profile'
+import { readBusinessProfile, workspaceCapabilities } from '@/lib/verticals/profile'
 import { getVerticalPack } from '@/lib/verticals/registry'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 import { getRecommendedAgentPreset } from '@/lib/agents/recommended-preset'
@@ -15,7 +15,7 @@ export default async function OnboardingPage() {
   const user = await requireUser()
 
   const state = await syncOnboarding(user.workspaceId)
-  const [workspace, firstAgent, instagramChannel] = await Promise.all([
+  const [workspace, firstAgent, instagramChannel, productCount, serviceCount] = await Promise.all([
     prisma.workspace.findUniqueOrThrow({
       where: { id: user.workspaceId },
       select: { businessType: true, businessProfile: true },
@@ -30,11 +30,20 @@ export default async function OnboardingPage() {
       where: { type: 'INSTAGRAM', agent: { workspaceId: user.workspaceId } },
       select: { id: true },
     }),
+    prisma.product.count({ where: { workspaceId: user.workspaceId, active: true } }),
+    prisma.service.count({ where: { workspaceId: user.workspaceId, active: true } }),
   ])
   const businessProfile = readBusinessProfile(workspace.businessProfile, workspace.businessType)
   const hasProfile = !!businessProfile && !!workspace.businessType
   const pack = workspace.businessType ? getVerticalPack(workspace.businessType) : null
   const preset = getRecommendedAgentPreset(workspace.businessType, businessProfile?.businessName)
+  // The finish screen leads with whatever the agent cannot sell without.
+  const capabilities = workspaceCapabilities(workspace)
+  const firstNeed = capabilities.includes('products') && productCount === 0
+    ? 'products' as const
+    : (capabilities.includes('bookings') || capabilities.includes('services')) && serviceCount === 0
+      ? 'services' as const
+      : null
 
   return (
     <OnboardingFlow
@@ -48,6 +57,7 @@ export default async function OnboardingPage() {
       businessProfile={businessProfile}
       agentTemplate={pack?.agentTemplate}
       agentPreset={{ name: preset.name, welcomeMessage: preset.welcomeMessage, requireCustomerInfo: preset.requireCustomerInfo }}
+      firstNeed={firstNeed}
     />
   )
 }

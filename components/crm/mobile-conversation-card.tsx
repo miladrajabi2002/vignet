@@ -12,6 +12,7 @@ import { ConversationStatusDot } from '@/components/crm/conversation-status-dot'
 import { PaidOrderTag, SalesInsightText, SatisfactionText, type SalesInsightView } from '@/components/crm/sales-insight'
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
 import { cn } from '@/lib/utils'
+import { summaryFields } from '@/lib/conversations/summary-view'
 
 /**
  * One conversation in the phone inbox. The row stays short (who, which app,
@@ -175,9 +176,18 @@ export function MobileConversationCard({
               <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
               {isFa ? 'چه می‌خواهد؟' : 'What do they want?'}
             </h3>
-            <p dir="auto" className="mt-1.5 text-[13px] leading-6 text-[var(--text-primary)]">
-              {summary || (isFa ? 'هنوز خلاصه‌ای برای این گفتگو ساخته نشده است.' : 'No summary has been written for this conversation yet.')}
-            </p>
+            {summaryFields(summary).length ? (
+              <dl className="mt-1.5 space-y-2 text-[13px] leading-6">
+                {summaryFields(summary).map((field, index) => (
+                  <div key={index} className="min-w-0">
+                    {field.label ? <dt className="text-[12px] text-[var(--text-muted)]">{field.label}</dt> : null}
+                    <dd dir="auto" className="min-w-0 break-words text-[var(--text-primary)]">{field.value}</dd>
+                  </div>
+                ))}
+              </dl>
+                                                ) : (
+                                                        <p className="mt-1.5 text-[13px] leading-6 text-[var(--text-primary)]">{isFa ? 'هنوز خلاصه‌ای برای این گفتگو ساخته نشده است.' : 'No summary has been written for this conversation yet.'}</p>
+                                                )}
             {recommendedAction && (
               <div className="mt-3 rounded-xl border border-[var(--signal-border)] bg-[var(--signal-soft)] p-3">
                 <p className="flex items-center gap-1.5 text-[12px] font-bold text-[var(--signal-strong)]">

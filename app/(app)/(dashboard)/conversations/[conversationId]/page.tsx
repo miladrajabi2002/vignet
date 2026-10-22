@@ -21,6 +21,9 @@ import { isInstagramCommentThread } from '@/lib/channels/delivery-errors'
 import { prisma } from '@/lib/prisma'
 import { getGatewayUsage, getPlatformGatewaySettings } from '@/lib/payments/card/platform'
 import type { ComposerTools } from '@/components/crm/operator-reply'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('گفتگو', 'Conversation')
 
 export default async function ConversationThreadPage(props: {
         params: Promise<{ conversationId: string }>

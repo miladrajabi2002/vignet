@@ -7,7 +7,9 @@ import { corsHeaders, corsOptions } from '@/lib/cors'
 import {
         normalizeWidgetSettings,
         isOriginAllowed,
+        hostnameOf,
 } from '@/lib/widget/config'
+import { publicSiteUrl } from '@/lib/menu/public-menu'
 import { getClientIp } from '@/lib/security/request-ip'
 import { resolveCustomerIdentificationPolicy } from '@/lib/customer-identification-policy'
 import { toEnglishDigits } from '@/lib/phone'
@@ -168,7 +170,7 @@ export async function POST(req: Request, props: Params) {
                         orderTrackingEnabled: true,
                         channels: {
                                 where: { type: 'WEB_WIDGET' },
-                                select: { config: true, active: true },
+                                select: { id: true, config: true, active: true },
                                 take: 1,
                         },
                 },
@@ -209,6 +211,25 @@ export async function POST(req: Request, props: Params) {
                         { error: 'FORBIDDEN_ORIGIN' },
                         { status: 403, headers: corsHeaders },
                 )
+        }
+
+        // Trust on first use: an open widget locks itself to the first real site
+        // it is used on, so a copied embed code cannot spend this owner's credit
+        // elsewhere. Vigent's own pages (dashboard preview, chat demos) never
+        // count as that first site. The owner can edit the list in the widget's
+        // Security tab.
+        if (settings.allowedDomains.length === 0) {
+                const host = hostnameOf(req.headers.get('origin') || '') || hostnameOf(req.headers.get('referer') || '')
+                const platformHost = hostnameOf(publicSiteUrl())
+                if (host && host !== platformHost && host !== 'localhost') {
+                        const config = (widgetChannel.config && typeof widgetChannel.config === 'object' && !Array.isArray(widgetChannel.config))
+                                ? widgetChannel.config as Record<string, unknown>
+                                : {}
+                        await prisma.agentChannel.update({
+                                where: { id: widgetChannel.id },
+                                data: { config: { ...config, allowedDomains: [host] } },
+                        }).catch(() => {})
+                }
         }
 
         // ── Server-side lead-capture enforcement (FIRST MESSAGE ONLY) ─────────

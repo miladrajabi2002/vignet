@@ -5,6 +5,9 @@ import { requireUser } from '@/lib/session'
 import { PaymentsShell } from '@/components/payments/payments-shell'
 import { DeviceSetup } from '@/components/payments/device-setup'
 import { loadGatewayOverview } from '@/lib/payments/card/dashboard'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('گوشی پیامک درگاه', 'Gateway SMS phone')
 
 export const dynamic = 'force-dynamic'
 

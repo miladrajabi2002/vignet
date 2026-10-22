@@ -74,6 +74,14 @@ describe('draft state', () => {
     expect(missingOrderSlots(draft({ customerName: 'علی', customerPhone: '09120000000', address: 'تهران خیابان آزادی' }), false)).toEqual([])
   })
 
+  it('never asks an address when nothing in the cart is posted', () => {
+    const digital = draft({ items: [{ ...draft().items[0], name: 'اشتراک ماهانه', shipped: false }] })
+    expect(missingOrderSlots(digital, false)).toEqual(['name', 'phone'])
+    // One shipped line among digital ones still needs the address.
+    const mixed = draft({ items: [{ ...draft().items[0], shipped: false }, { ...draft().items[0], productId: 'p2' }] })
+    expect(missingOrderSlots(mixed, false)).toEqual(['name', 'phone', 'address'])
+  })
+
   it('caps quantity at tracked stock', () => {
     const state = draft({ items: [{ ...draft().items[0], maxQuantity: 3 }] })
     applyOrderSlots(state, { quantity: 5 })

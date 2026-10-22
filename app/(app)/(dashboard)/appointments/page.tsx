@@ -9,6 +9,10 @@ import { dateKeyInTimeZone } from '@/lib/bookings/time'
 import { getDashboardModuleLabel } from '@/lib/verticals/registry'
 import { remindersFromMetadata } from '@/components/bookings/booking-model'
 import { AppointmentsWorkspace } from '@/components/bookings/appointments-workspace'
+import { workspaceCapabilities } from '@/lib/verticals/profile'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('رزروها و خدمات', 'Bookings')
 
 export const dynamic = 'force-dynamic'
 
@@ -22,10 +26,11 @@ export default async function AppointmentsPage({
   const today = dateKeyInTimeZone(new Date(), 'Asia/Tehran')
   const { tab, edit } = await searchParams
 
-  const [workspace, services, appointments] = await Promise.all([
-    prisma.workspace.findUnique({ where: { id: user.workspaceId }, select: { businessType: true, bookingRemindersEnabled: true } }),
+  const [workspace, services, appointments, operator] = await Promise.all([
+    prisma.workspace.findUnique({ where: { id: user.workspaceId }, select: { businessType: true, businessProfile: true, bookingRemindersEnabled: true } }),
     listBookingServices(user.workspaceId),
     listAppointmentsForDate({ workspaceId: user.workspaceId, dateKey: today }),
+    prisma.operatorChannel.findFirst({ where: { workspaceId: user.workspaceId }, select: { active: true, operatorChatId: true } }),
   ])
 
   // Same label the sidebar shows, so the page and the menu never disagree.
@@ -94,6 +99,8 @@ export default async function AppointmentsPage({
         reminders: remindersFromMetadata(appointment.metadata),
       }))}
       remindersEnabled={workspace?.bookingRemindersEnabled ?? true}
+      bookingCapability={workspaceCapabilities(workspace).includes('bookings')}
+      operatorConnected={Boolean(operator?.active && operator.operatorChatId)}
     />
   )
 }

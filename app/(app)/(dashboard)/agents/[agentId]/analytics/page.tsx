@@ -25,6 +25,9 @@ import {
 import { BarList } from '@/components/dashboard/charts/bar-list'
 import { channelLabel } from '@/components/crm/channel-badge'
 import { dateLocaleTag } from '@/lib/localized-date'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('تحلیل ایجنت', 'Agent analytics')
 
 const DAYS = 14
 
@@ -85,7 +88,7 @@ export default async function AgentAnalyticsPage(
       prisma.message.findMany({
         where: {
           unanswered: true,
-          conversation: { workspaceId: ws, agentId: agent.id, createdAt: { gte: since } },
+          conversation: { workspaceId: ws, agentId: agent.id, createdAt: { gte: since }, isPlayground: false },
         },
         select: { metadata: true, createdAt: true },
         orderBy: { createdAt: 'desc' },

@@ -238,6 +238,7 @@ export function Navbar({ authenticated }: { authenticated: boolean }) {
 					dashboard: copy.dashboard,
 					primaryNav: copy.primaryNav,
 					dashboardAria: copy.dashboardAria,
+					blog: copy.blog,
 				}}
 			/>
 		</header>

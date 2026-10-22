@@ -88,23 +88,9 @@ export async function ingestAdminMailboxEmail(
     }
   }
 
-  if (created) {
-    const admin = await prisma.user.findFirst({
-      where: { platformRole: 'ADMIN' },
-      select: { workspaceId: true },
-    })
-    if (admin) {
-      await prisma.notification.create({
-        data: {
-          workspaceId: admin.workspaceId,
-          type: 'SYSTEM',
-          title: `ایمیل جدید: ${stored.subject}`.slice(0, 180),
-          body: `${stored.from} — ${stored.preview}`.slice(0, 500),
-          link: '/admin/mail',
-        },
-      }).catch(() => undefined)
-    }
-  }
+  // New mail is counted on the admin panel's Mail item; it is not written into
+  // the admin's own business workspace, where it mixed sales offers in with
+  // that business's orders and handoffs.
 
   const forwardTo = (process.env.ADMIN_MAIL_FORWARD_TO || process.env.ALERT_EMAIL || '').trim()
   if (!forwardTo || bareAddress(forwardTo) === ADMIN_MAILBOX_ADDRESS || stored.forwardedAt) {

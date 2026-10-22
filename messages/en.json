@@ -527,6 +527,7 @@
     "hintOneTitle": "Your agent is ready",
     "hintManyTitle": "You have {count} active agents",
     "hintOneBody": "Tap the card to test it. Connect it to your website or Telegram from “Apps”.",
+    "hintOneConnectedBody": "Tap the card to try its answers; the Analytics tab shows what customers ask most.",
     "hintManyBody": "Tap a card to see its settings, knowledge base and apps. You can build different agents for different jobs."
   },
   "channels": {
@@ -627,9 +628,9 @@
     "optional": "optional",
     "security": "Security & abuse prevention",
     "allowedDomains": "Allowed domains",
-    "allowedDomainsHint": "One domain per line. Works only on these domains. Empty = anywhere.",
+    "allowedDomainsHint": "One domain per line. The widget works only on these domains. Left empty, it locks itself to the first site a chat comes from.",
     "allowedDomainsPh": "example.com\nshop.example.com",
-    "unprotectedWarning": "No domain set — the widget can be embedded on any site. Add your domain to stop others spending your credits.",
+    "unprotectedWarning": "No site address yet. The first site that sends a chat through your widget is saved and locked here automatically; to be sure, add your own site now.",
     "livePreview": "Live preview",
     "save": "Save changes",
     "saving": "Saving…",

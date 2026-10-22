@@ -22,6 +22,9 @@ import { PlanLimitNotice, type PlanLimitInfo } from '@/components/billing/plan-l
 import { checkWorkspaceResourceCreateAllowed } from '@/lib/billing/entitlements'
 import { getEffectivePlanDefs, planResourceLimit, recommendedUpgradePlan } from '@/lib/billing/plans'
 import { searchVariants } from '@/lib/search/persian'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('مشتریان', 'Customers')
 
 const PAGE_SIZE = 20
 const FILTER_STAGES = ['lead', 'qualified', 'customer', 'lost'] as const

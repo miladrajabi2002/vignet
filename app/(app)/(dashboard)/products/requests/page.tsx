@@ -11,6 +11,9 @@ import { CommerceTabs } from '@/components/products/commerce-tabs'
 import { ChatRequestAction } from '@/components/products/chat-request-action'
 import { displayPhone } from '@/lib/phone'
 import { dateLocaleTag } from '@/lib/localized-date'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('درخواست‌های چت', 'Chat requests')
 
 type DraftItem = { name?: string; variant?: string | null; quantity?: number }
 

@@ -41,6 +41,9 @@ import { searchVariants } from '@/lib/search/persian'
 import { LiveEmptyState } from '@/components/ui/live-empty-state'
 import { InboxRowPending } from '@/components/crm/inbox-row-pending'
 import { ConversationStatusDot } from '@/components/crm/conversation-status-dot'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('گفتگوها', 'Conversations')
 
 const PAGE_SIZE = 20
 const VALID_STATUSES = new Set<ConvStatus>(['OPEN', 'RESOLVED', 'HANDED_OFF'])

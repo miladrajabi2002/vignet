@@ -5,6 +5,9 @@ import { ImprovementTabs, type ImprovementTab } from '@/components/agents/improv
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { ImprovementCenter } from '@/components/agents/improvement-center'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('بهبود ایجنت', 'Improve agent')
 
 export default async function ImproveAgentPage({ params, searchParams }: {
   params: Promise<{ agentId: string }>

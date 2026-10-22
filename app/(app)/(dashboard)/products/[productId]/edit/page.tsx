@@ -6,6 +6,9 @@ import { ProductForm, type VariationInput } from '@/components/products/product-
 import { PencilLine } from 'lucide-react'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { getDashboardModuleLabel } from '@/lib/verticals/registry'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('ویرایش محصول', 'Edit product')
 
 export default async function EditProductPage(
   props: {
@@ -96,6 +99,7 @@ export default async function EditProductPage(
           categoryId: product.categoryId ?? '',
           tags: product.tags.join(', '),
           externalUrl: product.externalUrl ?? '',
+          fulfillment: product.fulfillment,
           images: product.images,
           attributes,
           variations,

@@ -377,7 +377,7 @@ export function BusinessSettings({
           </div>
 
           {/* Capabilities */}
-          <div className="settings-capabilities spatial-surface rounded-card p-4 sm:p-5">
+          <div id="settings-capabilities" className="settings-capabilities spatial-surface rounded-card p-4 sm:p-5">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
                 <h3 className="ui-h3">{fa ? 'قابلیت‌ها' : 'Capabilities'}</h3>

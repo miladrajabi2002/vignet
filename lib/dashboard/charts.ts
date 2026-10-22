@@ -78,7 +78,7 @@ export async function conversationsDailyByWorkspace(
 	const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`
     SELECT to_char(date_trunc('day', ("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
     FROM "Conversation"
-    WHERE "workspaceId" = ${workspaceId} AND "createdAt" >= ${since} AND "deletedAt" IS NULL
+    WHERE "isPlayground" = false AND "workspaceId" = ${workspaceId} AND "createdAt" >= ${since} AND "deletedAt" IS NULL
     GROUP BY 1 ORDER BY 1
   `
 	return buildSeries(rows, days)
@@ -139,7 +139,7 @@ export async function resolvedDailyByWorkspace(
 	const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`
     SELECT to_char(date_trunc('day', ("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
     FROM "Conversation"
-    WHERE "workspaceId" = ${workspaceId} AND "status" = 'RESOLVED' AND "createdAt" >= ${since} AND "deletedAt" IS NULL
+    WHERE "isPlayground" = false AND "workspaceId" = ${workspaceId} AND "status" = 'RESOLVED' AND "createdAt" >= ${since} AND "deletedAt" IS NULL
     GROUP BY 1 ORDER BY 1
   `
 	return buildSeries(rows, days)
@@ -162,7 +162,7 @@ export async function conversationsDailyByAgent(
            to_char(date_trunc('day', ("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d,
            count(*) AS c
     FROM "Conversation"
-    WHERE "workspaceId" = ${workspaceId} AND "createdAt" >= ${since} AND "deletedAt" IS NULL
+    WHERE "isPlayground" = false AND "workspaceId" = ${workspaceId} AND "createdAt" >= ${since} AND "deletedAt" IS NULL
     GROUP BY 1, 2
     ORDER BY 1, 2
   `

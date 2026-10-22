@@ -15,6 +15,9 @@ import { getActiveChannelConnectionCount, getMonthlyMessageCount } from '@/lib/b
 import { PageHeader } from '@/components/dashboard/page-header'
 import { CreditFlowMotion } from '@/components/motion/explainers'
 import { audienceBlockMessage, formatFollowers, getInstagramAudience, planFitsAudience, PLAN_MAX_IG_FOLLOWERS, smallestPlanForAudience } from '@/lib/billing/instagram-audience'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('اشتراک و اعتبار', 'Plan & credit')
 
 const PLAN_KEY: Record<string, string> = {
   TRIAL: 'planTrial',
@@ -112,11 +115,13 @@ export default async function BillingPage(
       : { label: locale === 'fa' ? 'دورهٔ آزمایشی' : 'Trial', tone: 'neutral' }
 
   const currentDef = defs[plan]
+  // `full` is what reaching the cap does; a connection cap is a plain ceiling
+  // (nothing is lost), the others stop new records from being saved.
   const capacity = [
-    { label: locale === 'fa' ? 'اتصال فعال' : 'Active channel connections', used: channelsUsed, limit: currentDef.maxChannels },
-    { label: locale === 'fa' ? 'محصول' : 'Products', used: productsUsed, limit: currentDef.maxProducts },
-    { label: locale === 'fa' ? 'سفارش' : 'Orders', used: ordersUsed, limit: currentDef.maxOrders },
-    { label: locale === 'fa' ? 'مشتری' : 'Customers', used: customersUsed, limit: currentDef.maxCustomers },
+    { label: locale === 'fa' ? 'اتصال فعال' : 'Active channel connections', used: channelsUsed, limit: currentDef.maxChannels, blocking: false, full: locale === 'fa' ? 'برای اتصال بیشتر، پلن را ارتقا دهید.' : 'Upgrade to connect more apps.' },
+    { label: locale === 'fa' ? 'محصول' : 'Products', used: productsUsed, limit: currentDef.maxProducts, blocking: true, full: locale === 'fa' ? 'محصول تازه ساخته یا همگام نمی‌شود.' : 'New products are not created or synced.' },
+    { label: locale === 'fa' ? 'سفارش' : 'Orders', used: ordersUsed, limit: currentDef.maxOrders, blocking: true, full: locale === 'fa' ? 'سفارش تازهٔ فروشگاه ثبت نمی‌شود.' : 'New store orders are not recorded.' },
+    { label: locale === 'fa' ? 'مشتری' : 'Customers', used: customersUsed, limit: currentDef.maxCustomers, blocking: true, full: locale === 'fa' ? 'مشتری تازه به فهرست مشتریان اضافه نمی‌شود.' : 'New customers are not added to the customer list.' },
   ]
   const replyTiers = AGENT_MODELS.map((model) => ({
     id: model.id,
@@ -220,13 +225,17 @@ export default async function BillingPage(
                 <div key={item.label}>
                   <div className="flex items-center justify-between gap-3 text-xs">
                     <span className="text-[var(--text-secondary)]">{item.label}</span>
-                    <span className="tabular-nums text-[var(--text-muted)]">
+                    <span className={cn('tabular-nums', item.blocking && ratio >= 1 ? 'font-bold text-red-600' : 'text-[var(--text-muted)]')}>
+                      {item.blocking && ratio >= 1 ? (locale === 'fa' ? 'پر شد · ' : 'Full · ') : ''}
                       {locale === 'fa'
                         ? `${nf.format(item.used)} از ${nf.format(item.limit)}`
                         : `${nf.format(item.used)} of ${nf.format(item.limit)}`}
                     </span>
                   </div>
-                  <Meter className="mt-1.5" ratio={ratio} warnWhenFull />
+                  <Meter className="mt-1.5" ratio={ratio} warnWhenFull={item.blocking} critical={item.blocking && ratio >= 1} />
+                  {ratio >= 1 && (
+                    <p className={cn('mt-1 text-[12px] leading-5', item.blocking ? 'text-red-600' : 'text-[var(--text-muted)]')}>{item.full}</p>
+                  )}
                 </div>
               )
             })}
@@ -500,7 +509,7 @@ function StatusPill({ tone, children }: { tone: Tone; children: React.ReactNode 
 }
 
 /** Thin progress bar. With `warnWhenFull` it turns amber from 80% and a deeper amber at the cap: a full allowance is a limit, not an error. */
-function Meter({ ratio, warnWhenFull, className }: { ratio: number; warnWhenFull?: boolean; className?: string }) {
+function Meter({ ratio, warnWhenFull, critical, className }: { ratio: number; warnWhenFull?: boolean; critical?: boolean; className?: string }) {
   const clamped = Math.min(1, Math.max(0, Number.isFinite(ratio) ? ratio : 0))
   return (
     <div className={cn('h-1.5 overflow-hidden rounded-full bg-[var(--bg-muted)]', className)}>
@@ -508,7 +517,7 @@ function Meter({ ratio, warnWhenFull, className }: { ratio: number; warnWhenFull
         className={cn(
           'h-full rounded-full bg-[var(--text-primary)]',
           warnWhenFull && clamped >= 0.8 && 'bg-amber-500',
-          warnWhenFull && clamped >= 1 && 'bg-amber-600',
+          critical && 'bg-red-600',
         )}
         style={{ width: `${clamped * 100}%` }}
       />

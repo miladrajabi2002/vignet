@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import type { MouseEvent } from 'react'
 import { useSitePathname } from '@/components/marketing/site/use-site-pathname'
-import { CircleDollarSign, House, LayoutDashboard, LayoutGrid, LogIn, Rocket } from 'lucide-react'
+import { CircleDollarSign, House, LayoutDashboard, LayoutGrid, LogIn, Newspaper, Rocket } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type MobileNavCopy = {
@@ -15,6 +15,7 @@ type MobileNavCopy = {
 	dashboard: string
 	primaryNav: string
 	dashboardAria: string
+	blog: string
 }
 
 export function MarketingMobileBottomNav({
@@ -95,16 +96,19 @@ export function MarketingMobileBottomNav({
 				</Link>
 			))}
 
+			{/* Signed in, the centre button goes to the dashboard instead of sign-up. */}
 			<Link
-				href="/login?next=/onboarding"
-				aria-label={copy.startFree}
+				href={authenticated ? '/overview' : '/login?next=/onboarding'}
+				aria-label={authenticated ? copy.dashboardAria : copy.startFree}
 				className="group relative z-20 min-h-[3.75rem] min-w-0 rounded-card focus-visible:outline-none"
 			>
 				<span className="absolute -top-5 left-1/2 flex -translate-x-1/2 flex-col items-center gap-0.5 text-[12px] font-bold text-black">
 					<span className="grid h-[3.35rem] w-[3.35rem] place-items-center rounded-card border-[5px] border-white bg-black text-white shadow-[var(--shadow-control)] transition-[transform,background-color,box-shadow] duration-200 group-hover:bg-black/85 group-active:scale-[0.92] group-focus-visible:ring-2 group-focus-visible:ring-[var(--focus-ring)] group-focus-visible:ring-offset-2 motion-reduce:transition-none">
-						<Rocket className="h-5 w-5" strokeWidth={2} aria-hidden="true" />
+						{authenticated
+							? <LayoutDashboard className="h-5 w-5" strokeWidth={2} aria-hidden="true" />
+							: <Rocket className="h-5 w-5" strokeWidth={2} aria-hidden="true" />}
 					</span>
-					<span className="whitespace-nowrap leading-4">{copy.startFree}</span>
+					<span className="whitespace-nowrap leading-4">{authenticated ? copy.dashboard : copy.startFree}</span>
 				</span>
 			</Link>
 
@@ -134,21 +138,18 @@ export function MarketingMobileBottomNav({
 			))}
 
 			<Link
-				href={authenticated ? '/overview' : '/login'}
-				aria-label={authenticated ? copy.dashboardAria : copy.login}
+				href={authenticated ? '/blog' : '/login'}
+				aria-label={authenticated ? copy.blog : copy.login}
 				className="group relative z-10 flex min-h-[3.75rem] min-w-0 flex-col items-center justify-center gap-0.5 rounded-card px-0.5 text-[12px] font-medium text-black/48 transition-colors duration-200 hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-1 motion-reduce:transition-none"
 			>
 				<span className="relative grid h-8 w-8 place-items-center rounded-control text-black/42 transition-[transform,background-color,color] duration-200 group-hover:bg-black/[0.045] group-hover:text-black/75 group-active:scale-[0.92] motion-reduce:transition-none">
 					{authenticated ? (
-						<LayoutDashboard className="h-[1.05rem] w-[1.05rem]" strokeWidth={2.1} aria-hidden="true" />
+						<Newspaper className="h-[1.05rem] w-[1.05rem]" strokeWidth={2.1} aria-hidden="true" />
 					) : (
 						<LogIn className="h-[1.05rem] w-[1.05rem] rtl:rotate-180" strokeWidth={2.1} aria-hidden="true" />
 					)}
-					{authenticated && (
-						<span aria-hidden className="absolute -end-0.5 -top-0.5 h-2 w-2 rounded-full bg-emerald-500 ring-[3px] ring-white" />
-					)}
 				</span>
-				<span className="max-w-full truncate leading-4">{authenticated ? copy.dashboard : copy.login}</span>
+				<span className="max-w-full truncate leading-4">{authenticated ? copy.blog : copy.login}</span>
 			</Link>
 		</nav>
 	)

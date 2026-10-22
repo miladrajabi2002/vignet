@@ -5,6 +5,9 @@ import { MenuWorkspace, type MenuCategory, type MenuItem } from '@/components/me
 import { readMenuSettings } from '@/lib/menu/settings'
 import { workspaceCapabilities } from '@/lib/verticals/profile'
 import { menuOwnsCatalog } from '@/lib/verticals/registry'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('منوی دیجیتال', 'Digital menu')
 
 export const dynamic = 'force-dynamic'
 

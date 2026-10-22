@@ -3,6 +3,9 @@ import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { AutomationForm } from '@/components/instagram/automation-form'
 import { type AutomationType } from '@/components/instagram/types'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('سناریوی جدید', 'New scenario')
 
 export const dynamic = 'force-dynamic'
 

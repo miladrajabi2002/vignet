@@ -111,6 +111,8 @@ interface Props {
   agentTemplate?: string
   /** Name, greeting and pre-chat form default the recommended template would give the agent. */
   agentPreset: { name: string; welcomeMessage: string; requireCustomerInfo: boolean }
+  /** What the agent still cannot sell without: a store with no products, a booking business with no service. */
+  firstNeed?: 'products' | 'services' | null
 }
 
 export function OnboardingFlow({
@@ -124,6 +126,7 @@ export function OnboardingFlow({
   businessProfile,
   agentTemplate,
   agentPreset,
+  firstNeed = null,
 }: Props) {
   const fa = useLocale() !== 'en'
   const router = useRouter()
@@ -248,6 +251,7 @@ export function OnboardingFlow({
                 done={hasKnowledge}
                 agentId={resolvedAgentId}
                 sellsProducts={businessProfile?.capabilities.includes('products') ?? true}
+                catalogEmpty={firstNeed === 'products'}
                 onSaved={() => { router.refresh() }}
                 onBack={() => { setDirection(-1); setPhaseOverride('agent') }}
                 onContinue={() => { setDirection(1); setPhaseOverride('channel') }}
@@ -284,7 +288,7 @@ export function OnboardingFlow({
               />
             )}
 
-            {currentPhase === 'done' && <DoneStep agentId={resolvedAgentId} instagramConnected={instagramConnected} />}
+            {currentPhase === 'done' && <DoneStep agentId={resolvedAgentId} instagramConnected={instagramConnected} firstNeed={firstNeed} />}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -838,6 +842,7 @@ function KnowledgeStep({
   done,
   agentId,
   sellsProducts,
+  catalogEmpty = false,
   onBack,
   onContinue,
   onSkip,
@@ -848,6 +853,8 @@ function KnowledgeStep({
   agentId: string | null
   /** Products are offered only when the workspace sells from a catalog. */
   sellsProducts: boolean
+  /** A store with no product yet: skipping here leaves the agent without prices. */
+  catalogEmpty?: boolean
   onBack: () => void
   onContinue: () => void
   onSkip: () => Promise<void>
@@ -1089,7 +1096,14 @@ function KnowledgeStep({
             <ArrowLeft className="h-4 w-4" />
           </button>
         ) : (
-          <SkipLink label={skipping ? (fa ? 'در حال ثبت…' : 'Saving…') : (fa ? 'فعلاً رد می‌کنم' : 'Skip for now')} busy={skipping} onClick={() => void skip()} />
+          <span className="flex flex-col items-end gap-1">
+            {catalogEmpty && sellsProducts && (
+              <span className="max-w-[16rem] text-end text-[12px] leading-5 text-amber-700">
+                {fa ? 'بدون محصول، ایجنت قیمت و موجودی نمی‌داند و سفارش نمی‌گیرد.' : 'Without products the agent knows no prices or stock and takes no orders.'}
+              </span>
+            )}
+            <SkipLink label={skipping ? (fa ? 'در حال ثبت…' : 'Saving…') : (fa ? 'فعلاً رد می‌کنم' : 'Skip for now')} busy={skipping} onClick={() => void skip()} />
+          </span>
         )}
       </motion.div>
     </motion.div>
@@ -1281,7 +1295,7 @@ function ChannelStep({
 }
 
 // ─── Final step ─────────────────────────────────────────────────
-function DoneStep({ agentId, instagramConnected }: { agentId: string | null; instagramConnected: boolean }) {
+function DoneStep({ agentId, instagramConnected, firstNeed }: { agentId: string | null; instagramConnected: boolean; firstNeed: 'products' | 'services' | null }) {
   const fa = useLocale() !== 'en'
   const router = useRouter()
   const reduce = useReducedMotion()
@@ -1334,6 +1348,28 @@ function DoneStep({ agentId, instagramConnected }: { agentId: string | null; ins
   }
 
   const steps: { title: string; body: ReactNode; action: ReactNode }[] = [
+    // The one thing the agent cannot work without comes first.
+    ...(firstNeed === 'products'
+      ? [{
+          title: fa ? 'اولین محصول را اضافه کنید' : 'Add your first product',
+          body: fa ? 'بدون محصول، ایجنت قیمت و موجودی نمی‌داند و سفارش نمی‌گیرد' : 'Without products the agent knows no prices and takes no orders',
+          action: (
+            <button type="button" onClick={() => void finish('/products/new')} disabled={leaving} className={ROW_BTN_LIGHT}>
+              {fa ? 'افزودن محصول' : 'Add a product'}
+            </button>
+          ),
+        }]
+      : firstNeed === 'services'
+        ? [{
+            title: fa ? 'یک خدمت با ساعت کاری بسازید' : 'Add a service with opening hours',
+            body: fa ? 'ایجنت فقط از روی خدمت و ساعت کاری، نوبت آزاد پیشنهاد می‌دهد' : 'The agent offers free times only from a service and its hours',
+            action: (
+              <button type="button" onClick={() => void finish('/appointments?tab=services')} disabled={leaving} className={ROW_BTN_LIGHT}>
+                {fa ? 'ساخت خدمت' : 'Add a service'}
+              </button>
+            ),
+          }]
+        : []),
     {
       title: fa ? 'یک گفتگوی آزمایشی بکنید' : 'Have a test conversation',
       body: fa ? 'همان چیزی را ببینید که مشتری می‌بیند' : 'See exactly what a customer sees',
@@ -1359,7 +1395,15 @@ function DoneStep({ agentId, instagramConnected }: { agentId: string | null; ins
     ...(linkUrl
       ? [{
           title: fa ? 'چت لینک را برای اولین مشتری بفرستید' : 'Send the chat link to your first customer',
-          body: <span dir="ltr" className="select-all">{linkUrl.replace(/^https?:\/\//, '')}</span>,
+          body: (
+            <span className="flex flex-wrap items-center gap-x-2">
+              <span dir="ltr" className="select-all">{linkUrl.replace(/^https?:\/\//, '')}</span>
+              {/* The address is generated; the owner can make it their own name. */}
+              <button type="button" onClick={() => void finish(agentId ? `/agents/${agentId}/channels?open=CHAT_LINK` : '/agents')} disabled={leaving} className="text-[12px] font-semibold underline underline-offset-2">
+                {fa ? 'تغییر آدرس' : 'Change address'}
+              </button>
+            </span>
+          ),
           action: (
             <button type="button" onClick={() => void copy()} className={ROW_BTN_LIGHT}>
               {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}

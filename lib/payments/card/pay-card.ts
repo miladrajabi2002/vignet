@@ -117,7 +117,7 @@ export function cardPayText(card: CardPayView, now = new Date()): string {
         `${bankName(card)}${card.holder ? ` — به نام ${card.holder}` : ''}`,
         `شماره کارت: ${formatPan(card.pan)}`,
         `مبلغ دقیق: ${groupDigits(tomanToRial(card.amount))} ریال (${groupDigits(card.amount)} تومان)`,
-        'لطفاً دقیقاً همین مبلغ را واریز کنید (بدون رُند کردن)؛ پرداخت از روی همین عدد شناخته و خودکار تأیید می‌شود.',
+        'لطفاً دقیقاً همین مبلغ را واریز کنید (بدون رُند کردن)؛ چند رقم آخرش شناسهٔ واریز شماست و پرداخت از روی همین عدد خودکار تأیید می‌شود.',
         left ? `مهلت: ${left.toLocaleString('fa-IR')} دقیقه` : '',
       ]
     : [
@@ -125,7 +125,7 @@ export function cardPayText(card: CardPayView, now = new Date()): string {
         `${bankName(card)}${card.holder ? ` — ${card.holder}` : ''}`,
         `Card number: ${formatPan(card.pan)}`,
         `Exact amount: ${groupDigits(tomanToRial(card.amount))} Rial (${groupDigits(card.amount)} Toman)`,
-        'Please transfer exactly this amount (do not round it); the payment is recognised by this number and confirmed automatically.',
+        'Please transfer exactly this amount (do not round it); its last digits identify your transfer, so it is confirmed automatically.',
         left ? `Valid for ${left} minutes` : '',
       ]
   return lines.filter(Boolean).join('\n')
@@ -145,7 +145,7 @@ export function cardPaySplitMessages(card: CardPayView, now = new Date()): strin
     ? `💳 ${cardPayHeading(card)}\n${bankName(card)}${card.holder ? ` — به نام ${card.holder}` : ''}\nشماره کارت و مبلغ دقیق رو جدا می‌فرستم که راحت کپی کنید 👇`
     : `💳 ${cardPayHeading(card)}\n${bankName(card)}${card.holder ? ` — ${card.holder}` : ''}\nThe card number and the exact amount follow as separate messages so they are easy to copy 👇`
   const tail = fa
-    ? `مبلغ بالا به ریاله (${groupDigits(tomanToRial(card.amount))} ریال = ${groupDigits(card.amount)} تومان) و باید دقیقاً همین باشه؛ بعد از واریز همین‌جا خودکار تأیید می‌شه.${left ? ` مهلت: ${left.toLocaleString('fa-IR')} دقیقه.` : ''}`
+    ? `مبلغ بالا به ریاله (${groupDigits(tomanToRial(card.amount))} ریال = ${groupDigits(card.amount)} تومان) و باید دقیقاً همین باشه؛ چند رقم آخرش شناسهٔ واریز شماست و بعد از واریز همین‌جا خودکار تأیید می‌شه.${left ? ` مهلت: ${left.toLocaleString('fa-IR')} دقیقه.` : ''}`
     : `The amount above is in Rial (${groupDigits(tomanToRial(card.amount))} Rial = ${groupDigits(card.amount)} Toman) and must be exact; it is confirmed here automatically after the transfer.${left ? ` Valid for ${left} minutes.` : ''}`
   return [head, card.pan, String(tomanToRial(card.amount)), tail]
 }

@@ -904,9 +904,14 @@ function Intro(props: {
 					transition={{ delay: 0.4, duration: 0.5 }}
 					className="mt-7 w-full max-w-sm rounded-card border border-black/[0.08] bg-white p-5 text-start shadow-[var(--elev-1)]"
 				>
+					{/* Before asking for a number, say hello and why the number is asked. */}
+					{welcomeMessage && (
+						<p className="mb-3 rounded-2xl rounded-tr-md bg-neutral-100 px-3.5 py-2.5 text-[13.5px] leading-6 text-neutral-800">{welcomeMessage}</p>
+					)}
 					<p className="text-sm text-neutral-700">
 						{leadMessage ?? 'برای شروع گفتگو، یک معرفی کوتاه بنویسید:'}
 					</p>
+					<p className="mt-1 text-[12px] leading-5 text-neutral-500">شماره فقط برای پیگیری همین گفتگو و سفارشتان است.</p>
 					<div className="mt-4 space-y-3.5">
 						<div>
 							<label htmlFor="cl-lead-name" className="mb-1.5 block px-0.5 text-[12.5px] font-semibold text-neutral-600">

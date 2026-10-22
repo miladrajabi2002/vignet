@@ -22,6 +22,9 @@ import { topicLabel } from '@/lib/conversations/topic-labels'
 import type { TrendPoint } from '@/components/dashboard/charts/conversation-chart'
 import { channelLabel } from '@/components/crm/channel-badge'
 import { cn } from '@/lib/utils'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('تحلیل‌ها', 'Analytics')
 
 const TREND_DAYS = 30
 
@@ -58,13 +61,15 @@ export default async function AnalyticsPage() {
     trendRows,
     assistantMsgCount,
     csatRows,
+    idleClosed,
   ] = await Promise.all([
     prisma.workspace.findUniqueOrThrow({
       where: { id: workspaceId },
       select: { name: true, businessType: true, createdAt: true },
     }),
     prisma.conversation.count({ where: { workspaceId, createdAt: { gte: since } } }),
-    prisma.conversation.count({ where: { workspaceId, status: 'RESOLVED', createdAt: { gte: since } } }),
+    // Silence-closed chats (24 h idle) are not outcomes; they are counted apart.
+    prisma.conversation.count({ where: { workspaceId, status: 'RESOLVED', OR: [{ resolvedReason: null }, { resolvedReason: { not: 'IDLE' } }], createdAt: { gte: since } } }),
     prisma.conversation.count({ where: { workspaceId, status: 'HANDED_OFF', createdAt: { gte: since } } }),
     prisma.conversation.count({ where: { workspaceId, status: 'OPEN' } }),
     prisma.conversation.count({ where: { workspaceId, createdAt: { gte: prevSince, lt: since } } }),
@@ -92,7 +97,7 @@ export default async function AnalyticsPage() {
     }),
     prisma.message.aggregate({
       where: {
-        conversation: { workspaceId },
+        conversation: { workspaceId, isPlayground: false },
         role: 'ASSISTANT',
         createdAt: { gte: since },
       },
@@ -109,6 +114,7 @@ export default async function AnalyticsPage() {
       select: { satisfaction: true, topics: true },
       // Empty until the satisfaction migration is applied.
     }).catch(() => [] as Array<{ satisfaction: number | null; topics: string[] }>),
+    prisma.conversation.count({ where: { workspaceId, status: 'RESOLVED', resolvedReason: 'IDLE', createdAt: { gte: since } } }),
   ])
 
   const resolveRate = totalConversations > 0 ? Math.round((resolvedConversations / totalConversations) * 100) : 0
@@ -173,7 +179,9 @@ export default async function AnalyticsPage() {
       icon: CheckCircle2,
       label: fa ? 'نرخ حل گفتگو' : 'Resolution rate',
       value: `${nfFa(resolveRate, fa)}${fa ? '٪' : '%'}`,
-      hint: fa ? `${nfFa(resolvedConversations, fa)} از ${nfFa(totalConversations, fa)}` : `${nfFa(resolvedConversations, fa)} of ${nfFa(totalConversations, fa)}`,
+      hint: fa
+        ? `${nfFa(resolvedConversations, fa)} از ${nfFa(totalConversations, fa)}${idleClosed ? ` · ${nfFa(idleClosed, fa)} بسته با سکوت` : ''}`
+        : `${nfFa(resolvedConversations, fa)} of ${nfFa(totalConversations, fa)}${idleClosed ? ` · ${nfFa(idleClosed, fa)} closed by silence` : ''}`,
       tone: 'success' as const,
     },
     {

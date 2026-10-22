@@ -56,8 +56,8 @@ export function ReminderSettingsCard({ fa, initialEnabled }: { fa: boolean; init
       </div>
       <p className="mt-3 rounded-xl bg-[var(--bg-subtle)] px-3 py-2 text-[12px] leading-6 text-[var(--text-secondary)]">
         {fa
-          ? 'مشتری می‌تواند همان‌جا جواب بدهد تا ایجنت نوبت را لغو یا جابه‌جا کند. اینستاگرام و واتس‌اپ فقط تا ۲۴ ساعت بعد از آخرین پیام مشتری اجازه پیام می‌دهند؛ بیرون از این بازه یادآوری رد می‌شود و روی نوبت علامت می‌خورد.'
-          : 'Customers can reply there to cancel or move it. Instagram and WhatsApp only allow messages within 24 h of the customer’s last one; outside that window the reminder is skipped and marked on the booking.'}
+          ? 'مشتری می‌تواند همان‌جا جواب بدهد تا ایجنت نوبت را لغو یا جابه‌جا کند. اینستاگرام فقط تا ۲۴ ساعت بعد از آخرین پیام مشتری اجازه پیام می‌دهد؛ بیرون از این بازه یادآوری رد می‌شود و روی نوبت علامت می‌خورد.'
+          : 'Customers can reply there to cancel or move it. Instagram only allows messages within 24 h of the customer’s last one; outside that window the reminder is skipped and marked on the booking.'}
       </p>
       {failed && <p role="alert" className="mt-2 text-[12px] font-medium text-red-700">{fa ? 'ذخیره نشد؛ دوباره تلاش کنید.' : 'Not saved. Try again.'}</p>}
     </section>

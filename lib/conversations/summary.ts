@@ -234,12 +234,12 @@ export function buildFallbackSummary(
       ? `Current status: the customer's latest message${latestUserListed ? '' : ` “${latestQuote}”`}${answersOutcome ? ' (a reply to the agent’s last response)' : ''} needs an operator response.`
       : waitingForCustomer
         ? `Next step: waiting for the customer to answer “${compact(latestOutcome?.content ?? '', 120)}”.`
-        : 'Current status: no explicit unresolved next step was recorded.'
+        : null
     : needsOperatorReply
       ? `وضعیت فعلی: آخرین پیام مشتری${latestUserListed ? '' : ` «${latestQuote}»`}${answersOutcome ? ' (در جواب آخرین پاسخ ایجنت)' : ''} نیازمند پاسخ اپراتور است.`
       : waitingForCustomer
         ? `قدم بعدی: منتظر پاسخ مشتری به «${compact(latestOutcome?.content ?? '', 120)}» است.`
-        : 'وضعیت فعلی: قدم بعدی حل‌نشده‌ای به‌صورت صریح ثبت نشده است.'
+        : null
 
   const requestText = requests.map((item) => compact(item.text, 150)).join(en ? ' → ' : ' ← ')
   const requestLabel = structured
@@ -257,6 +257,9 @@ export function buildFallbackSummary(
       : null,
   ].filter((part): part is string => Boolean(part))
   // The status is what the operator acts on: it is never the part cut off.
+  // With nothing left to do there is no status line at all, rather than a
+  // stock sentence repeated under every summary.
+  if (!status) return compact(parts.join(' | '), 900)
   return `${compact(parts.join(' | '), Math.max(200, 900 - status.length - 3))} | ${status}`
 }
 

@@ -1,5 +1,5 @@
 import { Activity, AlertTriangle, CheckCircle2, Clock3, Server, XCircle } from 'lucide-react'
-import { runHealthChecks, type HealthReport } from '@/lib/health'
+import { runHealthChecks, runServiceChecks, type HealthReport, type ServiceCheck } from '@/lib/health'
 import { formatDateTime } from '@/lib/format'
 import { MarketingHeroPill } from '@/components/marketing/animated-pill'
 import { enterSite, type SiteParams } from '@/lib/marketing/enter-site'
@@ -9,7 +9,10 @@ import { enterSite, type SiteParams } from '@/lib/marketing/enter-site'
 // TTFB from a full SSR+probe round-trip to a few milliseconds. The health
 // checks still run on every background revalidation, so the page stays at most
 // one minute stale.
-export const revalidate = 60
+// The [variant] segment is pre-rendered, and its ISR copy kept showing a
+// day-old check; render per request instead. The probes are a few indexed
+// reads, cheap enough for a page this rarely opened.
+export const dynamic = 'force-dynamic'
 
 // Static fa copy (messages/fa.json `status`) — inlined because reading
 // cookies()/headers() via next-intl would force dynamic rendering.
@@ -28,7 +31,21 @@ const STATUS_COPY = {
         averageResponse: 'میانگین پاسخ',
         infraTitle: 'زیرساخت‌های ویجنت',
         infraSubtitle: 'بررسی زنده اتصال و زمان پاسخ هر سرویس',
+        servicesTitle: 'سرویس‌هایی که مشتری‌های شما به آن وصل‌اند',
+        servicesSubtitle: 'از آخرین کار واقعی هر سرویس روی ویجنت',
+        ai: 'پاسخ هوش مصنوعی',
+        instagram: 'اینستاگرام (Meta)',
+        telegram: 'تلگرام',
+        bale: 'بله',
+        rubika: 'روبیکا',
+        sms: 'پیامک بانکی درگاه',
 } as const
+
+const SERVICE_STATE: Record<ServiceCheck['state'], string> = {
+        ok: 'عادی',
+        degraded: 'اختلال در سرویس‌دهنده',
+        idle: 'بدون فعالیت اخیر',
+}
 
 const HEART_TRACE = 'M0 20 H130 L142 20 L150 8 L160 33 L170 4 L180 27 L188 20 H270 L278 20 L284 13 L290 26 L296 20 H400'
 const FLAT_TRACE = 'M0 20 H400'
@@ -43,7 +60,7 @@ export default async function StatusPage({ params }: { params: SiteParams }) {
         await enterSite(params)
         const t = STATUS_COPY
         const locale = 'fa' as const
-        const report = await runHealthChecks()
+        const [report, services] = await Promise.all([runHealthChecks(), runServiceChecks()])
         const { color, Icon, tone } = META[report.status]
         const healthy = report.checks.filter((check) => check.ok).length
         const averageLatency = Math.round(report.checks.reduce((sum, check) => sum + check.latencyMs, 0) / Math.max(report.checks.length, 1))
@@ -105,8 +122,46 @@ export default async function StatusPage({ params }: { params: SiteParams }) {
                                                 ))}
                                         </div>
                                 </section>
+
+                                <ServicesSection services={services} />
                         </div>
                 </div>
+        )
+}
+
+function ago(iso: string | null): string {
+        if (!iso) return '—'
+        const minutes = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000))
+        if (minutes < 1) return 'همین الان'
+        if (minutes < 60) return `${minutes.toLocaleString('fa-IR')} دقیقه پیش`
+        const hours = Math.round(minutes / 60)
+        if (hours < 48) return `${hours.toLocaleString('fa-IR')} ساعت پیش`
+        return `${Math.round(hours / 24).toLocaleString('fa-IR')} روز پیش`
+}
+
+function ServicesSection({ services }: { services: ServiceCheck[] }) {
+        const t = STATUS_COPY
+        return (
+                <section className="mt-6 overflow-hidden rounded-sheet border border-black/[0.08] bg-white shadow-[var(--elev-2)]">
+                        <div className="border-b border-black/[0.07] px-5 py-4 sm:px-6">
+                                <h2 className="text-sm font-bold text-black">{t.servicesTitle}</h2>
+                                <p className="mt-1 text-xs text-black/45">{t.servicesSubtitle}</p>
+                        </div>
+                        <ul className="grid md:grid-cols-2">
+                                {services.map((service) => (
+                                        <li key={service.name} className="flex min-h-16 items-center justify-between gap-4 border-b border-black/[0.07] px-5 py-3.5 sm:px-6">
+                                                <span className="flex min-w-0 items-center gap-3">
+                                                        <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${service.state === 'ok' ? 'bg-emerald-500' : service.state === 'degraded' ? 'bg-amber-500' : 'bg-black/20'}`} aria-hidden />
+                                                        <span className="truncate text-sm font-medium text-black">{t[service.name]}</span>
+                                                </span>
+                                                <span className="shrink-0 text-end text-xs text-black/50">
+                                                        <span className={service.state === 'degraded' ? 'font-bold text-amber-700' : ''}>{SERVICE_STATE[service.state]}</span>
+                                                        <span className="block">{ago(service.lastActivityAt)}</span>
+                                                </span>
+                                        </li>
+                                ))}
+                        </ul>
+                </section>
         )
 }
 

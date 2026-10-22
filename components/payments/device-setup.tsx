@@ -730,7 +730,12 @@ export function TestTransfer({ verified, hasCard }: { verified: boolean; hasCard
  * and the setup questions open again, filled in with its answers (a new
  * phone, Android or iPhone, a new SIM, the other delivery).
  */
-export function PhoneCard({ device, line }: { device: GatewayDeviceRow | null; line: string | null }) {
+export function PhoneCard({ device, line, missedSince = 0 }: {
+	device: GatewayDeviceRow | null
+	line: string | null
+	/** Payments that expired unpaid since the phone's last bank SMS. */
+	missedSince?: number
+}) {
 	const fa = useLocale() !== 'en'
 	const router = useRouter()
 	const [confirming, setConfirming] = useState(false)
@@ -750,7 +755,14 @@ export function PhoneCard({ device, line }: { device: GatewayDeviceRow | null; l
 	}
 
 	const numbers = fa ? 'fa-IR' : 'en-US'
-	const state = device.verifiedAt
+	// «Connected» must not outlive the phone: a shortcut that stopped
+	// forwarding looks exactly like a quiet day, so silence while payments
+	// expired unpaid is called out.
+	const silentDays = device.lastSmsAt ? Math.floor((Date.now() - new Date(device.lastSmsAt).getTime()) / 86_400_000) : 0
+	const stale = Boolean(device.verifiedAt && device.lastSmsAt && silentDays >= 2 && missedSince > 0)
+	const state = stale
+		? { tone: 'warn' as const, text: fa ? `${silentDays.toLocaleString('fa-IR')} روز بی‌پیامک` : `${silentDays} days without SMS` }
+		: device.verifiedAt
 		? { tone: 'ok' as const, text: fa ? 'وصل و فعال' : 'Connected' }
 		: device.connectedAt
 			? { tone: 'signal' as const, text: fa ? 'وصل · منتظر واریز آزمایشی' : 'Connected · test pending' }
@@ -790,6 +802,13 @@ export function PhoneCard({ device, line }: { device: GatewayDeviceRow | null; l
 						{platformName(device.platform, fa)} · {methodName(device.method, fa)}
 						{device.phone ? <> · <span dir="ltr" className="font-mono">{displayPhone(device.phone)}</span></> : null}
 					</p>
+					{stale ? (
+						<p className="mt-1.5 text-[13px] leading-6 text-amber-800 dark:text-amber-300">
+							{fa
+								? `از آخرین پیامک، ${missedSince.toLocaleString('fa-IR')} پرداخت بی‌واریز منقضی شده. اگر واریزی داشته‌اید و نیامده، میان‌بر گوشی را یک‌بار اجرا کنید یا «راه‌اندازی دوباره» را بزنید.`
+								: `${missedSince} payments expired unpaid since the last SMS. If money arrived and was not matched, run the phone shortcut once or set it up again.`}
+						</p>
+					) : null}
 				</div>
 				<div className="flex w-full flex-wrap gap-2 sm:w-auto">
 					<Link href="/payments/devices" className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full border border-[var(--border-default)] px-4 text-[13px] font-medium text-[var(--text-primary)] hover:border-[var(--border-hover)] sm:flex-none"><BookOpen className="size-4" aria-hidden />{fa ? 'راهنمای تنظیم' : 'Setup guide'}</Link>

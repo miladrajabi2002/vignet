@@ -4,6 +4,9 @@ import { prisma } from '@/lib/prisma'
 import { ProductForm } from '@/components/products/product-form'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { Package } from 'lucide-react'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('افزودن محصول', 'New product')
 
 export default async function NewProductPage({
   searchParams,

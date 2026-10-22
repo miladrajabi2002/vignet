@@ -14,6 +14,9 @@ import {
         type InstagramAutomationSettings,
         type ReplyPolicy,
 } from '@/components/instagram/types'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('اینستاگرام ایجنت', 'Agent Instagram')
 
 export const dynamic = 'force-dynamic'
 

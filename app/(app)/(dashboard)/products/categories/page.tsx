@@ -4,6 +4,9 @@ import { prisma } from '@/lib/prisma'
 import { CategoryTree } from '@/components/products/category-tree'
 import { FolderTree } from 'lucide-react'
 import { PageHeader } from '@/components/dashboard/page-header'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('دسته‌های محصول', 'Product categories')
 
 export default async function CategoriesPage() {
   const user = await requireUser()

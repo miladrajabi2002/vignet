@@ -3,6 +3,9 @@ import { getLocale } from 'next-intl/server'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import AgentInstagramPage from '@/app/(app)/(dashboard)/agents/[agentId]/instagram/page'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('اینستاگرام', 'Instagram')
 
 /**
  * Workspace-level Instagram entry point. The implementation remains agent-backed,

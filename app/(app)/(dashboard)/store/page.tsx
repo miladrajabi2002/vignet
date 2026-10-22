@@ -9,6 +9,9 @@ import { StoreAccessPrompt } from '@/components/agents/store-access-prompt'
 import { AgentStoreAccess } from '@/components/agents/agent-store-access'
 import { loadStoreSection } from '@/lib/integrations/store-section'
 import { StatusChip } from '@/components/ui/status-chip'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('ووکامرس', 'WooCommerce')
 
 export const dynamic = 'force-dynamic'
 

@@ -3,6 +3,9 @@ import { requireUser } from '@/lib/session'
 import { PaymentsShell } from '@/components/payments/payments-shell'
 import { CardsManager } from '@/components/payments/cards-manager'
 import { loadGatewayOverview } from '@/lib/payments/card/dashboard'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('کارت‌های درگاه', 'Gateway cards')
 
 export const dynamic = 'force-dynamic'
 

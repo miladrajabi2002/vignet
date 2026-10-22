@@ -16,7 +16,7 @@
  * the confirmed cart becomes a payment link on the store itself instead of
  * an operator pre-order; see lib/commerce/checkout-service.ts.
  */
-import type { ChannelType, Prisma } from '@prisma/client'
+import type { ChannelType, Prisma, ProductFulfillment } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { orderRef } from '@/lib/commerce/order-ref'
 import { extractTypedVariations, type VariationRow } from '@/lib/products/description'
@@ -168,6 +168,7 @@ type ProductRow = {
   active: boolean
   attributes: Prisma.JsonValue
   externalUrl: string | null
+  fulfillment: ProductFulfillment
 }
 
 function parseItems(value: Prisma.JsonValue): OrderDraftItem[] {
@@ -185,6 +186,7 @@ function parseItems(value: Prisma.JsonValue): OrderDraftItem[] {
       unitPrice: typeof row.unitPrice === 'number' ? row.unitPrice : null,
       url: typeof row.url === 'string' ? row.url : null,
       maxQuantity: typeof row.maxQuantity === 'number' ? row.maxQuantity : null,
+      ...(row.shipped === false ? { shipped: false } : {}),
     }]
   })
 }
@@ -340,6 +342,8 @@ function buildItem(product: ProductRow, variation: VariationRow | null, quantity
     unitPrice: variation?.price ?? product.price ?? null,
     url: product.externalUrl,
     maxQuantity: max,
+    // Unknown (older rows, store sync) counts as shipped, the safe default.
+    shipped: !product.fulfillment || product.fulfillment === 'SHIPPED',
   }
 }
 
@@ -352,7 +356,7 @@ async function loadProducts(scope: LoadScope, ids: string[]): Promise<ProductRow
   const [rows, held] = await Promise.all([
     prisma.product.findMany({
       where: { id: { in: parents }, catalogItems: { some: { agentId: scope.agentId } } },
-      select: { id: true, name: true, price: true, stock: true, active: true, attributes: true, externalUrl: true },
+      select: { id: true, name: true, price: true, stock: true, active: true, attributes: true, externalUrl: true, fulfillment: true },
     }),
     scope.cartHold ? heldByOthers(scope.workspaceId, scope.conversationId) : Promise.resolve(null),
   ])

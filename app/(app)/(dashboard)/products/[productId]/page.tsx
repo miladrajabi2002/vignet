@@ -23,6 +23,9 @@ import {
 } from '@/lib/products/description'
 import { CopyButton } from '@/components/ui/copy-button'
 import { ProductImage } from '@/components/products/product-image'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('محصول', 'Product')
 
 export default async function ProductDetailPage(
   props: {

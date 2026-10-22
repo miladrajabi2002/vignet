@@ -78,8 +78,36 @@ const QUESTION_GROUPS: Array<{ fa: string; en: string; questions: Array<{ fa: st
  * fresh, the message area shows what Vigento can read and grouped starter
  * questions; `?q=` (from the overview card) asks a question on arrival.
  */
-export function VigentoWorkspace({ locale, ownerName, initialQuestion }: { locale: Locale; ownerName?: string | null; initialQuestion?: string }) {
+/** Live counts the page passes in so the first suggestions fit this workspace. */
+export interface VigentoSignals {
+  openConversations: number
+  handedOff: number
+  products: number
+  knowledgeNotReady: number
+  unanswered7d: number
+}
+
+/** Questions picked from what is going on right now; the generic ones follow. */
+function focusQuestions(signals: VigentoSignals | undefined): Array<{ fa: string; en: string }> {
+  if (!signals) return []
+  const out: Array<{ fa: string; en: string }> = []
+  if (signals.handedOff > 0) out.push({ fa: 'کدام گفتگوها منتظر من هستند و هرکدام چه می‌خواهد؟', en: 'Which chats are waiting for me, and what does each want?' })
+  if (signals.openConversations >= 10) out.push({ fa: `چرا ${signals.openConversations.toLocaleString('fa-IR')} گفتگو هنوز باز مانده؟`, en: `Why are ${signals.openConversations} chats still open?` })
+  if (signals.unanswered7d > 0) out.push({ fa: 'مشتری‌ها این هفته چه چیزی پرسیدند که ایجنت نمی‌دانست؟', en: 'What did customers ask this week that the agent did not know?' })
+  if (signals.products === 0) out.push({ fa: 'ایجنت بدون محصول به مشتری‌ها چه جوابی داده؟', en: 'What has the agent been telling customers without any products?' })
+  if (signals.knowledgeNotReady > 0) out.push({ fa: 'کدام منبع دانش هنوز آماده نیست؟', en: 'Which knowledge source isn’t ready yet?' })
+  return out.slice(0, 3)
+}
+
+export function VigentoWorkspace({ locale, ownerName, initialQuestion, signals }: { locale: Locale; ownerName?: string | null; initialQuestion?: string; signals?: VigentoSignals }) {
   const fa = locale === 'fa'
+  const focus = focusQuestions(signals)
+  // A store with no products has nothing to be low on.
+  const groups = QUESTION_GROUPS.map((group) => ({
+    ...group,
+    questions: group.questions.filter((question) => !(signals?.products === 0 && question.fa.includes('موجودی کمی'))),
+  }))
+  const shownGroups = focus.length ? [{ fa: 'برای شما', en: 'For you', questions: focus }, ...groups] : groups
   const reduceMotion = useReducedMotion()
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -96,7 +124,7 @@ export function VigentoWorkspace({ locale, ownerName, initialQuestion }: { local
   const askedInitial = useRef(false)
   const fresh = messages.length <= 1 && !loading
 
-  const quickPrompts = QUESTION_GROUPS.flatMap((group) => group.questions).slice(0, 4)
+  const quickPrompts = shownGroups.flatMap((group) => group.questions).slice(0, 4)
 
   // Auto-scroll only while the reader sits at the bottom, so scrolling up to
   // re-read an earlier answer is never yanked back down.
@@ -228,7 +256,7 @@ export function VigentoWorkspace({ locale, ownerName, initialQuestion }: { local
               <div>
                 <p className="text-[13px] font-bold text-[var(--text-primary)]">{fa ? 'چه چیزی بپرسم؟' : 'What can I ask?'}</p>
                 <div className="mt-2 space-y-3">
-                  {QUESTION_GROUPS.map((group) => (
+                  {shownGroups.map((group) => (
                     <div key={group.en}>
                       <p className="mb-1.5 text-[13px] font-semibold text-[var(--text-muted)]">{fa ? group.fa : group.en}</p>
                       <div className="flex flex-wrap gap-1.5">

@@ -1,6 +1,9 @@
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { requireUser } from '@/lib/session'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('اتصال‌ها', 'Connections')
 
 /**
  * Compatibility destination for notifications created before channel alerts

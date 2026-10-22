@@ -130,6 +130,7 @@ export async function POST(req: Request) {
         tags: d.tags ?? [],
         externalUrl: d.externalUrl ?? null,
         active: d.active ?? true,
+        fulfillment: d.fulfillment ?? 'SHIPPED',
       },
     })
   }).catch((error: unknown) => {

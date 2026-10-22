@@ -33,6 +33,9 @@ import { workspaceCapabilities } from '@/lib/verticals/profile'
 import { relativeTime } from '@/lib/format'
 import { summarizeAgentReadiness } from '@/lib/agents/readiness'
 import { buildLinkEvidence } from '@/lib/agent-kernel/skills/link-grounding'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('ایجنت', 'Agent')
 
 interface SetupStep {
   key: string
@@ -255,17 +258,30 @@ export default async function AgentDetailPage(
     .filter((step) => !step.done)
     .sort((a, b) => a.priority - b.priority)[0]
 
+  // The widget and chat link do not pass through the messenger handler that
+  // stamps lastInboundAt, so the newest conversation per channel counts too.
+  const lastByChannel = new Map(
+    (await prisma.conversation.groupBy({
+      by: ['channel'],
+      where: { agentId: agent.id, deletedAt: null },
+      _max: { lastMessageAt: true },
+    })).map((row) => [row.channel, row._max.lastMessageAt]),
+  )
   const connectionSummaries: ConnectionSummary[] = [
     ...channels.map((channel) => {
+      const fromConversations = lastByChannel.get(channel.type) ?? null
+      const lastInboundAt = channel.lastInboundAt && fromConversations
+        ? (channel.lastInboundAt > fromConversations ? channel.lastInboundAt : fromConversations)
+        : channel.lastInboundAt ?? fromConversations
       const meta = CHANNEL_META[channel.type] ?? {
         fa: channel.type,
         en: channel.type,
         icon: Cable,
       }
-      const activity = channel.lastInboundAt
+      const activity = lastInboundAt
         ? (fa
-            ? `آخرین پیام ${relativeTime(channel.lastInboundAt, 'fa')}`
-            : `Last message ${relativeTime(channel.lastInboundAt, 'en')}`)
+            ? `آخرین پیام ${relativeTime(lastInboundAt, 'fa')}`
+            : `Last message ${relativeTime(lastInboundAt, 'en')}`)
         : (fa ? 'هنوز پیامی نیامده' : 'Waiting for the first inbound message')
 
       return {

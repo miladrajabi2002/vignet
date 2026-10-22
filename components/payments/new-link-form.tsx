@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useLocale } from 'next-intl'
 import { AlertTriangle, CheckCircle2, Link2, Lock, MessageSquareText, Plus, Send, Share2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -46,6 +46,20 @@ export function NewPaymentButton({ locked }: { locked: 'card' | 'platform' | nul
 	const numbers = fa ? 'fa-IR' : 'en-US'
 	const total = itemsTotal(items)
 	const ready = Boolean(value) && !locked && (target === 'link' || recipient !== null)
+	const params = useSearchParams()
+
+	// «New link for the same amount» from an expired payment lands here as
+	// ?again=<toman>&desc=<title>: open the form already filled in.
+	useEffect(() => {
+		const again = Number(params.get('again') ?? '')
+		if (!Number.isFinite(again) || again <= 0 || locked) return
+		setAmount(formatAmountInput(again))
+		setAmountTouched(true)
+		setDescription(params.get('desc') ?? '')
+		setOpen(true)
+		router.replace('/payments', { scroll: false })
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [params])
 
 	function reset() {
 		setMade(null)

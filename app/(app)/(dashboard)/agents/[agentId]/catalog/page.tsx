@@ -1,4 +1,7 @@
 import { AgentStoreAccess } from '@/components/agents/agent-store-access'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('دسترسی فروشگاه', 'Store access')
 
 export default async function AgentCatalogPage({ params }: { params: Promise<{ agentId: string }> }) {
   const { agentId } = await params

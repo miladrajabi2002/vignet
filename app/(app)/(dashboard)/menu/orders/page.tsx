@@ -4,6 +4,9 @@ import { prisma } from '@/lib/prisma'
 import { workspaceCapabilities } from '@/lib/verticals/profile'
 import { menuOwnsCatalog } from '@/lib/verticals/registry'
 import { OrdersView, type OrdersSearchParams } from '@/components/products/orders-view'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('سفارش‌های منو', 'Menu orders')
 
 export default async function MenuOrdersPage({
   searchParams,

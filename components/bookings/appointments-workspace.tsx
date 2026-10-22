@@ -69,8 +69,14 @@ export function AppointmentsWorkspace({
   initialAppointments,
   initialEditId,
   remindersEnabled = true,
+  bookingCapability = true,
+  operatorConnected = false,
 }: {
   locale: Locale
+  /** «Bookings» is on in Settings › Capabilities; off, the agent never books. */
+  bookingCapability?: boolean
+  /** The Telegram manager bot is connected, so new bookings reach it too. */
+  operatorConnected?: boolean
   title: string
   /** Workspace switch: customer reminders 24 h / 2 h before, in-chat. */
   remindersEnabled?: boolean
@@ -479,7 +485,7 @@ export function AppointmentsWorkspace({
                 </div>
               </section>
 
-              <AgentPanel fa={fa} services={activeServices} onManage={() => switchTab('services')} remindersEnabled={remindersEnabled} />
+              <AgentPanel fa={fa} services={activeServices} onManage={() => switchTab('services')} remindersEnabled={remindersEnabled} bookingCapability={bookingCapability} operatorConnected={operatorConnected} />
             </div>
           )}
         </>
@@ -827,21 +833,35 @@ function MenuItem({ onClick, Icon, danger = false, children }: { onClick: () => 
   )
 }
 
-function AgentPanel({ fa, services, onManage, remindersEnabled }: { fa: boolean; services: ServiceRow[]; onManage: () => void; remindersEnabled: boolean }) {
+function AgentPanel({ fa, services, onManage, remindersEnabled, bookingCapability, operatorConnected }: { fa: boolean; services: ServiceRow[]; onManage: () => void; remindersEnabled: boolean; bookingCapability: boolean; operatorConnected: boolean }) {
+  // The agent books only when the capability is on and a service can take
+  // bookings (chat-engine gates the booking skill the same way).
+  const live = bookingCapability && services.length > 0
+  const reason = !bookingCapability
+    ? (fa ? 'قابلیت «رزرو و نوبت‌دهی» خاموش است؛ ایجنت به مشتری می‌گوید رزرو از این راه ممکن نیست.' : 'The Bookings capability is off; the agent tells customers it cannot book here.')
+    : (fa ? 'هنوز خدمت فعالی نیست؛ یک خدمت با ساعت کاری بسازید.' : 'No active service yet; add one with opening hours.')
   const steps = fa
-    ? ['مشتری در دایرکت یا سایت وقت می‌خواهد', 'ایجنت ظرفیت واقعی را می‌خواند', 'بعد از تأیید مشتری، بدون تداخل ثبت می‌کند', 'شما در پنل و ربات تلگرام خبردار می‌شوید']
-    : ['A customer asks for a time in DM or on site', 'The agent reads live capacity', 'It books conflict-free after the customer confirms', 'You get a dashboard and Telegram alert']
+    ? ['مشتری در دایرکت یا سایت وقت می‌خواهد', 'ایجنت ظرفیت واقعی را می‌خواند', 'بعد از تأیید مشتری، بدون تداخل ثبت می‌کند', operatorConnected ? 'شما در پنل و ربات تلگرام خبردار می‌شوید' : 'شما در پنل خبردار می‌شوید']
+    : ['A customer asks for a time in DM or on site', 'The agent reads live capacity', 'It books conflict-free after the customer confirms', operatorConnected ? 'You get a dashboard and Telegram alert' : 'You get a dashboard alert']
   return (
     <aside className="space-y-4">
       <section className="spatial-surface rounded-card p-4">
         <div className="flex items-center gap-2.5">
           <span className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--text-primary)] text-white"><Bot className="h-4 w-4" /></span>
           <div className="min-w-0">
-            <p className="ui-h3 leading-6">{fa ? 'ایجنت رزرو فعال است' : 'Booking agent is on'}</p>
+            <p className="ui-h3 leading-6">{live ? (fa ? 'ایجنت رزرو فعال است' : 'Booking agent is on') : (fa ? 'ایجنت فعلاً رزرو نمی‌کند' : 'The agent is not booking yet')}</p>
             <p className="text-[13px] text-[var(--text-muted)]">{fa ? `${num(services.length, true)} خدمت قابل رزرو` : `${services.length} bookable services`}</p>
           </div>
-          <StatusChip tone="ok" pulse className="ms-auto">{fa ? 'زنده' : 'Live'}</StatusChip>
+          <StatusChip tone={live ? 'ok' : 'warn'} pulse={live} className="ms-auto">{live ? (fa ? 'زنده' : 'Live') : (fa ? 'خاموش' : 'Off')}</StatusChip>
         </div>
+        {!live && (
+          <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-[13px] leading-6 text-amber-900">
+            {reason}{' '}
+            {bookingCapability
+              ? <button type="button" onClick={onManage} className="font-bold underline underline-offset-2">{fa ? 'ساخت خدمت' : 'Add a service'}</button>
+              : <a href="/settings#settings-capabilities" className="font-bold underline underline-offset-2">{fa ? 'روشن کردن قابلیت' : 'Turn it on'}</a>}
+          </p>
+        )}
         <ol className="relative mt-4 space-y-3 ps-1">
           <span className="lf lf-vline absolute bottom-3 start-[0.95rem] top-3 w-0.5" aria-hidden />
           {steps.map((step, index) => (

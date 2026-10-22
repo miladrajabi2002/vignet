@@ -23,6 +23,8 @@ export const productCreateSchema = z.object({
     .optional()
     .or(z.literal('').transform(() => null)),
   active: z.boolean().optional(),
+  /** SHIPPED asks the buyer for an address in chat; DIGITAL, SERVICE and PICKUP do not. */
+  fulfillment: z.enum(['SHIPPED', 'DIGITAL', 'SERVICE', 'PICKUP']).optional(),
 })
 
 export const productUpdateSchema = productCreateSchema.partial()

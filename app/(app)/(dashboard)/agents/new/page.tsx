@@ -3,6 +3,9 @@ import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { getPlatformAiConfig } from '@/lib/ai/platform-config'
 import { getEffectivePlanReplyPricesIRR } from '@/lib/billing/plans'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('ایجنت جدید', 'New agent')
 
 const BUSINESSES = new Set([
   'instagram',

@@ -641,7 +641,7 @@ export async function resolveConversation(
 
         if (params.conversationId) {
                 const found = await prisma.conversation.findFirst({
-                        where: { id: params.conversationId, workspaceId, agentId: agent.id },
+                        where: { id: params.conversationId, workspaceId, agentId: agent.id, isPlayground: params.playground === true },
                         select: { id: true, customerInfoState: true, status: true, handedOff: true },
                 })
                 if (found) {
@@ -652,7 +652,7 @@ export async function resolveConversation(
                         // over an actively ongoing chat.
                         if (found.status === 'RESOLVED' && !found.handedOff) {
                                 await prisma.conversation
-                                        .update({ where: { id: found.id }, data: { status: 'OPEN' } })
+                                        .update({ where: { id: found.id }, data: { status: 'OPEN', resolvedReason: null } })
                                         .catch(() => {})
                         }
                         return {
@@ -709,6 +709,7 @@ export async function resolveConversation(
                                 workspaceId,
                                 agentId: agent.id,
                                 channel: params.channel,
+                                isPlayground: params.playground === true,
                                 contactId: params.contactId,
                                 externalId: params.externalId,
                                 customerInfoState: initialState,

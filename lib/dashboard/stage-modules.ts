@@ -11,6 +11,7 @@ import type { CapabilityKey } from '@/lib/verticals/registry'
 import { getPlatformGatewaySettings } from '@/lib/payments/card/platform'
 import { gatewaySetupState, type GatewaySetupStep } from '@/lib/payments/card/setup'
 import { publicSiteUrl } from '@/lib/menu/public-menu'
+import { loadGatewayOrders } from '@/lib/payments/card/fulfilment'
 
 export interface StageStore {
   /** A WooCommerce plugin connection, the catalog kept in Vigent, or nothing yet. */
@@ -142,7 +143,11 @@ async function loadStore(workspaceId: string, since: Date): Promise<StageStore> 
     prisma.orderDraft.findMany({ where: { workspaceId, submittedAt: { gte: since } }, orderBy: { submittedAt: 'desc' }, take: 5, select: { grandTotal: true, total: true } }),
   ])
   const woo = integration?.type === 'WOOCOMMERCE'
+  // Card-to-card orders paid through the Vigent gateway are orders too; the
+  // orders page lists them beside the store's, so the overview counts both.
+  const gateway7 = (await loadGatewayOrders(workspaceId, { take: 200 })).filter((purchase) => purchase.paidAt >= since)
   const toman = orders.reduce((sum, order) => sum + toToman(order.total, order.currency), 0)
+    + gateway7.reduce((sum, purchase) => sum + purchase.total, 0)
   const latest = integration && orders.length
     ? orders.slice(0, 5).map((order) => ({ label: `سفارش #${order.externalOrderId}`, toman: toToman(order.total, order.currency), chat: false }))
     : drafts.map((draft) => ({ label: 'سفارش از گفتگو', toman: draft.grandTotal ?? draft.total ?? 0, chat: true }))
@@ -159,7 +164,7 @@ async function loadStore(workspaceId: string, since: Date): Promise<StageStore> 
       : null,
     resync: Boolean(integration?.productResyncNeededAt),
     products,
-    orders7: { count: orders.length, toman: Math.round(toman) },
+    orders7: { count: orders.length + gateway7.length, toman: Math.round(toman) },
     chat7,
     links: linksSent ? { sent: linksSent, paid: linksPaid } : null,
     low,

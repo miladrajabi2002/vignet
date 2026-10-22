@@ -489,6 +489,13 @@ model ConversationTurnLease {
 }
 
 // ─── PRODUCT CATALOG ──────────────────────────────────────────────
+enum ProductFulfillment {
+  SHIPPED
+  DIGITAL
+  SERVICE
+  PICKUP
+}
+
 model ProductCategory {
   id                  String   @id @default(cuid())
   workspaceId         String
@@ -533,6 +540,8 @@ model Product {
   attributes          Json? // {"color": "blue", "size": "XL"}
   tags                String[]
   externalUrl         String? // canonical product URL on the source store (WooCommerce permalink, etc.) — used for the "View product" button in Instagram product cards
+  // How the buyer receives it: only SHIPPED goods make the chat ask for an address.
+  fulfillment       ProductFulfillment @default(SHIPPED)
   active              Boolean   @default(true)
   embeddingUpdatedAt  DateTime? // track when last embedded into vector store
   // ── Soft delete (undo support). NULL = live row; a timestamp = trashed.
@@ -749,8 +758,13 @@ model Conversation {
   agentId                 String
   contactId               String?
   channel                 ChannelType
+  // Started from the dashboard's «test the agent» panel: hidden from the
+  // inbox, stats and alerts (lib/prisma injects isPlayground: false into reads).
+  isPlayground            Boolean     @default(false)
   externalId              String?
   status                  ConvStatus  @default(OPEN)
+  // Why it is RESOLVED: IDLE = closed after 24 h of silence (worker), OPERATOR = a person closed it. Null on older rows.
+  resolvedReason          String?
   handedOff               Boolean     @default(false)
   rating                  Int?
   summary                 String?     @db.Text

@@ -16,6 +16,9 @@ import { Sparkline } from '@/components/admin/sparkline'
 import { conversationsDailyByAgent } from '@/lib/dashboard/charts'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { LiveEmptyState } from '@/components/ui/live-empty-state'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('ایجنت‌ها', 'Agents')
 
 export default async function AgentsPage() {
         const user = await requireUser()
@@ -31,9 +34,10 @@ export default async function AgentsPage() {
                                 name: true,
                                 active: true,
                                 language: true,
+                                chatLink: { select: { enabled: true } },
                                 _count: {
                                         select: {
-                                                conversations: { where: { deletedAt: null } },
+                                                conversations: { where: { deletedAt: null, isPlayground: false } },
                                                 channels: true,
                                                 catalogItems: true,
                                                 knowledgeBases: true,
@@ -107,7 +111,7 @@ export default async function AgentsPage() {
                                                                 </span>
                                                                 <span className="inline-flex items-center gap-1">
                                                                         <Share2 className="h-3.5 w-3.5" />
-                                                                        {t('statChannels', { count: nf.format(agent._count.channels) })}
+                                                                        {t('statChannels', { count: nf.format(agent._count.channels + (agent.chatLink?.enabled ? 1 : 0)) })}
                                                                 </span>
                                                                 <span className="inline-flex items-center gap-1">
                                                                         <Database className="h-3.5 w-3.5" />
@@ -137,7 +141,7 @@ export default async function AgentsPage() {
                                                                 </span>
                                                                 <span className="ms-auto inline-flex items-center gap-1 text-[var(--text-muted)] transition-colors group-hover:text-[var(--text-primary)]">
                                                                         {t('open')}
-                                                                        <span className="rtl:rotate-180">→</span>
+                                                                        <span className="inline-block rtl:rotate-180">→</span>
                                                                 </span>
                                                         </div>
                                                 </Link>
@@ -153,7 +157,7 @@ export default async function AgentsPage() {
                                                 <p className="font-medium text-[var(--text-primary)]">
                                                         {agents.length === 1 ? t('hintOneTitle') : t('hintManyTitle', { count: nf.format(agents.length) })}
                                                 </p>
-                                                <p className="mt-1 text-xs">{agents.length === 1 ? t('hintOneBody') : t('hintManyBody')}</p>
+                                                <p className="mt-1 text-xs">{agents.length === 1 ? (agents[0]._count.channels + (agents[0].chatLink?.enabled ? 1 : 0) > 0 ? t('hintOneConnectedBody') : t('hintOneBody')) : t('hintManyBody')}</p>
                                         </div>
                                 </div>
                         )}

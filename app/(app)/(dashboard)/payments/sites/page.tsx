@@ -4,6 +4,9 @@ import { prisma } from '@/lib/prisma'
 import { PaymentsShell } from '@/components/payments/payments-shell'
 import { SitesManager } from '@/components/payments/sites-manager'
 import { loadGatewayOverview } from '@/lib/payments/card/dashboard'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('سایت و API درگاه', 'Gateway sites & API')
 
 export const dynamic = 'force-dynamic'
 

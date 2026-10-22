@@ -192,6 +192,17 @@ export async function Header({
   const billingLabel = fa
     ? `مشاهده جزئیات پلن و اعتبار؛ ${planTitle}، ${statusLabel}، ${nf.format(creditToman)} تومان اعتبار پاسخ${daysLeft !== null ? `، ${planDaysLabel(standing, fa)}` : ''}`
     : `View plan and credit details; ${planTitle}, ${statusLabel}, ${nf.format(creditToman)} toman reply credit${daysLeft !== null ? `, ${planDaysLabel(standing, fa)}` : ''}`
+  // The dot beside the greeting is the account's health: green only when
+  // nothing below the header waits for the owner.
+  const alerts = Object.entries(navStatus ?? {}).filter(([, status]) => status?.tone === 'alert')
+  const setups = Object.entries(navStatus ?? {}).filter(([, status]) => status?.tone === 'setup')
+  const health: { tone: 'ok' | 'setup' | 'alert'; label: string; href: string | null } = handedOffCount > 0
+    ? { tone: 'alert', label: fa ? `${nf.format(handedOffCount)} گفتگو منتظر شماست` : `${handedOffCount} chats wait for you`, href: '/conversations?status=HANDED_OFF' }
+    : alerts.length
+      ? { tone: 'alert', label: alerts[0][1]!.label, href: `/${alerts[0][0]}` }
+      : setups.length
+        ? { tone: 'setup', label: setups[0][1]!.label, href: `/${setups[0][0]}` }
+        : { tone: 'ok', label: fa ? 'همه‌چیز کار می‌کند' : 'Everything is working', href: null }
   const businessLabel = fa
     ? getVerticalPack(businessType).titleFa
     : getVerticalPack(businessType).titleEn
@@ -229,8 +240,14 @@ export async function Header({
               {name ? t('greeting', { name }) : t('welcome')}
             </div>
             <div className="mt-1 hidden items-center gap-2 text-[12px] leading-4 text-[var(--text-muted)] sm:flex xl:mt-1.5 xl:text-xs">
-              <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.08)]" />
-              <span className="sr-only">{fa ? 'همه‌چیز کار می‌کند' : 'System online'}</span>
+              <span aria-hidden="true" className={cn('h-2 w-2 shrink-0 rounded-full', health.tone === 'ok' ? 'bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.08)]' : health.tone === 'alert' ? 'bg-red-500' : 'bg-amber-500')} />
+              {health.href ? (
+                <Link href={health.href} className={cn('truncate font-medium underline-offset-2 hover:underline', health.tone === 'alert' ? 'text-red-600' : 'text-amber-700')}>
+                  {health.label}
+                </Link>
+              ) : (
+                <span className="sr-only">{health.label}</span>
+              )}
               <span className="truncate">
                 {businessLabel} · {fa ? 'مرکز مدیریت ویجنت' : 'Vigent management center'}
               </span>

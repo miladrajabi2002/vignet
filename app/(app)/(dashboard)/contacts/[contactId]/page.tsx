@@ -18,6 +18,9 @@ import { displayPhone } from '@/lib/phone'
 import { formatContactAddress, readContactAddress } from '@/lib/crm/contact-address'
 import { loadContactPurchases } from '@/lib/payments/card/fulfilment'
 import { PurchaseCard } from '@/components/payments/purchase-card'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('مشتری', 'Customer')
 
 /** Conversations listed before the rest fold away. */
 const HISTORY_SHOWN = 5

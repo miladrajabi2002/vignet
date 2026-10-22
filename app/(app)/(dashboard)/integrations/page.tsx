@@ -14,6 +14,9 @@ import { WOO_LINK_CARD, WOO_TINT } from '@/components/integrations/woo-styles'
 import { StatusChip } from '@/components/ui/status-chip'
 import { prisma } from '@/lib/prisma'
 import { PageHeader } from '@/components/dashboard/page-header'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('اتصال‌ها', 'Connections')
 
 const CHANNELS: {
         type: ChannelType
@@ -31,6 +34,7 @@ export default async function IntegrationsPage() {
         const user = await requireUser()
         const t = await getTranslations('integrations')
         const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
+        const nf = new Intl.NumberFormat(locale === 'fa' ? 'fa-IR' : 'en-US')
 
         const [groups, primaryAgent] = await Promise.all([
                 prisma.agentChannel.groupBy({
@@ -121,13 +125,14 @@ export default async function IntegrationsPage() {
                                                 </p>
                                                 <p className="mt-0.5 text-xs text-[var(--text-muted)]">
                                                         {chatLinkCount > 0
-                                                                ? `${chatLinkCount} ${t('connected').toLowerCase()}`
+                                                                ? `${nf.format(chatLinkCount)} ${t('connected').toLowerCase()}`
                                                                 : t('chatLinkDesc')}
                                                 </p>
                                         </div>
                                 </Link>
 
-                                {CHANNELS.map(({ type, name, available }) => {
+                                {/* Connected apps first, so what already works is what the owner sees first. */}
+                                {[...CHANNELS].sort((a, b) => Number((counts.get(b.type) ?? 0) > 0) - Number((counts.get(a.type) ?? 0) > 0)).map(({ type, name, available }) => {
                                         const count = counts.get(type) ?? 0
                                         const connected = count > 0
                                         return (
@@ -149,7 +154,7 @@ export default async function IntegrationsPage() {
                                                                 <p className="mt-0.5 text-xs text-[var(--text-muted)]">
                                                                         {available
                                                                                 ? connected
-                                                                                        ? `${count} ${t('connected').toLowerCase()}`
+                                                                                        ? `${nf.format(count)} ${t('connected').toLowerCase()}`
                                                                                         : t('manageInAgent')
                                                                                 : t('comingSoon')}
                                                                 </p>

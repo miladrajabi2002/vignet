@@ -5,6 +5,9 @@ import { getDashboardModuleLabel, getDashboardModules } from '@/lib/verticals/re
 import { workspaceCapabilities } from '@/lib/verticals/profile'
 import { serviceFromApi } from '@/components/bookings/booking-model'
 import { ServiceCatalog } from '@/components/services/service-catalog'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('خدمات', 'Services')
 
 export const dynamic = 'force-dynamic'
 

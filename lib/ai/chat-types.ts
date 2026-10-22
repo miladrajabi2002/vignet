@@ -46,6 +46,8 @@ export interface StartChatParams {
         contactId?: string
         /** Platform thread id (e.g. Telegram chat id) used to resume conversations. */
         externalId?: string
+        /** Started from the dashboard's «test the agent» panel (kept out of inbox, stats and alerts). */
+        playground?: boolean
         /** Customer display name — when present, replaces {customer_name} in the system prompt. */
         contactName?: string | null
         /** Customer phone, e.g. from the widget's pre-chat lead form. */

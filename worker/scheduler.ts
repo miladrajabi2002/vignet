@@ -83,7 +83,8 @@ async function sweepStaleConversations(): Promise<void> {
         const ids = stale.map((c) => c.id)
         await prisma.conversation.updateMany({
                 where: { id: { in: ids } },
-                data: { status: 'RESOLVED' },
+                // Closed by silence, not by an outcome: analytics keeps these apart.
+                data: { status: 'RESOLVED', resolvedReason: 'IDLE' },
         })
         for (const id of ids) {
                 await dispatchSummary({ conversationId: id })
@@ -109,6 +110,16 @@ const CHANNEL_HEALTH_INTERVAL_MS = 5 * 60_000
  * message for over CHANNEL_SILENT_MS) — usually a revoked/expired bot token.
  * Deduped via healthAlertedAt so each silence episode alerts at most once.
  */
+const CHANNEL_NAME_FA: Partial<Record<ChannelType, string>> = {
+        TELEGRAM: 'تلگرام',
+        BALE: 'بله',
+        RUBIKA: 'روبیکا',
+        INSTAGRAM: 'اینستاگرام',
+        WHATSAPP: 'واتس‌اپ',
+        WEB_WIDGET: 'ویجت سایت',
+        CHAT_LINK: 'چت لینک',
+}
+
 async function alertSilentChannels(): Promise<void> {
         const cutoff = new Date(Date.now() - CHANNEL_SILENT_MS)
         const channels = await prisma.agentChannel.findMany({
@@ -118,6 +129,8 @@ async function alertSilentChannels(): Promise<void> {
                         type: true,
                         lastInboundAt: true,
                         healthAlertedAt: true,
+                        healthStatus: true,
+                        healthCheckedAt: true,
                         createdAt: true,
                         agent: { select: { name: true, workspaceId: true } },
                 },
@@ -129,12 +142,15 @@ async function alertSilentChannels(): Promise<void> {
                 if (lastActivity >= cutoff) continue
                 // Only alert once per silence episode (not already alerted since last activity).
                 if (ch.healthAlertedAt && ch.healthAlertedAt >= lastActivity) continue
+                // sweepChannelHealth probes the provider itself; a channel whose
+                // token passed that probe recently is just quiet, not broken.
+                if (ch.healthStatus === 'ok' && ch.healthCheckedAt && Date.now() - ch.healthCheckedAt.getTime() < 24 * HOUR_MS) continue
 
                 await notifyWorkspace({
                         workspaceId: ch.agent.workspaceId,
                         type: 'CHANNEL_DOWN',
-                        title: `اتصال ${ch.type} قطع به نظر می‌رسد`,
-                        body: `کانال «${ch.agent.name}» بیش از ۳ روز پیامی دریافت نکرده است. ممکن است توکن منقضی شده باشد.`,
+                        title: `اتصال ${CHANNEL_NAME_FA[ch.type] ?? ch.type} پیامی نگرفته`,
+                        body: `«${ch.agent.name}» بیش از ۳ روز در ${CHANNEL_NAME_FA[ch.type] ?? ch.type} پیامی دریافت نکرده و بررسی اتصال هم موفق نبود. اتصال را یک‌بار باز کنید و دوباره وصل کنید.`,
                         link: '/integrations',
                         opsEmail: true,
                 })

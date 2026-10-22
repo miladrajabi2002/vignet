@@ -45,7 +45,7 @@ export async function PATCH(req: Request, props: Params) {
     await prisma.$transaction([
       prisma.conversation.update({
         where: { id: existing.id },
-        data: { status: 'OPEN', handedOff: false },
+        data: { status: 'OPEN', handedOff: false, resolvedReason: null },
       }),
       prisma.handoffAlert.updateMany({
         where: {
@@ -62,8 +62,10 @@ export async function PATCH(req: Request, props: Params) {
     const conversation = await tx.conversation.update({
       where: { id: params.conversationId },
       data: parsed.data.status === 'RESOLVED'
-        ? { ...parsed.data, handedOff: false }
-        : parsed.data,
+        ? { ...parsed.data, handedOff: false, resolvedReason: 'OPERATOR' }
+        : parsed.data.status
+          ? { ...parsed.data, resolvedReason: null }
+          : parsed.data,
       select: { id: true, status: true, rating: true, summary: true },
     })
 

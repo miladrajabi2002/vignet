@@ -42,7 +42,8 @@ export async function GET(_req: Request, props: Params) {
   }
 
   const conversation = await prisma.conversation.findFirst({
-    where: { id: params.conversationId, workspaceId: user.workspaceId },
+    // The test panel polls its own playground thread through this route too.
+    where: { id: params.conversationId, workspaceId: user.workspaceId, isPlayground: undefined },
     select: {
       id: true,
       messages: {

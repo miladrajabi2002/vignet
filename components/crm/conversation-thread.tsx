@@ -338,8 +338,10 @@ export function ConversationThread({
                         layout: { type: 'spring' as const, duration: 0.36, bounce: 0 },
                 }
 
+        // overflow-clip on phones: it rounds the corners like hidden but is not a
+        // scroll container, so the sticky reply box can stick to the viewport.
         return (
-                <div className={cn('flex min-w-0 flex-1 flex-col overflow-hidden', embedded ? 'min-h-0' : 'spatial-surface min-h-[36rem] rounded-sheet')}>
+                <div className={cn('flex min-w-0 flex-1 flex-col overflow-clip md:overflow-hidden', embedded ? 'min-h-0' : 'spatial-surface min-h-[36rem] rounded-sheet')}>
                         {!embedded && (
                                 <div className="flex shrink-0 items-center justify-between border-b border-black/[0.06] px-4 py-3"><div><p className="text-xs font-bold text-black/75">{locale === 'fa' ? 'گفتگوی زنده' : 'Live conversation'}</p><p className="mt-0.5 text-[12px] text-[var(--text-muted)]">{locale === 'fa' ? 'پیام‌های تازه خودکار نمایش داده می‌شوند' : 'New messages appear automatically'}</p></div><span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[12px] font-bold text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{locale === 'fa' ? 'آنلاین' : 'Online'}</span></div>
                         )}
@@ -597,7 +599,10 @@ export function ConversationThread({
                                 )}
                         </div>
 
-                        <div className="shrink-0 border-t border-[var(--border-subtle)] p-3">
+                        {/* On a phone the page itself scrolls, so the reply box sticks to the
+                            bottom of the screen (the tab bar is hidden here) instead of
+                            waiting at the end of the thread. */}
+                        <div className="sticky bottom-0 z-20 shrink-0 border-t border-[var(--border-subtle)] bg-white/95 p-3 backdrop-blur [padding-bottom:max(0.75rem,env(safe-area-inset-bottom))] md:static md:bg-transparent md:backdrop-blur-none">
                                 <OperatorReply
                                         conversationId={conversationId}
                                         channel={channel}

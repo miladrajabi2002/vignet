@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useUnsavedChangesGuard } from '@/lib/hooks/use-unsaved-changes-guard'
+import { cn } from '@/lib/utils'
 import { useLocale, useTranslations } from 'next-intl'
 import { ArrowRight, ImageOff, Layers, Plus, Sparkles, Star, X } from 'lucide-react'
 import { MaterialSelect } from '@/components/ui/material-select'
@@ -58,6 +59,8 @@ export interface ProductFormData {
   categoryId: string
   tags: string
   externalUrl: string
+  /** SHIPPED asks the chat buyer for an address; the others do not. Missing = SHIPPED. */
+  fulfillment?: 'SHIPPED' | 'DIGITAL' | 'SERVICE' | 'PICKUP'
   images: string[]
   attributes: { key: string; value: string }[]
   variations: VariationInput[]
@@ -129,7 +132,9 @@ export function ProductForm({
       active: true,
     },
   )
-  const [initialSnapshot] = useState(() => JSON.stringify(initial ?? null))
+  // Compare against the form's own starting state: in create mode `initial` is
+  // undefined, and snapshotting that made an untouched empty form look dirty.
+  const [initialSnapshot] = useState(() => JSON.stringify(form))
   const formDirty = useMemo(() => JSON.stringify(form) !== initialSnapshot, [form, initialSnapshot])
   // Warn before leaving with unsaved product edits.
   useUnsavedChangesGuard(formDirty)
@@ -201,6 +206,7 @@ export function ProductForm({
       categoryId: form.categoryId || null,
       tags: form.tags ? form.tags.split(',').map((s) => s.trim()).filter(Boolean) : [],
       externalUrl: form.externalUrl || undefined,
+      fulfillment: form.fulfillment ?? 'SHIPPED',
       images: form.images,
       attributes,
       active: form.active,
@@ -282,6 +288,34 @@ export function ProductForm({
             ...categories.map((category) => ({ value: category.id, label: category.name })),
           ]}
         />
+      </Field>
+
+      <Field label={persianDigits ? 'نوع تحویل' : 'Delivery'}>
+        <div role="radiogroup" aria-label={persianDigits ? 'نوع تحویل' : 'Delivery'} className="flex flex-wrap gap-2">
+          {([
+            ['SHIPPED', 'ارسال پستی یا پیک', 'Shipped'],
+            ['DIGITAL', 'دیجیتال (فایل، اشتراک، کد)', 'Digital'],
+            ['SERVICE', 'خدمت', 'Service'],
+            ['PICKUP', 'تحویل حضوری', 'Pickup'],
+          ] as const).map(([value, fa, en]) => {
+            const on = (form.fulfillment ?? 'SHIPPED') === value
+            return (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                onClick={() => set('fulfillment', value)}
+                className={cn('min-h-10 rounded-xl border px-3 text-[13px] font-medium transition-colors', on ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-white' : 'border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--border-strong)]')}
+              >
+                {persianDigits ? fa : en}
+              </button>
+            )
+          })}
+        </div>
+        <p className="mt-1.5 text-[12px] text-[var(--text-muted)]">
+          {persianDigits ? 'فقط برای «ارسال پستی» ایجنت در گفتگو آدرس می‌پرسد.' : 'The agent asks for an address only for shipped products.'}
+        </p>
       </Field>
 
       <Field label={t('externalUrl')}>

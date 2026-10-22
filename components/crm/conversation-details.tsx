@@ -8,6 +8,7 @@ import { SalesInsightCard, type SalesInsightView } from '@/components/crm/sales-
 import { CopyButton } from '@/components/ui/copy-button'
 import { displayPhone } from '@/lib/phone'
 import { relativeTime } from '@/lib/format'
+import { summaryFields } from '@/lib/conversations/summary-view'
 
 export interface HandoffAlertProp {
         id: string
@@ -74,9 +75,18 @@ export function ConversationDetails({
                                                         <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
                                                         {fa ? 'چه می‌خواهد؟' : 'What do they want?'}
                                                 </h3>
-                                                <p dir="auto" className="mt-1.5 text-[13px] leading-6 text-[var(--text-primary)]">
-                                                        {what ?? (fa ? 'هنوز خلاصه‌ای برای این گفتگو ساخته نشده است.' : 'No summary has been written for this conversation yet.')}
-                                                </p>
+                                                {summaryFields(what).length ? (
+                                                        <dl className="mt-1.5 space-y-2 text-[13px] leading-6">
+                                                                {summaryFields(what).map((field, index) => (
+                                                                        <div key={index} className="min-w-0">
+                                                                                {field.label ? <dt className="text-[12px] text-[var(--text-muted)]">{field.label}</dt> : null}
+                                                                                <dd dir="auto" className="min-w-0 break-words text-[var(--text-primary)]">{field.value}</dd>
+                                                                        </div>
+                                                                ))}
+                                                        </dl>
+                                                ) : (
+                                                        <p className="mt-1.5 text-[13px] leading-6 text-[var(--text-primary)]">{fa ? 'هنوز خلاصه‌ای برای این گفتگو ساخته نشده است.' : 'No summary has been written for this conversation yet.'}</p>
+                                                )}
                                                 {insight.recommendedAction && (
                                                         <div className="mt-3 rounded-xl border border-[var(--signal-border)] bg-[var(--signal-soft)] p-3">
                                                                 <p className="flex items-center gap-1.5 text-[12px] font-bold text-[var(--signal-strong)]">

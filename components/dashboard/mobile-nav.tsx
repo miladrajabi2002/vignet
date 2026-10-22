@@ -32,7 +32,9 @@ const SHEET_EXIT_MS = 220
 const DISMISS_DISTANCE = 110
 const DISMISS_VELOCITY = 0.55
 
-const FOCUS_FORM = /^\/(?:(?:agents\/[^/]+\/)?instagram\/(?:new|[^/]+\/edit)|agents\/new)(?:\/|$)/
+// Screens that own the bottom of the phone: forms, and an open conversation
+// whose reply box sits where the tab bar would.
+const FOCUS_FORM = /^\/(?:(?:agents\/[^/]+\/)?instagram\/(?:new|[^/]+\/edit)|agents\/new|conversations\/[^/]+)(?:\/|$)/
 
 function isActivePath(pathname: string, href: string) {
 	return pathname === href || pathname.startsWith(`${href}/`)

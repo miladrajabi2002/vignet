@@ -69,7 +69,7 @@ export const AGENT_MODELS: AgentModel[] = [
     id: 'smart',
     name: 'هوشمند و دقیق',
     nameEn: 'Smart & precise',
-    provider: 'DeepSeek V4.1 Flash',
+    provider: 'DeepSeek V4.1 Flash · Thinking',
     providerId: 'deepseek/deepseek-v4.1-flash',
     tier: 'smart',
     quality: 5,

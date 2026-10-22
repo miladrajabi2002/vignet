@@ -3,6 +3,9 @@ import { requireUser } from '@/lib/session'
 import { listCourses } from '@/lib/courses/service'
 import { CoursesWorkspace } from '@/components/courses/courses-workspace'
 import { courseFromApi } from '@/components/courses/course-model'
+import { dashboardTitle } from '@/lib/dashboard/page-title'
+
+export const generateMetadata = dashboardTitle('دوره‌ها', 'Courses')
 
 export const dynamic = 'force-dynamic'
 

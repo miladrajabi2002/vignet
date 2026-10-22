@@ -399,7 +399,8 @@ export function OperatorReply({
         className={cn(noteMode && '[&>div:first-child]:border-[color:color-mix(in_srgb,var(--notif-strong)_35%,transparent)] [&>div:first-child]:bg-[var(--notif-soft)]')}
       />
 
-      <div className="relative flex flex-wrap items-center gap-1.5">
+      {/* One row on a phone (scrolls sideways) so the box stays short. */}
+      <div className="relative flex flex-nowrap items-center gap-1.5 overflow-x-auto [scrollbar-width:none] sm:flex-wrap sm:overflow-visible">
         <button
           type="button"
           onClick={() => {
@@ -474,12 +475,17 @@ export function OperatorReply({
       )}
 
       {feedback ?? (
-        <p className="truncate text-[12px] leading-5 text-[var(--text-muted)]" title={noteMode || payMode ? undefined : t('replyHint')}>
+        <p className="text-[12px] leading-5 text-[var(--text-muted)]">
           {noteMode
             ? (fa ? 'یادداشت فقط در خط زمان همین گفتگو برای شما و همکارانتان می‌ماند.' : 'The note stays on this conversation’s timeline for you and your team only.')
             : payMode
               ? (fa ? 'متن اختیاری بالای کارت پرداخت می‌آید؛ ایجنت همچنان پاسخ مشتری را می‌دهد.' : 'The optional text goes above the payment card; the agent keeps answering the customer.')
-              : t('replyHint')}
+              : (
+                <>
+                  <span className="sm:hidden">{fa ? 'به‌نام شما می‌رود و ایجنت در این گفتگو کنار می‌کشد.' : 'Sent as you; the agent steps back here.'}</span>
+                  <span className="hidden sm:inline">{t('replyHint')}</span>
+                </>
+              )}
         </p>
       )}
     </div>
