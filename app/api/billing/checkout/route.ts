@@ -6,6 +6,7 @@ import { rateLimit } from '@/lib/ratelimit'
 import { getEffectivePlanDefs, isPaidPlan } from '@/lib/billing/plans'
 import { createZarinPayPayment } from '@/lib/billing/zarinpay'
 import { createNowPaymentsInvoice } from '@/lib/billing/nowpayments'
+import { audienceBlockMessage, getInstagramAudience, planFitsAudience } from '@/lib/billing/instagram-audience'
 
 const bodySchema = z.discriminatedUnion('kind', [
   z.object({
@@ -41,6 +42,14 @@ export async function POST(req: Request) {
   }
   const { gateway } = parsed.data
   const plan = parsed.data.kind === 'SUBSCRIPTION' ? parsed.data.plan : null
+  // A page bigger than the plan serves can only buy a larger plan (the billing
+  // page disables those buttons; this keeps a direct request honest too).
+  if (plan) {
+    const audience = await getInstagramAudience(user.workspaceId)
+    if (audience && !planFitsAudience(plan, audience)) {
+      return NextResponse.json({ error: 'PLAN_AUDIENCE_LIMIT', message: audienceBlockMessage(plan, audience, 'fa') }, { status: 403 })
+    }
+  }
   const def = plan ? (await getEffectivePlanDefs())[plan] : null
   const amount = parsed.data.kind === 'AI_CREDIT'
     ? parsed.data.amountIRR

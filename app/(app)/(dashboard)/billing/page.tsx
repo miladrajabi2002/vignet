@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils'
 import { getActiveChannelConnectionCount, getMonthlyMessageCount } from '@/lib/billing/entitlements'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { CreditFlowMotion } from '@/components/motion/explainers'
+import { audienceBlockMessage, formatFollowers, getInstagramAudience, planFitsAudience, PLAN_MAX_IG_FOLLOWERS, smallestPlanForAudience } from '@/lib/billing/instagram-audience'
 
 const PLAN_KEY: Record<string, string> = {
   TRIAL: 'planTrial',
@@ -37,7 +38,7 @@ export default async function BillingPage(
   monthStart.setDate(1)
   monthStart.setHours(0, 0, 0, 0)
 
-  const [workspace, subscription, usage, messagesUsed, payments, channelsUsed, productsUsed, ordersUsed, customersUsed] =
+  const [workspace, subscription, usage, messagesUsed, payments, channelsUsed, productsUsed, ordersUsed, customersUsed, audience] =
     await Promise.all([
       prisma.workspace.findUnique({
         where: { id: ws },
@@ -63,6 +64,7 @@ export default async function BillingPage(
       prisma.product.count({ where: { workspaceId: ws } }),
       prisma.storeOrder.count({ where: { workspaceId: ws } }),
       prisma.contact.count({ where: { workspaceId: ws } }),
+      getInstagramAudience(ws),
     ])
 
   const nf = new Intl.NumberFormat(locale === 'fa' ? 'fa-IR' : 'en-US')
@@ -80,9 +82,14 @@ export default async function BillingPage(
     workspace.trialEndsAt < new Date()
 
   const paymentStatus = searchParams?.payment
-  const requestedPlan = searchParams?.plan && isPaidPlan(searchParams.plan)
+  const askedPlan = searchParams?.plan && isPaidPlan(searchParams.plan)
     ? searchParams.plan
     : null
+  // A page too big for the asked (or smallest) plan gets the plan that serves it.
+  const fittingPlan = smallestPlanForAudience(audience)
+  const requestedPlan = askedPlan && planFitsAudience(askedPlan, audience)
+    ? askedPlan
+    : fittingPlan !== 'STARTER' ? fittingPlan : askedPlan
   const checkoutLabels = {
     rial: t('payRial'),
     crypto: t('payCrypto'),
@@ -296,7 +303,15 @@ export default async function BillingPage(
             const def = defs[p]
             const isRecommended = requestedPlan === p
             const isCurrent = plan === p && subscriptionLive
+            const blocked = !planFitsAudience(p, audience)
+            const followerCap = PLAN_MAX_IG_FOLLOWERS[p]
             const limits = [
+              {
+                label: locale === 'fa' ? 'فالوور پیج اینستاگرام' : 'Instagram page followers',
+                value: followerCap == null
+                  ? (locale === 'fa' ? `بیش از ${formatFollowers(PLAN_MAX_IG_FOLLOWERS.PRO ?? 0, 'fa')}` : `Over ${formatFollowers(PLAN_MAX_IG_FOLLOWERS.PRO ?? 0, 'en')}`)
+                  : (locale === 'fa' ? `تا ${formatFollowers(followerCap, 'fa')}` : `Up to ${formatFollowers(followerCap, 'en')}`),
+              },
               { label: locale === 'fa' ? 'اتصال فعال' : 'Active channel connections', value: nf.format(def.maxChannels) },
               { label: locale === 'fa' ? 'محصول' : 'Products', value: nf.format(def.maxProducts) },
               { label: locale === 'fa' ? 'سفارش' : 'Orders', value: nf.format(def.maxOrders) },
@@ -309,6 +324,7 @@ export default async function BillingPage(
                 id={`plan-${p}`}
                 className={cn(
                   'spatial-surface relative flex scroll-mt-24 flex-col rounded-card p-5',
+                  blocked && 'opacity-70',
                   isCurrent && 'border-[var(--text-primary)] ring-1 ring-[var(--text-primary)]',
                   isRecommended && 'border-amber-400 ring-2 ring-amber-300/60',
                 )}
@@ -338,10 +354,16 @@ export default async function BillingPage(
                     </div>
                   ))}
                 </dl>
+                {blocked && audience && (
+                  <p className="mt-3 rounded-xl bg-[var(--bg-muted)] px-3 py-2 text-xs leading-6 text-[var(--text-secondary)]">
+                    {audienceBlockMessage(p, audience, locale)}
+                  </p>
+                )}
                 <div className="mt-4">
                   <PlanCheckout
                     plan={p}
-                    emphasis={isCurrent || isRecommended}
+                    disabled={blocked}
+                    emphasis={!blocked && (isCurrent || isRecommended)}
                     labels={{
                       ...checkoutLabels,
                       rial: isCurrent

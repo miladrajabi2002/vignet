@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/session'
 import { readPageToken } from '@/lib/instagram/config'
+import { igGraphGet } from '@/lib/instagram/graph-get'
 import { igProxySrc, isInstagramCdnUrl } from '@/lib/instagram/media-proxy'
 import { placeholderResponse } from '@/lib/instagram/media-placeholder'
 
@@ -15,9 +16,6 @@ interface GraphMedia {
   thumbnail_url?: string
   children?: { data?: GraphMedia[] }
 }
-
-const FB_BASE = 'https://graph.facebook.com/v21.0'
-const IG_BASE = 'https://graph.instagram.com/v21.0'
 
 /** A video's media_url is the clip itself — only its poster frame is an image. */
 function looksLikeVideo(url: string) {
@@ -33,20 +31,6 @@ function coverOf(media: GraphMedia): string | undefined {
   if (media.thumbnail_url) return media.thumbnail_url
   if (media.media_url && media.media_type !== 'VIDEO' && !looksLikeVideo(media.media_url)) return media.media_url
   return undefined
-}
-
-async function graphGet(token: string, path: string): Promise<GraphMedia | null> {
-  // Same host order as resolveInstagramHost, without its extra /me probe.
-  const bases = /^(IGAA|IGQ)/i.test(token) ? [IG_BASE, FB_BASE] : [FB_BASE, IG_BASE]
-  for (const base of bases) {
-    const response = await fetch(`${base}/${path}`, {
-      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-      cache: 'no-store',
-      signal: AbortSignal.timeout(8_000),
-    }).catch(() => null)
-    if (response?.ok) return (await response.json().catch(() => null)) as GraphMedia | null
-  }
-  return null
 }
 
 /**
@@ -72,10 +56,10 @@ export async function GET(_req: Request, props: Params) {
   const token = channel ? readPageToken(channel.config) : null
   if (!token) return placeholderResponse()
 
-  const media = await graphGet(token, `${mediaId}?fields=media_type,media_url,thumbnail_url`)
+  const media = await igGraphGet<GraphMedia>(token, `${mediaId}?fields=media_type,media_url,thumbnail_url`)
   let cover = media ? coverOf(media) : undefined
   if (!cover && media?.media_type === 'CAROUSEL_ALBUM') {
-    const album = await graphGet(token, `${mediaId}?fields=children{media_type,media_url,thumbnail_url}`)
+    const album = await igGraphGet<GraphMedia>(token, `${mediaId}?fields=children{media_type,media_url,thumbnail_url}`)
     const first = album?.children?.data?.[0]
     cover = first ? coverOf(first) : undefined
   }

@@ -23,7 +23,7 @@ export function PlanCheckout({
   emphasis?: boolean
 }) {
   const [loading, setLoading] = useState<'ZARINPAY' | 'NOWPAYMENTS' | null>(null)
-  const [error, setError] = useState(false)
+  const [error, setError] = useState<string | false>(false)
 
   async function checkout(gateway: 'ZARINPAY' | 'NOWPAYMENTS') {
     setLoading(gateway)
@@ -39,9 +39,9 @@ export function PlanCheckout({
         window.location.href = data.url
         return
       }
-      setError(true)
+      setError(typeof data?.message === 'string' ? data.message : labels.error)
     } catch {
-      setError(true)
+      setError(labels.error)
     }
     setLoading(null)
   }
@@ -80,7 +80,7 @@ export function PlanCheckout({
         {labels.crypto}
       </button>
       {error && (
-        <p className="text-center text-xs text-red-500">{labels.error}</p>
+        <p className="text-center text-xs text-red-500">{error}</p>
       )}
     </div>
   )
