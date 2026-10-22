@@ -128,8 +128,9 @@ export async function GET(req: Request, props: Params) {
         id: media.id,
         kind: kind === 'stories' ? 'STORY' : 'POST',
         mediaType,
-        // For videos Meta serves the poster frame via thumbnail_url.
-        mediaUrl: mediaType === 'VIDEO' ? media.thumbnail_url || media.media_url : media.media_url,
+        // Videos/reels (and carousels opening on a video) carry their poster
+        // frame in thumbnail_url; their media_url is the clip, not an image.
+        mediaUrl: media.thumbnail_url || (mediaType === 'VIDEO' ? undefined : media.media_url),
         timestamp: media.timestamp,
       }
       if (kind === 'stories') {

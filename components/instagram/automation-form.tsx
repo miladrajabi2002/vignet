@@ -85,7 +85,7 @@ import {
         normalizeButtonUrl,
 } from '@/lib/instagram/limits'
 import { InstagramGlyph } from '@/components/marketing/social-links'
-import { igProxySrc } from '@/lib/instagram/media-proxy'
+import { igPickedPostSrc, igProxySrc } from '@/lib/instagram/media-proxy'
 import { ProductImage } from '@/components/products/product-image'
 import {
         InstagramMediaPicker,
@@ -1065,7 +1065,7 @@ export function AutomationForm({
                 // the comment screen shows the post, the story screen the story.
                 selectedMedia: [...form.postSnapshots, ...form.storySnapshots]
                         .slice(0, 10)
-                        .map((s) => ({ url: s.mediaUrl, kind: s.kind, expiresAt: s.expiresAt })),
+                        .map((s) => ({ url: s.kind === 'POST' ? igPickedPostSrc(agentId, s) : s.mediaUrl, kind: s.kind, expiresAt: s.expiresAt })),
                 dmOnComment: form.dmOnComment,
                 commentAckEnabled: form.commentAckEnabled,
                 commentAckText: form.commentAckTexts.find((t) => t.trim()) ?? '',
@@ -1223,6 +1223,7 @@ export function AutomationForm({
                                                                 </div>
                                                                 {form.postSnapshots.length > 0 || form.storySnapshots.length > 0 ? (
                                                                         <MediaPickStrip
+                                                                                agentId={agentId}
                                                                                 type={type}
                                                                                 posts={form.postSnapshots}
                                                                                 stories={form.storySnapshots}
@@ -1756,6 +1757,7 @@ export function AutomationForm({
  *  side by side, individually removable, with the story countdown/expiry
  *  warning (expired stories stay visible so they can be re-picked later). */
 function MediaPickStrip({
+        agentId,
         type,
         posts,
         stories,
@@ -1764,6 +1766,7 @@ function MediaPickStrip({
         onRemoveStory,
         onClearAll,
 }: {
+        agentId: string
         type: AutomationType
         posts: MediaSnapshot[]
         stories: MediaSnapshot[]
@@ -1830,16 +1833,18 @@ function MediaPickStrip({
                                                 </div>
                                         )
                                 })}
-                                {posts.map((snap) => (
+                                {posts.map((snap) => {
+                                        const src = igPickedPostSrc(agentId, snap)
+                                        return (
                                         <div
                                                 key={snap.id}
                                                 className="group relative overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-muted)]"
                                                 style={{ width: 76, height: 76 }}
                                         >
-                                                {snap.mediaUrl ? (
+                                                {src ? (
                                                         // eslint-disable-next-line @next/next/no-img-element
                                                         <img
-                                                                src={igProxySrc(snap.mediaUrl)}
+                                                                src={src}
                                                                 alt={(snap.caption ?? 'پست').slice(0, 60)}
                                                                 loading="lazy"
                                                                 decoding="async"
@@ -1863,7 +1868,8 @@ function MediaPickStrip({
                                                         <X aria-hidden="true" className="h-3.5 w-3.5" />
                                                 </button>
                                         </div>
-                                ))}
+                                        )
+                                })}
                                 <button
                                         type="button"
                                         onClick={onOpenPicker}

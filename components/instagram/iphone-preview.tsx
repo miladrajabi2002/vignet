@@ -860,7 +860,7 @@ function CommentScreen(props: ScreenProps) {
                                                 U
                                         </div>
                                         <div className="min-w-0 flex-1">
-                                                <p className="text-[11px] text-black leading-snug">
+                                                <p className="whitespace-pre-line text-[11px] text-black leading-snug">
                                                         <span className="font-semibold">user_123</span>{' '}
                                                         {userText.trim() || 'کامنت نمونه…'}
                                                 </p>
@@ -877,7 +877,7 @@ function CommentScreen(props: ScreenProps) {
                                         <div className="flex gap-2 ps-7">
                                                 <IgAvatar size={39} src={accountAvatarUrl} label={accountUsername} />
                                                 <div className="min-w-0 flex-1">
-                                                        <p className="text-[11px] text-black leading-snug">
+                                                        <p className="whitespace-pre-line text-[11px] text-black leading-snug">
                                                                 <span className="font-semibold">{accountUsername}</span>{' '}
                                                                 {publicReply}
                                                         </p>
@@ -897,7 +897,7 @@ function CommentScreen(props: ScreenProps) {
                                         <div className="flex gap-2 ps-7">
                                                 <IgAvatar size={39} src={accountAvatarUrl} label={accountUsername} />
                                                 <div className="min-w-0 flex-1">
-                                                        <p className="text-[11px] text-black leading-snug">
+                                                        <p className="whitespace-pre-line text-[11px] text-black leading-snug">
                                                                 <span className="font-semibold">{accountUsername}</span>{' '}
                                                                 {ackReply}
                                                         </p>

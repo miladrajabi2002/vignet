@@ -8,7 +8,7 @@ import { Clock, Film, MoreVertical, Pencil, Trash2 } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
 import { Switch } from '@/components/ui/switch'
 import { type Automation, REPLY_MODE_SHORT_LABEL_KEY } from '@/components/instagram/types'
-import { igProxySrc } from '@/lib/instagram/media-proxy'
+import { igPickedPostSrc, igProxySrc } from '@/lib/instagram/media-proxy'
 
 /**
  * One scenario as a list row: name, then "keywords ← how it answers", then
@@ -159,16 +159,18 @@ export function AutomationCard({
                                                                 </span>
                                                         )
                                                 })}
-                                                {pickedPosts.slice(0, 4).map((snap) => (
+                                                {pickedPosts.slice(0, 4).map((snap) => {
+                                                        const src = igPickedPostSrc(agentId, snap)
+                                                        return (
                                                         <span
                                                                 key={snap.id}
                                                                 title="پست انتخاب‌شده"
                                                                 className="relative inline-block h-[34px] w-[34px] overflow-hidden rounded-[0.45rem] border border-[var(--border-subtle)] bg-[var(--bg-muted)]"
                                                         >
-                                                                {snap.mediaUrl ? (
+                                                                {src ? (
                                                                         // eslint-disable-next-line @next/next/no-img-element
                                                                         <img
-                                                                                src={igProxySrc(snap.mediaUrl)}
+                                                                                src={src}
                                                                                 alt=""
                                                                                 loading="lazy"
                                                                                 decoding="async"
@@ -181,7 +183,8 @@ export function AutomationCard({
                                                                         </span>
                                                                 )}
                                                         </span>
-                                                ))}
+                                                        )
+                                                })}
                                                 {(pickedStories.length + pickedPosts.length) > 4 && (
                                                         <span className="text-[10px] font-bold text-[var(--text-muted)]">
                                                                                                 +{(pickedStories.length + pickedPosts.length - 4).toLocaleString(numLocale)}

@@ -1,6 +1,6 @@
 'use client'
 
-import { BarChart3, CalendarCheck2, GraduationCap, MessagesSquare, ShoppingBag, UserCheck, Users } from 'lucide-react'
+import { BarChart3, CalendarCheck2, GraduationCap, ShoppingBag, UserCheck, Users } from 'lucide-react'
 import type { AutomationReport } from '@/lib/instagram/automation-report'
 import { cn } from '@/lib/utils'
 
@@ -28,8 +28,7 @@ function sum(reports: readonly AutomationReport[], key: keyof Omit<AutomationRep
 
 /**
  * Above one entry's scenarios: what that entry's scenarios achieved together in
- * 30 days — people who set them off → kept talking → ordered / booked /
- * enrolled. A total only says something a card does not once two scenarios
+ * 30 days — people who set them off → ordered / booked / enrolled. A total only says something a card does not once two scenarios
  * have run, so with fewer it renders nothing.
  */
 export function AutomationsReportSummary({
@@ -47,7 +46,6 @@ export function AutomationsReportSummary({
   if (list.length < 2) return null
   const people = sum(list, 'people')
   const reached = sum(list, 'reached') || people
-  const engaged = sum(list, 'engaged')
   const orders = sum(list, 'orders')
   const bookings = sum(list, 'bookings')
   const enrollments = sum(list, 'enrollments')
@@ -58,7 +56,6 @@ export function AutomationsReportSummary({
 
   const tiles = [
     { key: 'people', Icon: Users, label: triggeredLabel(type, fa), value: people, hint: null as string | null },
-    { key: 'engaged', Icon: MessagesSquare, label: fa ? 'نفر گفتگو را ادامه دادند' : 'kept talking', value: engaged, hint: pct(engaged, reached, fa) },
     ...(orders ? [{ key: 'orders', Icon: ShoppingBag, label: fa ? 'سفارش دادند' : 'Ordered', value: orders, hint: pct(orders, reached, fa) }] : []),
     ...(bookings ? [{ key: 'bookings', Icon: CalendarCheck2, label: fa ? 'نوبت گرفتند' : 'Booked', value: bookings, hint: pct(bookings, reached, fa) }] : []),
     ...(enrollments ? [{ key: 'enrollments', Icon: GraduationCap, label: fa ? 'ثبت‌نام کردند' : 'Enrolled', value: enrollments, hint: pct(enrollments, reached, fa) }] : []),
@@ -93,7 +90,6 @@ export function AutomationReportStrip({ fa, type, report }: { fa: boolean; type:
   }
   const items = [
     { key: 'people', value: fmt(report.people, fa), label: triggeredLabel(type, fa) },
-    { key: 'engaged', value: fmt(report.engaged, fa), label: fa ? 'نفر گفتگو را ادامه دادند' : 'kept talking' },
     ...(report.gated ? [{ key: 'gate', value: fa ? `${fmt(report.followConfirmed, fa)} از ${fmt(report.gated, fa)}` : `${report.followConfirmed} of ${report.gated}`, label: fa ? 'نفر فالو را تأیید کردند' : 'confirmed the follow' }] : []),
     ...(report.orders ? [{ key: 'orders', value: fmt(report.orders, fa), label: fa ? 'سفارش' : 'orders' }] : []),
     ...(report.bookings ? [{ key: 'bookings', value: fmt(report.bookings, fa), label: fa ? 'نوبت' : 'bookings' }] : []),

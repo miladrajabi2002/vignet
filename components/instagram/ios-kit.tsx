@@ -383,7 +383,7 @@ export function IgBubble({
         return (
                 <div
                         dir={dir}
-                        className={cn('min-w-0 max-w-full break-words', out ? 'text-white' : 'text-black', flush && 'overflow-hidden', muted && 'opacity-60', className)}
+                        className={cn('min-w-0 max-w-full whitespace-pre-line break-words', out ? 'text-white' : 'text-black', flush && 'overflow-hidden', muted && 'opacity-60', className)}
                         style={{
                                 fontSize: pt(16.5),
                                 lineHeight: 1.5,

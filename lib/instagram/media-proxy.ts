@@ -76,3 +76,19 @@ export function igProxySrc(url: string | undefined | null): string | undefined {
   if (!isInstagramCdnUrl(url)) return url
   return `${PROXY_ROUTE}?u=${encodeURIComponent(url)}`
 }
+
+/**
+ * Thumbnail for a post the operator picked earlier. Saved CDN urls expire
+ * after a few days, so a picked post (numeric media id) is looked up fresh
+ * through the agent's thumbnail route; anything else falls back to the
+ * saved url through the relay.
+ */
+export function igPickedPostSrc(
+  agentId: string | undefined,
+  snap: { id: string; kind: 'POST' | 'STORY'; mediaUrl?: string },
+): string | undefined {
+  if (agentId && snap.kind === 'POST' && /^\d{1,30}$/.test(snap.id)) {
+    return `/api/agents/${encodeURIComponent(agentId)}/instagram/media/${snap.id}/thumbnail`
+  }
+  return igProxySrc(snap.mediaUrl)
+}
