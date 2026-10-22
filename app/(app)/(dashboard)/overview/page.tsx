@@ -302,16 +302,6 @@ export default async function OverviewPage() {
     knowledgePostponed: onboarding.checks.knowledgeSkipped,
     channelPostponed: onboarding.checks.channelSkipped,
   }
-  // A subscription payment that failed in the last two days, with nothing paid
-  // since: the owner wanted to buy, so the overview asks them to try again.
-  const lastPlanPayment = await prisma.payment.findFirst({
-    where: { workspaceId, kind: 'SUBSCRIPTION', createdAt: { gte: new Date(now.getTime() - 48 * 3_600_000) } },
-    orderBy: { createdAt: 'desc' },
-    select: { status: true, plan: true, amount: true, currency: true },
-  })
-  const failedPlanPayment = lastPlanPayment && (lastPlanPayment.status === 'FAILED' || lastPlanPayment.status === 'EXPIRED')
-    ? lastPlanPayment
-    : null
   // What the agent cannot work without, by what this business does. Unlike the
   // first-run checklist this never goes away for good: only filling the gap
   // removes a line.
@@ -362,21 +352,6 @@ export default async function OverviewPage() {
 
   return (
     <div className="mx-auto max-w-none space-y-5 sm:space-y-6">
-      {failedPlanPayment && (
-        <section role="status" className="flex flex-wrap items-center gap-3 rounded-card border border-amber-500/30 bg-amber-50 p-4">
-          <p className="min-w-0 flex-1 text-sm leading-6 text-amber-900">
-            <span className="font-bold">{fa ? 'پرداخت اشتراک کامل نشد' : 'Your plan payment did not go through'}</span>
-            {' · '}
-            {failedPlanPayment.currency === 'IRR'
-              ? `${nf.format(Math.round(failedPlanPayment.amount / 10))} ${fa ? 'تومان' : 'toman'}`
-              : `$${failedPlanPayment.amount}`}
-            {fa ? ' — اگر پولی از حسابتان کم شده، تا ۷۲ ساعت برمی‌گردد.' : ' — any amount taken from your account returns within 72 hours.'}
-          </p>
-          <Link href={failedPlanPayment.plan ? `/billing?plan=${failedPlanPayment.plan}#plan-${failedPlanPayment.plan}` : '/billing#vigent-plans'} className="inline-flex min-h-11 items-center rounded-xl bg-[var(--text-primary)] px-4 text-sm font-bold text-white">
-            {fa ? 'دوباره پرداخت' : 'Try again'}
-          </Link>
-        </section>
-      )}
       {!workspace.dashboardChecklistDismissedAt && !checklistCompleted ? (
         <DashboardCompletionChecklist
           locale={lang}

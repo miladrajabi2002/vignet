@@ -27,9 +27,8 @@ import { ADMIN_VISIBLE_USER_WHERE, ADMIN_VISIBLE_WORKSPACE_WHERE } from '@/lib/a
 import { AdminFilterSheet } from '@/components/admin/admin-filter-sheet'
 import { AdminUserMobileCards, type AdminMobileUser } from '@/components/admin/admin-user-mobile-cards'
 import { searchVariants } from '@/lib/search/persian'
-import { PLAN_ICON, PLAN_SHORT_NAME, PlanRing, PlanRingLegend, planDaysLabel, URGENCY_TEXT } from '@/components/ui/plan-ring'
-import { planStanding, planUrgency, type PlanStanding } from '@/lib/billing/plan-standing'
-import { cn } from '@/lib/utils'
+import { PlanRing, PlanRingLegend } from '@/components/ui/plan-ring'
+import { planStanding } from '@/lib/billing/plan-standing'
 import { countPlansEndingSoon, planEndingSoonWhere } from '@/lib/admin/user-switcher'
 
 export const dynamic = 'force-dynamic'
@@ -56,23 +55,6 @@ const VALID_PLANS = ['TRIAL', 'STARTER', 'PRO', 'BUSINESS'] as const
 /** A plan, or `ending`: any plan whose period ends within the week. */
 const ENDING_FILTER = 'ending'
 type PlanFilter = (typeof VALID_PLANS)[number] | typeof ENDING_FILTER
-
-/** The plan column: the plan's icon and name, and the days left under it. */
-function PlanCell({ standing }: { standing: PlanStanding }) {
-  const Icon = PLAN_ICON[standing.plan]
-  const urgency = planUrgency(standing)
-  return (
-    <span className="grid gap-0.5 whitespace-nowrap">
-      <span className={cn('inline-flex items-center gap-1.5 font-bold', urgency === 'expired' ? 'text-red-700' : 'text-[var(--text-primary)]')}>
-        <Icon aria-hidden="true" className="h-3.5 w-3.5 stroke-[2]" />
-        {PLAN_SHORT_NAME[standing.plan].fa}
-      </span>
-      <span className={cn('text-[12px] tabular-nums', URGENCY_TEXT[urgency])}>
-        {planDaysLabel(standing)}
-      </span>
-    </span>
-  )
-}
 
 function startOfToday(): Date {
   const d = new Date()
@@ -373,7 +355,6 @@ export default async function AdminUsersPage(
               <Th>کاربر</Th>
               <Th>شماره تلفن</Th>
               <Th>وضعیت</Th>
-              <Th>پلن</Th>
               <Th title="کانال‌های فعال + لینک‌های چت منتشرشده">اتصالات</Th>
               <Th>مکالمات</Th>
               <Th>روند ۷ روز</Th>
@@ -429,9 +410,6 @@ export default async function AdminUsersPage(
                     ) : (
                       <span className="text-[var(--text-muted)]">بدون فضای کاری</span>
                     )}
-                  </Td>
-                  <Td>
-                    {standing ? <PlanCell standing={standing} /> : <span className="text-[var(--text-muted)]">—</span>}
                   </Td>
                   <Td className="text-[var(--text-secondary)] tabular-nums" title={ws ? 'کانال‌های فعال + لینک‌های چت منتشرشده' : undefined}>
                     {fa(ws ? connectionsByWorkspace.get(ws.id) ?? 0 : 0)}
