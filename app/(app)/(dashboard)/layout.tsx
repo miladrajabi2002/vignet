@@ -13,7 +13,7 @@ import { VerticalChangeNotice } from '@/components/dashboard/vertical-change-not
 import { ScopedIntlProvider } from '@/components/i18n/scoped-intl-provider'
 import { DASHBOARD_CLIENT_MESSAGE_PATHS } from '@/lib/i18n/client-messages'
 import { UserSwitcher } from '@/components/dashboard/user-switcher'
-import { canSwitchUsers, countPlansEndingSoon } from '@/lib/admin/user-switcher'
+import { canSwitchUsers } from '@/lib/admin/user-switcher'
 import { daysUntil } from '@/lib/billing/plan-standing'
 import { GlobalUndoToast } from '@/components/ui/global-undo-toast'
 import { ScrollRestoration } from '@/components/dashboard/scroll-restoration'
@@ -39,7 +39,6 @@ export default async function DashboardLayout({
         currentUserId: user.id,
         currentName: user.name ?? user.phone,
         impersonating: user.impersonatedByAdmin === true,
-        endingSoonCount: await countPlansEndingSoon(),
       }
     : undefined
 

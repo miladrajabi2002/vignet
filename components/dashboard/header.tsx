@@ -170,7 +170,7 @@ export async function Header({
   storeConnected?: boolean
   navStatus?: NavStatusMap
   /** Platform owner only: replaces the plan card with the account switcher. */
-  userSwitcher?: { currentUserId: string; currentName: string; impersonating: boolean; endingSoonCount?: number }
+  userSwitcher?: { currentUserId: string; currentName: string; impersonating: boolean }
 }) {
   const [t, locale] = await Promise.all([
     getTranslations('dashboard'),
