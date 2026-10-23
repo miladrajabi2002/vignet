@@ -4,7 +4,7 @@ import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { rateLimit } from '@/lib/ratelimit'
 import { getEffectivePlanDefs, isPaidPlan } from '@/lib/billing/plans'
-import { createZarinPayPayment } from '@/lib/billing/zarinpay'
+import { createVigentPayPayment, vigentPayConfigured } from '@/lib/billing/vigentpay'
 import { createNowPaymentsInvoice } from '@/lib/billing/nowpayments'
 import { audienceBlockMessage, getInstagramAudience, planFitsAudience } from '@/lib/billing/instagram-audience'
 
@@ -12,11 +12,11 @@ const bodySchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('SUBSCRIPTION'),
     plan: z.enum(['STARTER', 'PRO', 'BUSINESS']),
-    gateway: z.enum(['ZARINPAY', 'NOWPAYMENTS']),
+    gateway: z.enum(['VIGENTPAY', 'NOWPAYMENTS']),
   }),
   z.object({
     kind: z.literal('AI_CREDIT'),
-    gateway: z.literal('ZARINPAY'),
+    gateway: z.literal('VIGENTPAY'),
     amountIRR: z.number().int().min(500_000).max(500_000_000),
   }),
 ])
@@ -40,7 +40,12 @@ export async function POST(req: Request) {
   if (!parsed.success || (parsed.data.kind === 'SUBSCRIPTION' && !isPaidPlan(parsed.data.plan))) {
     return NextResponse.json({ error: 'INVALID' }, { status: 400 })
   }
-  const { gateway } = parsed.data
+  // Rials go only through Vigent's own card gateway.
+  const gateway = parsed.data.gateway
+  if (gateway === 'VIGENTPAY' && !vigentPayConfigured()) {
+    console.error('[billing/checkout] VIGENTPAY_API_KEY is not set')
+    return NextResponse.json({ error: 'GATEWAY_ERROR' }, { status: 503 })
+  }
   const plan = parsed.data.kind === 'SUBSCRIPTION' ? parsed.data.plan : null
   // A page bigger than the plan serves can only buy a larger plan (the billing
   // page disables those buttons; this keeps a direct request honest too).
@@ -51,11 +56,11 @@ export async function POST(req: Request) {
     }
   }
   const def = plan ? (await getEffectivePlanDefs())[plan] : null
-  const amount = parsed.data.kind === 'AI_CREDIT'
-    ? parsed.data.amountIRR
-    : gateway === 'ZARINPAY'
-      ? def!.priceIRR
-      : def!.priceUSD
+  const rialAmount = parsed.data.kind === 'AI_CREDIT' ? parsed.data.amountIRR : def!.priceIRR
+  const amount = gateway === 'NOWPAYMENTS'
+    ? def!.priceUSD
+    // The card gateway takes whole tomans only.
+    : Math.ceil(rialAmount / 10) * 10
 
   const payment = await prisma.payment.create({
     data: {
@@ -64,20 +69,24 @@ export async function POST(req: Request) {
       kind: parsed.data.kind,
       plan,
       amount,
-      currency: gateway === 'ZARINPAY' ? 'IRR' : 'USD',
+      currency: gateway === 'NOWPAYMENTS' ? 'USD' : 'IRR',
     },
     select: { id: true, amount: true },
   })
 
+  const description = parsed.data.kind === 'AI_CREDIT'
+    ? 'افزایش اعتبار پاسخ‌های هوش مصنوعی ویجنت'
+    : `اشتراک ${plan} ویجنت — یک ماه`
+
   try {
-    if (gateway === 'ZARINPAY') {
-      const result = await createZarinPayPayment({
+    if (gateway === 'VIGENTPAY') {
+      const result = await createVigentPayPayment({
         amount: payment.amount,
         orderId: payment.id,
-        callbackUrl: `${appUrl()}/api/billing/callback/zarinpay?pid=${payment.id}`,
-        description: parsed.data.kind === 'AI_CREDIT'
-          ? 'افزایش اعتبار پاسخ‌های هوش مصنوعی ویجنت'
-          : `اشتراک ${plan} ویجنت — یک ماه`,
+        callbackUrl: `${appUrl()}/api/billing/callback/vigentpay`,
+        returnUrl: `${appUrl()}/api/billing/callback/vigentpay?pid=${payment.id}`,
+        description,
+        customerPhone: user.phone,
       })
       if (!result.success || !result.paymentLink) {
         await prisma.payment.update({
@@ -86,10 +95,7 @@ export async function POST(req: Request) {
         })
         return NextResponse.json({ error: 'GATEWAY_ERROR' }, { status: 502 })
       }
-      await prisma.payment.update({
-        where: { id: payment.id },
-        data: { authority: result.authority },
-      })
+      await prisma.payment.update({ where: { id: payment.id }, data: { authority: result.authority } })
       return NextResponse.json({ url: result.paymentLink })
     }
 

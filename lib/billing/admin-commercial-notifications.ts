@@ -47,6 +47,8 @@ function gatewayLabelFa(gateway: string): string {
   switch (gateway) {
     case 'ZARINPAY':
       return 'زرین‌پی'
+    case 'VIGENTPAY':
+      return 'کارت‌به‌کارت ویجنت'
     case 'NOWPAYMENTS':
       return 'NOWPayments'
     default:

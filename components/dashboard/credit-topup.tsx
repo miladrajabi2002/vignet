@@ -21,7 +21,7 @@ export function CreditTopup({ locale }: { locale: 'fa' | 'en' }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           kind: 'AI_CREDIT',
-          gateway: 'ZARINPAY',
+          gateway: 'VIGENTPAY',
           amountIRR,
         }),
       })
@@ -97,8 +97,8 @@ export function CreditTopup({ locale }: { locale: 'fa' | 'en' }) {
       {/* Trust note */}
       <p className="mt-3 text-center text-[12px] text-[var(--text-muted)]">
         {fa
-          ? 'پرداخت با زرین‌پی · کارت‌به‌کارت خودکار'
-          : 'Paid through ZarinPay · automatic card-to-card, fully secure'}
+          ? 'کارت‌به‌کارت با تأیید خودکار'
+          : 'Card-to-card transfer, confirmed automatically'}
       </p>
     </div>
   )

@@ -140,9 +140,11 @@ export default async function BillingPage(
     amount: payment.currency === 'USD'
       ? `$${nf.format(payment.amount)}`
       : `${nf.format(payment.amount / 10)} ${toman}`,
-    gateway: payment.gateway === 'ZARINPAY'
-      ? (locale === 'fa' ? 'زرین‌پی' : 'ZarinPay')
-      : (locale === 'fa' ? 'ارز دیجیتال' : 'Crypto'),
+    gateway: payment.gateway === 'VIGENTPAY'
+      ? (locale === 'fa' ? 'کارت‌به‌کارت' : 'Card transfer')
+      : payment.gateway === 'ZARINPAY'
+        ? (locale === 'fa' ? 'زرین‌پی' : 'ZarinPay')
+        : (locale === 'fa' ? 'ارز دیجیتال' : 'Crypto'),
     status: PAYMENT_STATUS[payment.status]?.[locale] ?? payment.status,
     tone: PAYMENT_STATUS[payment.status]?.tone ?? 'neutral',
   }))
@@ -183,6 +185,13 @@ export default async function BillingPage(
       {paymentStatus === 'success' && (
         <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-600">
           {t('paymentSuccess')}
+        </div>
+      )}
+      {paymentStatus === 'pending' && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-600">
+          {locale === 'fa'
+            ? 'واریز شما هنوز تأیید نشده. به محض رسیدن واریز، اشتراک خودکار فعال می‌شود.'
+            : 'Your transfer is not confirmed yet. The plan turns on by itself as soon as it arrives.'}
         </div>
       )}
       {(paymentStatus === 'failed' || paymentStatus === 'cancelled') && (

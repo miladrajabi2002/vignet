@@ -44,7 +44,7 @@ export async function captureAiCreditTopupPayment(
         type: 'CREDIT_TOPUP',
         amountIRR: params.amountIRR,
         balanceAfterIRR: workspace.aiCreditBalanceIRR,
-        note: 'ZarinPay AI credit top-up',
+        note: 'AI credit top-up',
       },
     })
     await enqueueAdminCommercialSms(tx, {

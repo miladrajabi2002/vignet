@@ -42,7 +42,7 @@ export async function getFinanceSummary(): Promise<FinanceSummary> {
 }
 
 export interface RevenueKPIs {
-  /** Total IRR collected from all PAID payments (ZarinPay). */
+  /** Total IRR collected from all PAID rial payments. */
   totalIRR: number
   /** Total USD collected from all PAID payments (NowPayments). */
   totalUSD: number

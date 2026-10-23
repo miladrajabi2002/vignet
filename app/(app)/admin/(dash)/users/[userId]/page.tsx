@@ -99,6 +99,7 @@ const CHANNEL_LABEL: Record<string, string> = {
 
 const GATEWAY_LABEL: Record<string, string> = {
   ZARINPAY: 'زرین‌پال',
+  VIGENTPAY: 'کارت‌به‌کارت ویجنت',
   NOWPAYMENTS: 'کریپتو',
 }
 

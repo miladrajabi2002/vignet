@@ -6,7 +6,7 @@ import { CreditCard, Coins, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 /**
- * Checkout actions for one plan card: rial (ZarinPay) is the primary button,
+ * Checkout actions for one plan card: rial (Vigent's own card gateway) is the primary button,
  * crypto (NowPayments) a quiet link under it.
  * POSTs /api/billing/checkout and redirects the browser to the gateway link.
  */
@@ -22,10 +22,10 @@ export function PlanCheckout({
   /** Solid primary button — used for the current and the recommended plan. */
   emphasis?: boolean
 }) {
-  const [loading, setLoading] = useState<'ZARINPAY' | 'NOWPAYMENTS' | null>(null)
+  const [loading, setLoading] = useState<'VIGENTPAY' | 'NOWPAYMENTS' | null>(null)
   const [error, setError] = useState<string | false>(false)
 
-  async function checkout(gateway: 'ZARINPAY' | 'NOWPAYMENTS') {
+  async function checkout(gateway: 'VIGENTPAY' | 'NOWPAYMENTS') {
     setLoading(gateway)
     setError(false)
     try {
@@ -50,7 +50,7 @@ export function PlanCheckout({
     <div className="space-y-2">
       <button
         type="button"
-        onClick={() => checkout('ZARINPAY')}
+        onClick={() => checkout('VIGENTPAY')}
         disabled={disabled || loading !== null}
         className={cn(
           'spatial-press flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border px-4 text-sm font-bold transition-[border-color,opacity] disabled:cursor-not-allowed disabled:opacity-50',
@@ -59,7 +59,7 @@ export function PlanCheckout({
             : 'border-[var(--border-hover)] bg-[var(--bg-elevated)] text-[var(--text-primary)] hover:border-[var(--border-strong)]',
         )}
       >
-        {loading === 'ZARINPAY' ? (
+        {loading === 'VIGENTPAY' ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : (
           <CreditCard className="h-4 w-4" />

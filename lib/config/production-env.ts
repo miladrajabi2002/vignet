@@ -27,8 +27,8 @@ const REQUIRED = [
   'S3_ENDPOINT',
   'S3_ACCESS_KEY',
   'S3_SECRET_KEY',
-  'ZARINPAY_ACCESS_TOKEN',
-  'ZARINPAY_STORE_ID',
+  'VIGENTPAY_API_KEY',
+  'VIGENTPAY_CALLBACK_SECRET',
   'IPPANEL_ADMIN_SUBSCRIPTION_PURCHASED_PATTERN_CODE',
   'IPPANEL_ADMIN_SUBSCRIPTION_RENEWED_PATTERN_CODE',
   'IPPANEL_ADMIN_CREDIT_TOPPED_UP_PATTERN_CODE',
@@ -115,8 +115,10 @@ export function validateProductionEnv(env: Env): ProductionEnvReport {
     errors.push('ADMIN_TOTP_SECRET: must be a Base32 secret of at least 16 characters')
   }
 
-  const storeId = value(env, 'ZARINPAY_STORE_ID')
-  if (storeId && !/^\d+$/.test(storeId)) errors.push('ZARINPAY_STORE_ID: must be an integer')
+  const payKey = value(env, 'VIGENTPAY_API_KEY')
+  if (payKey && !payKey.startsWith('vgp_')) errors.push('VIGENTPAY_API_KEY: must be a vgp_ site key')
+  const paySecret = value(env, 'VIGENTPAY_CALLBACK_SECRET')
+  if (paySecret && !paySecret.startsWith('whs_')) errors.push('VIGENTPAY_CALLBACK_SECRET: must be a whs_ site secret')
 
   for (const key of ['ADMIN_OWNER_PHONE', 'ADMIN_COMMERCIAL_SMS_PHONE']) {
     const phone = value(env, key)

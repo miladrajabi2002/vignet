@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   paymentFindUnique: vi.fn(),
   paymentUpdateMany: vi.fn(),
-  verifyZarinPayPayment: vi.fn(),
+  verifyVigentPayPayment: vi.fn(),
   verifyNowPaymentsIpn: vi.fn(),
   activateSubscriptionPayment: vi.fn(),
   captureAiCreditTopupPayment: vi.fn(),
@@ -18,8 +18,9 @@ vi.mock('@/lib/prisma', () => ({
     },
   },
 }))
-vi.mock('@/lib/billing/zarinpay', () => ({
-  verifyZarinPayPayment: mocks.verifyZarinPayPayment,
+vi.mock('@/lib/billing/vigentpay', () => ({
+  verifyVigentPayPayment: mocks.verifyVigentPayPayment,
+  vigentPayCallbackIsGenuine: vi.fn(() => true),
 }))
 vi.mock('@/lib/billing/nowpayments', () => ({
   verifyNowPaymentsIpn: mocks.verifyNowPaymentsIpn,
@@ -33,13 +34,13 @@ vi.mock('@/lib/billing/credit-topups', () => ({
 }))
 vi.mock('@/lib/errors/capture', () => ({ captureError: mocks.captureError }))
 
-import { GET as zarinPayGet } from '@/app/api/billing/callback/zarinpay/route'
+import { GET as vigentPayGet } from '@/app/api/billing/callback/vigentpay/route'
 import { POST as nowPaymentsPost } from '@/app/api/billing/callback/nowpayments/route'
 
-const zarinSubscription = {
-  id: 'payment-zarin-1',
+const cardSubscription = {
+  id: 'payment-card-1',
   workspaceId: 'workspace-1',
-  gateway: 'ZARINPAY',
+  gateway: 'VIGENTPAY',
   plan: 'PRO',
   kind: 'SUBSCRIPTION',
   amount: 24_900_000,
@@ -50,13 +51,15 @@ const zarinSubscription = {
 beforeEach(() => {
   vi.clearAllMocks()
   process.env.NEXT_PUBLIC_APP_URL = 'https://vigent.test'
-  mocks.paymentFindUnique.mockResolvedValue(zarinSubscription)
+  mocks.paymentFindUnique.mockResolvedValue(cardSubscription)
   mocks.paymentUpdateMany.mockResolvedValue({ count: 1 })
-  mocks.verifyZarinPayPayment.mockResolvedValue({
+  mocks.verifyVigentPayPayment.mockResolvedValue({
     success: true,
-    amount: zarinSubscription.amount,
-    orderId: zarinSubscription.id,
-    paymentId: 'zarin-transaction-1',
+    pending: false,
+    code: 100,
+    amount: cardSubscription.amount,
+    orderId: cardSubscription.id,
+    paymentId: 'card-transaction-1',
     raw: { success: true },
   })
   mocks.verifyNowPaymentsIpn.mockReturnValue(true)
@@ -65,31 +68,32 @@ beforeEach(() => {
 })
 
 describe('billing callback hardening', () => {
-  it('keeps a ZarinPay payment pending after a transport failure', async () => {
-    mocks.verifyZarinPayPayment.mockRejectedValueOnce(new Error('gateway unavailable'))
+  it('keeps a card-gateway payment pending after a transport failure', async () => {
+    mocks.verifyVigentPayPayment.mockRejectedValueOnce(new Error('gateway unavailable'))
 
-    const response = await zarinPayGet(
-      new Request(`https://vigent.test/api/billing/callback/zarinpay?pid=${zarinSubscription.id}`),
+    const response = await vigentPayGet(
+      new Request(`https://vigent.test/api/billing/callback/vigentpay?pid=${cardSubscription.id}`),
     )
 
-    expect(response.headers.get('location')).toContain('payment=failed')
+    expect(response.headers.get('location')).toContain('payment=pending')
     expect(mocks.paymentUpdateMany).not.toHaveBeenCalled()
     expect(mocks.activateSubscriptionPayment).not.toHaveBeenCalled()
     expect(mocks.captureError).toHaveBeenCalledWith(
-      'billing:zarinpay-verify',
+      'billing:vigentpay-verify',
       expect.any(Error),
       expect.objectContaining({ workspaceId: 'workspace-1' }),
     )
   })
 
-  it('keeps a ZarinPay payment pending after an unverified response', async () => {
-    mocks.verifyZarinPayPayment.mockResolvedValueOnce({
+  it('keeps a card-gateway payment pending after an unverified response', async () => {
+    mocks.verifyVigentPayPayment.mockResolvedValueOnce({
       success: false,
+      pending: false,
       raw: { message: 'temporarily unavailable' },
     })
 
-    await zarinPayGet(
-      new Request(`https://vigent.test/api/billing/callback/zarinpay?pid=${zarinSubscription.id}`),
+    await vigentPayGet(
+      new Request(`https://vigent.test/api/billing/callback/vigentpay?pid=${cardSubscription.id}`),
     )
 
     expect(mocks.paymentUpdateMany).not.toHaveBeenCalled()
@@ -97,49 +101,51 @@ describe('billing callback hardening', () => {
   })
 
   it('uses a PENDING compare-and-set for a verified amount mismatch', async () => {
-    mocks.verifyZarinPayPayment.mockResolvedValueOnce({
+    mocks.verifyVigentPayPayment.mockResolvedValueOnce({
       success: true,
-      amount: zarinSubscription.amount - 10,
-      orderId: zarinSubscription.id,
+      pending: false,
+      amount: cardSubscription.amount - 10,
+      orderId: cardSubscription.id,
       raw: { success: true },
     })
 
-    await zarinPayGet(
-      new Request(`https://vigent.test/api/billing/callback/zarinpay?pid=${zarinSubscription.id}`),
+    await vigentPayGet(
+      new Request(`https://vigent.test/api/billing/callback/vigentpay?pid=${cardSubscription.id}`),
     )
 
     expect(mocks.paymentUpdateMany).toHaveBeenCalledWith({
-      where: { id: zarinSubscription.id, status: 'PENDING' },
+      where: { id: cardSubscription.id, status: 'PENDING' },
       data: { status: 'FAILED', callbackPayload: { success: true } },
     })
   })
 
-  it('captures a verified ZarinPay credit top-up through the shared idempotent helper', async () => {
+  it('captures a verified card-gateway credit top-up through the shared idempotent helper', async () => {
     mocks.paymentFindUnique.mockResolvedValueOnce({
-      ...zarinSubscription,
+      ...cardSubscription,
       plan: null,
       kind: 'AI_CREDIT',
       amount: 500_000,
     })
-    mocks.verifyZarinPayPayment.mockResolvedValueOnce({
+    mocks.verifyVigentPayPayment.mockResolvedValueOnce({
       success: true,
+      pending: false,
       amount: 500_000,
-      orderId: zarinSubscription.id,
-      paymentId: 'zarin-credit-transaction-1',
+      orderId: cardSubscription.id,
+      paymentId: 'card-credit-transaction-1',
       raw: { success: true },
     })
 
-    await zarinPayGet(
-      new Request(`https://vigent.test/api/billing/callback/zarinpay?pid=${zarinSubscription.id}`),
+    await vigentPayGet(
+      new Request(`https://vigent.test/api/billing/callback/vigentpay?pid=${cardSubscription.id}`),
     )
 
     expect(mocks.captureAiCreditTopupPayment).toHaveBeenCalledWith(expect.objectContaining({
-      paymentId: zarinSubscription.id,
+      paymentId: cardSubscription.id,
       workspaceId: 'workspace-1',
       amountIRR: 500_000,
       paymentUpdate: expect.objectContaining({
         status: 'PAID',
-        externalId: 'zarin-credit-transaction-1',
+        externalId: 'card-credit-transaction-1',
       }),
     }))
   })

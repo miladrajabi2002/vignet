@@ -41,6 +41,7 @@ const PLAN_BADGE: Record<
 
 const GATEWAY_BADGE: Record<string, { tone: 'info' | 'default'; label: string }> = {
   ZARINPAY: { tone: 'info', label: 'زرین‌پال' },
+  VIGENTPAY: { tone: 'info', label: 'کارت‌به‌کارت ویجنت' },
   NOWPAYMENTS: { tone: 'default', label: 'کریپتو' },
 }
 
@@ -90,10 +91,10 @@ export default async function AdminPaymentsPage(
       : undefined
 
   // Validate gateway filter
-  const validGateways = ['ZARINPAY', 'NOWPAYMENTS']
+  const validGateways = ['VIGENTPAY', 'ZARINPAY', 'NOWPAYMENTS']
   const gateway =
     searchParams.gateway && validGateways.includes(searchParams.gateway)
-      ? (searchParams.gateway as 'ZARINPAY' | 'NOWPAYMENTS')
+      ? (searchParams.gateway as 'VIGENTPAY' | 'ZARINPAY' | 'NOWPAYMENTS')
       : undefined
 
   const page = Math.max(1, Number(searchParams.page) || 1)
@@ -164,6 +165,11 @@ export default async function AdminPaymentsPage(
 
   const gatewayPills = [
     { label: 'همه', href: buildHref({ gateway: '', page: '1' }), active: !gateway },
+    {
+      label: 'کارت‌به‌کارت',
+      href: buildHref({ gateway: 'VIGENTPAY', page: '1' }),
+      active: gateway === 'VIGENTPAY',
+    },
     {
       label: 'زرین‌پال',
       href: buildHref({ gateway: 'ZARINPAY', page: '1' }),

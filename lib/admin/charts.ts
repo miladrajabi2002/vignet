@@ -212,11 +212,11 @@ export async function paymentsDaily(days = 14): Promise<DailyPoint[]> {        c
 
 // ─── REVENUE SERIES ───────────────────────────────────────────────
 //
-// Revenue is split by currency because ZarinPay charges in IRR and
+// Revenue is split by currency because the card gateway charges in IRR and
 // NowPayments charges in USD. We report each series separately so the
 // admin always sees the true numbers without a flaky FX assumption.
 
-/** Daily revenue in IRR (ZarinPay PAID payments). */
+/** Daily revenue in IRR (PAID rial payments). */
 export async function revenueIRRDaily(days = 14): Promise<DailyPoint[]> {
         const since = new Date(Date.now() - (days + 1) * 86400000)
         const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`

@@ -15,7 +15,7 @@ import { DEFAULT_COMMERCIAL_CONFIG, getPlatformCommercialConfig } from '@/lib/pl
 
 export interface PlanDef {
   plan: Plan
-  /** Monthly price in Iranian Rials (ZarinPay). 0 = free/trial. */
+  /** Monthly price in Iranian Rials (Vigent's card gateway). 0 = free/trial. */
   priceIRR: number
   /** Monthly price in USD (NowPayments / crypto). 0 = free/trial. */
   priceUSD: number

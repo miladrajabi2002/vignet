@@ -42,6 +42,7 @@ const PLAN_BADGE: Record<
 
 const GATEWAY_BADGE: Record<string, { tone: 'info' | 'default'; label: string }> = {
   ZARINPAY: { tone: 'info', label: 'زرین‌پال' },
+  VIGENTPAY: { tone: 'info', label: 'کارت‌به‌کارت ویجنت' },
   NOWPAYMENTS: { tone: 'default', label: 'کریپتو' },
 }
 
