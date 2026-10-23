@@ -4,6 +4,7 @@ import { readContactAddress } from '@/lib/crm/contact-address'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/session'
 import { searchVariants } from '@/lib/search/persian'
+import { AUDIENCE_WHERE, CUSTOMER_WHERE } from '@/lib/crm/customer'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,6 +44,8 @@ export async function GET(request: Request) {
 
   const where: Prisma.ContactWhereInput = {
     workspaceId: user.workspaceId,
+    // The list being viewed: customers, or the audience (?view=audience).
+    ...(params.get('view') === 'audience' ? AUDIENCE_WHERE : CUSTOMER_WHERE),
     ...(stage ? { stage } : {}),
     ...(tag ? { tags: { has: tag } } : {}),
     ...(channelField ? { [channelField]: { not: null } } : {}),

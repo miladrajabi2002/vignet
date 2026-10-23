@@ -733,14 +733,28 @@ model Contact {
   // The owner stopped card-to-card for this customer (too many false «پرداخت کردم»):
   // the agent offers the other ways to pay instead of the card.
   cardPayBlockedAt   DateTime?
+  // When this person became a customer: they gave a name or a phone in a
+  // conversation, bought, booked, enrolled, were imported or were added by
+  // hand. A channel profile alone (an Instagram display name or handle, a
+  // Telegram first name) only makes them audience — someone who messaged or
+  // ran an automation. Null rows keep their inbox name and photo but stay out
+  // of the customers list and the plan's customer count.
+  identifiedAt       DateTime?
+  // What the owner tells the AI about this customer («مشتری دائمی ماست»,
+  // «زیاد چونه می‌زنه، تخفیف نده»). Read on every reply; `notes` stays private.
+  aiBrief            String?   @db.Text
+  // Owner-defined values ([{ label, value }]: size, birthday, company …),
+  // shown on the profile and read by the AI.
+  customFields       Json?
   // ── Soft delete (undo support). See Product.deletedAt for the full story.
   deletedAt          DateTime?
 
-  workspace          Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace          Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   conversations      Conversation[]
   campaignRecipients CampaignRecipient[]
   appointments       Appointment[]
   courseEnrollments  CourseEnrollment[]
+  manualOrders       ContactManualOrder[]
 
   @@index([workspaceId, phone])
   @@index([telegramId])
@@ -749,6 +763,28 @@ model Contact {
   // Contact lists search and sort by name; keeps prefix searches and
   // name-ordered listings index-backed.
   @@index([name])
+  @@index([workspaceId, identifiedAt])
+}
+
+// An order the owner records by hand on a customer's profile: a phone order,
+// an in-store sale, anything sold outside Vigent. The AI reads the latest.
+model ContactManualOrder {
+  id          String   @id @default(cuid())
+  workspaceId String
+  contactId   String
+  // One line for the AI and lists («۲× مانتو مشکی، شال»), built from items.
+  title       String
+  // What was bought: catalog products or typed lines (PayItem[], lib/payments/card/items.ts).
+  items       Json?
+  // Toman; null when the owner leaves the price out.
+  amount      Int?
+  orderedAt   DateTime
+  note        String?  @db.Text
+  createdAt   DateTime @default(now())
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, contactId, orderedAt])
 }
 
 // ─── CONVERSATION ─────────────────────────────────────────────────

@@ -24,6 +24,7 @@ import {
   UserRound,
 } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
+import { CUSTOMER_WHERE } from '@/lib/crm/customer'
 import { ADMIN_VISIBLE_USER_WHERE } from '@/lib/admin/reporting-scope'
 import { cn } from '@/lib/utils'
 import { getEffectivePlanDefs } from '@/lib/billing/plans'
@@ -269,8 +270,8 @@ export default async function AdminUserDetailPage(
     ]).then(([agent, knowledge, channel, conversation, payment, firstUsage, lastLogin]) => ({ agent, knowledge, channel, conversation, payment, firstUsage, lastLogin })),
     // customer (CRM contact) health: total + active in the last 30 days
     Promise.all([
-      prisma.contact.count({ where: { workspaceId } }),
-      prisma.contact.count({ where: { workspaceId, lastActivityAt: { gte: since30 } } }),
+      prisma.contact.count({ where: { workspaceId, ...CUSTOMER_WHERE } }),
+      prisma.contact.count({ where: { workspaceId, ...CUSTOMER_WHERE, lastActivityAt: { gte: since30 } } }),
     ]).then(([total, active30]) => ({ total, active30 })),
     // store orders: total + status distribution (WooCommerce statuses)
     prisma.storeOrder

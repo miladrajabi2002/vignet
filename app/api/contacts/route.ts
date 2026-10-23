@@ -103,6 +103,8 @@ export async function POST(request: Request) {
         stage: parsed.data.stage,
         tags: uniqueTags,
         notes: parsed.data.notes || null,
+        // Added by the owner: a customer.
+        identifiedAt: now,
         marketingOptIn: parsed.data.marketingOptIn,
         marketingOptInAt: parsed.data.marketingOptIn ? now : null,
       },

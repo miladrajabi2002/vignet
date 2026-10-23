@@ -3,6 +3,7 @@ import type { ChannelType, Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { isMessengerType } from '@/lib/channels/registry'
 import { contactPhoneLookupVariants } from '@/lib/phone'
+import { AUDIENCE_WHERE, CUSTOMER_WHERE } from '@/lib/crm/customer'
 
 const campaignChannels = ['TELEGRAM', 'INSTAGRAM', 'RUBIKA', 'BALE'] as const
 
@@ -14,6 +15,8 @@ export const campaignAudienceSchema = z
       channel: z.enum(campaignChannels).optional(),
       tag: z.string().max(40).optional(),
       query: z.string().max(120).optional(),
+      // The customers list being viewed (lib/crm/customer.ts); omitted = everyone.
+      view: z.enum(['customers', 'audience']).optional(),
     }).optional(),
   })
   .refine(
@@ -38,6 +41,7 @@ function audienceWhere(
   if (input.selectedContactIds?.length) {
     and.push({ id: { in: [...new Set(input.selectedContactIds)] } })
   } else if (input.filters) {
+    if (input.filters.view) and.push(input.filters.view === 'audience' ? AUDIENCE_WHERE : CUSTOMER_WHERE)
     if (input.filters.stage) and.push({ stage: input.filters.stage })
     if (input.filters.tag?.trim()) and.push({ tags: { has: input.filters.tag.trim() } })
     if (input.filters.channel) {

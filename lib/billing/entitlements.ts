@@ -8,6 +8,7 @@ import {
 import { sendSubscriptionPurchasedSms } from '@/lib/sms/ippanel'
 import { captureError } from '@/lib/errors/capture'
 import { grantIncludedPlanCredit } from '@/lib/billing/plan-credit'
+import { CUSTOMER_WHERE } from '@/lib/crm/customer'
 import type { ChannelType, Plan, Prisma } from '@prisma/client'
 
 /**
@@ -53,7 +54,8 @@ async function resourceCount(
 ): Promise<number> {
   if (resource === 'products') return client.product.count({ where: { workspaceId } })
   if (resource === 'orders') return client.storeOrder.count({ where: { workspaceId } })
-  return client.contact.count({ where: { workspaceId } })
+  // Audience (an Instagram commenter, a one-line DM) is not a customer.
+  return client.contact.count({ where: { workspaceId, ...CUSTOMER_WHERE } })
 }
 
 export async function getWorkspaceResourceLimit(

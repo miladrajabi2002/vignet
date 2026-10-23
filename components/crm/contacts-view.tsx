@@ -120,6 +120,7 @@ export function ContactsView({
         limitNotice,
         customerLimitReached = false,
         footer,
+        audience,
 }: {
         initial: ContactRow[]
         locale: 'fa' | 'en'
@@ -137,6 +138,8 @@ export function ContactsView({
         limitNotice?: React.ReactNode
         customerLimitReached?: boolean
         footer?: React.ReactNode
+        /** Customers vs audience (Contact.identifiedAt): which list, and both sizes. */
+        audience?: { active: boolean; customerCount: number; audienceCount: number }
 }) {
         const t = useTranslations('contacts')
         const router = useRouter()
@@ -188,6 +191,7 @@ export function ContactsView({
                 const timer = window.setTimeout(() => {
                         startSearchTransition(() => {
                                 const params = new URLSearchParams()
+                                if (audience?.active) params.set('view', 'audience')
                                 if (nextQuery) params.set('q', nextQuery)
                                 if (stageFilter) params.set('stage', stageFilter)
                                 if (channelFilter) params.set('channel', channelFilter)
@@ -209,6 +213,7 @@ export function ContactsView({
                 initialChannelFilter,
                 initialTagFilter,
                 markQuerySent,
+                audience?.active,
         ])
 
         const availableTags = useMemo(
@@ -247,6 +252,7 @@ export function ContactsView({
                 if (selected.size > 0) return { selectedContactIds: [...selected] }
                 return {
                         filters: {
+                                ...(audience ? { view: audience.active ? 'audience' as const : 'customers' as const } : {}),
                                 ...(stageFilter ? { stage: stageFilter } : {}),
                                 ...(channelFilter && ['TELEGRAM', 'INSTAGRAM', 'RUBIKA', 'BALE'].includes(channelFilter)
                                         ? { channel: channelFilter as 'TELEGRAM' | 'INSTAGRAM' | 'RUBIKA' | 'BALE' }
@@ -255,17 +261,18 @@ export function ContactsView({
                                 ...(query.trim() ? { query: query.trim() } : {}),
                         },
                 }
-        }, [selected, stageFilter, channelFilter, tagFilter, query])
+        }, [selected, stageFilter, channelFilter, tagFilter, query, audience])
 
         const exportHref = useMemo(() => {
                 const params = new URLSearchParams()
+                if (audience?.active) params.set('view', 'audience')
                 if (query.trim()) params.set('q', query.trim())
                 if (stageFilter) params.set('stage', stageFilter)
                 if (channelFilter) params.set('channel', channelFilter)
                 if (tagFilter) params.set('tag', tagFilter)
                 const search = params.toString()
                 return `/api/contacts/export${search ? `?${search}` : ''}`
-        }, [query, stageFilter, channelFilter, tagFilter])
+        }, [query, stageFilter, channelFilter, tagFilter, audience?.active])
 
         const hasFilters = Boolean(query || stageFilter || channelFilter || tagFilter)
 
@@ -284,7 +291,7 @@ export function ContactsView({
                 setChannelFilter('')
                 setTagFilter('')
                 setSelected(new Set())
-                router.push('/contacts')
+                router.push(audience?.active ? '/contacts?view=audience' : '/contacts')
         }
 
         function clearFacetFilters() {
@@ -390,7 +397,32 @@ export function ContactsView({
 
                         {limitNotice}
 
-                        <div className="flex flex-wrap items-center justify-end gap-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                                {audience ? (
+                                        <nav className="ui-seg grid-flow-col" aria-label={locale === 'fa' ? 'مشتریان یا مخاطبان' : 'Customers or audience'}>
+                                                <Link
+                                                        href="/contacts"
+                                                        aria-current={!audience.active ? 'page' : undefined}
+                                                        data-active={!audience.active}
+                                                        className="ui-seg-tab min-h-9 gap-1.5 px-3 text-[13px]"
+                                                >
+                                                        {locale === 'fa' ? 'مشتریان' : 'Customers'}
+                                                        <span className="tabular-nums text-[var(--text-muted)]">{audience.customerCount.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US')}</span>
+                                                </Link>
+                                                <Link
+                                                        href="/contacts?view=audience"
+                                                        aria-current={audience.active ? 'page' : undefined}
+                                                        data-active={audience.active}
+                                                        title={locale === 'fa'
+                                                                ? 'کسانی که فقط پیام داده‌اند یا سناریوی اینستاگرام را اجرا کرده‌اند؛ نه نام و شماره‌ای داده‌اند، نه خریدی کرده‌اند'
+                                                                : 'People who only messaged or ran an Instagram scenario — no name, phone or purchase'}
+                                                        className="ui-seg-tab min-h-9 gap-1.5 px-3 text-[13px]"
+                                                >
+                                                        {locale === 'fa' ? 'مخاطبان' : 'Audience'}
+                                                        <span className="tabular-nums text-[var(--text-muted)]">{audience.audienceCount.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US')}</span>
+                                                </Link>
+                                        </nav>
+                                ) : <span />}
                                 <div className="ui-seg grid-flow-col" role="group">
                                         <ToggleBtn
                                                 active={view === 'list'}

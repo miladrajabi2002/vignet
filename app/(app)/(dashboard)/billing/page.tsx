@@ -2,6 +2,7 @@ import { getTranslations, getLocale } from 'next-intl/server'
 import { Cpu, Wallet, Check, Sparkles, CircleAlert, RefreshCw } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
+import { CUSTOMER_WHERE } from '@/lib/crm/customer'
 import { StatsCard } from '@/components/dashboard/stats-card'
 import { PlanCheckout } from '@/components/dashboard/plan-checkout'
 import { CreditTopup } from '@/components/dashboard/credit-topup'
@@ -66,7 +67,7 @@ export default async function BillingPage(
       getActiveChannelConnectionCount(ws),
       prisma.product.count({ where: { workspaceId: ws } }),
       prisma.storeOrder.count({ where: { workspaceId: ws } }),
-      prisma.contact.count({ where: { workspaceId: ws } }),
+      prisma.contact.count({ where: { workspaceId: ws, ...CUSTOMER_WHERE } }),
       getInstagramAudience(ws),
     ])
 

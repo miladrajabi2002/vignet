@@ -68,6 +68,9 @@ const contactSelect = {
   marketingOptIn: true,
   marketingOptInAt: true,
   marketingOptOutAt: true,
+  identifiedAt: true,
+  aiBrief: true,
+  customFields: true,
 } satisfies Prisma.ContactSelect
 
 async function readContactRows(
@@ -99,6 +102,41 @@ function consentState(rows: ContactRow[]) {
         : rows.some((row) => row.marketingOptIn),
     marketingOptInAt: optInAt,
     marketingOptOutAt: optOutAt,
+  }
+}
+
+function earliestDate(rows: ContactRow[], key: 'identifiedAt'): Date | null {
+  return rows.reduce<Date | null>((value, row) => {
+    const date = row[key]
+    return date && (!value || date < value) ? date : value
+  }, null)
+}
+
+/** Owner-entered profile values of every merged row; the survivor's label wins. */
+function mergedCustomFields(rows: ContactRow[]): Prisma.InputJsonValue | undefined {
+  const fields = new Map<string, unknown>()
+  for (const row of rows) {
+    if (!Array.isArray(row.customFields)) continue
+    for (const field of row.customFields) {
+      const label = field && typeof field === 'object' && 'label' in field ? String(field.label).trim() : ''
+      if (label && !fields.has(label)) fields.set(label, field)
+    }
+  }
+  return fields.size ? ([...fields.values()] as Prisma.InputJsonValue) : undefined
+}
+
+/**
+ * identifiedAt for a row becoming a customer now, or null when the plan's
+ * customer limit is reached — the person then stays audience (inbox name and
+ * photo, no customers-list row) until the owner upgrades.
+ */
+async function identifyWithinLimit(tx: Tx, workspaceId: string, limit: number): Promise<Date | null> {
+  try {
+    await assertWorkspaceResourceCapacity(tx, workspaceId, 'customers', limit)
+    return new Date()
+  } catch (error) {
+    if (error instanceof WorkspaceResourceLimitError) return null
+    throw error
   }
 }
 
@@ -166,11 +204,13 @@ async function mergeContacts(
       tx.courseEnrollment.updateMany({ where: { contactId: duplicate.id }, data: { contactId: survivor.id } }),
       tx.restockAlert.updateMany({ where: { contactId: duplicate.id }, data: { contactId: survivor.id } }),
       tx.skillFinding.updateMany({ where: { contactId: duplicate.id }, data: { contactId: survivor.id } }),
+      tx.contactManualOrder.updateMany({ where: { contactId: duplicate.id }, data: { contactId: survivor.id } }),
     ])
   }
 
   const all = [survivor, ...duplicates]
   const notes = [...new Set(all.map((row) => row.notes?.trim()).filter((value): value is string => Boolean(value)))]
+  const briefs = [...new Set(all.map((row) => row.aiBrief?.trim()).filter((value): value is string => Boolean(value)))]
   const consent = consentState(all)
   await tx.contact.update({
     where: { id: survivor.id },
@@ -180,6 +220,10 @@ async function mergeContacts(
       tags: [...new Set(all.flatMap((row) => row.tags))],
       stage: firstValue(all, 'stage'),
       notes: notes.length ? notes.join('\n\n') : null,
+      aiBrief: briefs.length ? briefs.join('\n') : null,
+      customFields: mergedCustomFields(all),
+      // One of them a customer makes the person a customer, since then.
+      identifiedAt: earliestDate(all, 'identifiedAt'),
       metadata: mergedMetadata(all) as Prisma.InputJsonValue | undefined,
       lastActivityAt: all.reduce<Date | null>((value, row) => laterDate(value, row.lastActivityAt), null),
       telegramId: firstValue(all, 'telegramId'),
@@ -257,12 +301,15 @@ export async function resolveInboundContact(params: {
       // alone (an Instagram DM) is not one: the conversation stays without a
       // contact until applyContactIdentity learns a name or a phone.
       if (!cleanContactName(params.senderName) && !canonicalPhone) return null
-      await assertWorkspaceResourceCapacity(tx, params.workspaceId, 'customers', limit)
+      // A channel profile name is audience, not a customer: everyone who
+      // comments on a post that runs a scenario has one. A phone (a WhatsApp
+      // sender) is someone the business can reach — a customer.
       const created = await tx.contact.create({
         data: {
           workspaceId: params.workspaceId,
           name: params.senderName ?? null,
           phone: canonicalPhone,
+          identifiedAt: canonicalPhone ? await identifyWithinLimit(tx, params.workspaceId, limit) : null,
           [idField]: params.senderId,
           [profile.username]: params.senderUsername ?? undefined,
           [profile.avatar]: params.senderAvatarUrl ?? undefined,
@@ -279,11 +326,15 @@ export async function resolveInboundContact(params: {
         canonicalPhone,
       )
       contactId = merged.id
+      const identifiedAt = canonicalPhone && !merged.identifiedAt
+        ? await identifyWithinLimit(tx, params.workspaceId, limit)
+        : null
       await tx.contact.update({
         where: { id: contactId },
         data: {
           [idField]: params.senderId,
           ...(canonicalPhone ? { phone: canonicalPhone } : {}),
+          ...(identifiedAt ? { identifiedAt } : {}),
           ...(!merged.name && params.senderName ? { name: params.senderName } : {}),
           ...(params.senderUsername ? { [profile.username]: params.senderUsername } : {}),
           ...(params.senderAvatarUrl ? { [profile.avatar]: params.senderAvatarUrl } : {}),
@@ -336,12 +387,13 @@ export async function applyContactIdentity(params: {
 
     let contactId: string
     if (candidates.length === 0) {
-      await assertWorkspaceResourceCapacity(tx, params.workspaceId, 'customers', limit)
       const created = await tx.contact.create({
         data: {
           workspaceId: params.workspaceId,
           name: params.name,
           phone: canonicalPhone,
+          // Told us who they are: a customer, unless the plan is full.
+          identifiedAt: await identifyWithinLimit(tx, params.workspaceId, limit),
           lastActivityAt: new Date(),
         },
         select: { id: true },
@@ -355,9 +407,15 @@ export async function applyContactIdentity(params: {
         canonicalPhone,
       )
       contactId = merged.id
+      // An Instagram follower who now gives their name or phone in the chat
+      // becomes a customer.
+      const identifiedAt = merged.identifiedAt
+        ? null
+        : await identifyWithinLimit(tx, params.workspaceId, limit)
       await tx.contact.update({
         where: { id: contactId },
         data: {
+          ...(identifiedAt ? { identifiedAt } : {}),
           // A placeholder profile name («None») is no name at all.
           ...(!cleanContactName(merged.name) && params.name ? { name: params.name } : {}),
           ...(canonicalPhone ? { phone: canonicalPhone } : {}),

@@ -137,7 +137,7 @@ export default async function OverviewPage() {
     computeOnboarding(workspaceId),
     prisma.conversation.count({ where: { workspaceId, createdAt: { gte: sevenDaysAgo } } }),
     prisma.conversation.count({ where: { workspaceId, createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } } }),
-    prisma.contact.count({ where: { workspaceId, createdAt: { gte: sevenDaysAgo } } }),
+    prisma.contact.count({ where: { workspaceId, identifiedAt: { gte: sevenDaysAgo } } }),
     prisma.conversation.count({ where: { workspaceId, status: 'HANDED_OFF' } }),
     prisma.conversation.count({ where: { workspaceId, status: 'OPEN' } }),
     prisma.conversation.count({ where: { workspaceId } }),
@@ -231,7 +231,7 @@ export default async function OverviewPage() {
       loadGatewayOrders(workspaceId, { take: 200 }).then((rows) => rows.filter((row) => row.paidAt >= sevenDaysAgo).length),
     ]).then(([store, gateway]) => store + gateway),
     prisma.conversation.count({ where: { workspaceId, createdAt: { gte: startOfToday() } } }),
-    prisma.contact.count({ where: { workspaceId, createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } } }),
+    prisma.contact.count({ where: { workspaceId, identifiedAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } } }),
     loadGatewayWeek(workspaceId).catch(() => null),
   ])
 

@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getTranslations, getLocale } from 'next-intl/server'
 import type { ChannelType } from '@prisma/client'
-import { Phone, MessageSquare, ShoppingBag } from 'lucide-react'
+import { Phone, MessageSquare } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { ChannelBadge, ChannelGlyph, SourceTagBadges } from '@/components/crm/channel-badge'
@@ -17,8 +17,11 @@ import { ContactDeleteAction } from '@/components/crm/contact-delete-action'
 import { displayPhone } from '@/lib/phone'
 import { formatContactAddress, readContactAddress } from '@/lib/crm/contact-address'
 import { loadContactPurchases } from '@/lib/payments/card/fulfilment'
-import { PurchaseCard } from '@/components/payments/purchase-card'
 import { dashboardTitle } from '@/lib/dashboard/page-title'
+import { ContactCustomerToggle } from '@/components/crm/contact-customer-toggle'
+import { ContactPurchases } from '@/components/crm/contact-purchases'
+import { readCustomFields } from '@/lib/crm/customer-brief'
+import { readPayItems } from '@/lib/payments/card/items'
 
 export const generateMetadata = dashboardTitle('مشتری', 'Customer')
 
@@ -38,6 +41,11 @@ export default async function ContactDetailPage(
   const contact = await prisma.contact.findFirst({
     where: { id: params.contactId, workspaceId: user.workspaceId },
     include: {
+      manualOrders: {
+        orderBy: { orderedAt: 'desc' },
+        take: 50,
+        select: { id: true, title: true, items: true, amount: true, orderedAt: true, note: true },
+      },
       conversations: {
         where: { deletedAt: null },
         orderBy: { lastMessageAt: 'desc' },
@@ -223,44 +231,18 @@ export default async function ContactDetailPage(
         </div>
       </div>
 
-      {purchases.length > 0 && (() => {
-        const spent = purchases.reduce((sum, p) => sum + p.total, 0)
-        const items = purchases.reduce((sum, p) => sum + p.lines.reduce((n, line) => n + line.quantity, 0), 0)
-        const waiting = purchases.filter((p) => p.paymentId && !p.handledAt).length
-        const money = (value: number) => `${nf.format(Math.round(value))} ${locale === 'fa' ? 'تومان' : 'Toman'}`
-        return (
-          <section className="spatial-surface rounded-card p-4 sm:p-5" aria-labelledby="purchases-title">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="grid size-10 place-items-center rounded-xl bg-emerald-600 text-white"><ShoppingBag className="size-5" aria-hidden /></span>
-              <div className="min-w-0 flex-1">
-                <h2 id="purchases-title" className="ui-h3">{locale === 'fa' ? 'خریدها' : 'Purchases'}</h2>
-                <p className="text-[12.5px] text-[var(--text-muted)]">
-                  {locale === 'fa' ? `آخرین خرید ${relativeTime(purchases[0].paidAt, locale)}` : `Last purchase ${relativeTime(purchases[0].paidAt, locale)}`}
-                </p>
-              </div>
-            </div>
-            <dl className="mt-4 grid grid-cols-3 gap-2">
-              {[
-                [locale === 'fa' ? 'مجموع پرداخت' : 'Total paid', money(spent)],
-                [locale === 'fa' ? 'سفارش' : 'Orders', nf.format(purchases.length)],
-                waiting
-                  ? [locale === 'fa' ? 'منتظر رسیدگی' : 'To deliver', nf.format(waiting)]
-                  : [locale === 'fa' ? 'قلم کالا/خدمت' : 'Items', nf.format(items)],
-              ].map(([label, value], index) => (
-                <div key={label} className={`rounded-2xl border px-3 py-2.5 ${index === 2 && waiting ? 'border-amber-200 bg-amber-50' : 'border-[var(--border-subtle)] bg-[var(--bg-muted)]'}`}>
-                  <dt className="text-[11.5px] text-[var(--text-muted)]">{label}</dt>
-                  <dd className="mt-0.5 truncate text-[15px] font-extrabold tabular-nums text-[var(--text-primary)]">{value}</dd>
-                </div>
-              ))}
-            </dl>
-            <div className="mt-4 grid items-start gap-3 lg:grid-cols-2">
-              {purchases.map((purchase) => <PurchaseCard key={purchase.id} purchase={purchase} locale={locale} />)}
-            </div>
-          </section>
-        )
-      })()}
+      {!contact.identifiedAt && <ContactCustomerToggle contactId={contact.id} identified={false} />}
 
-      <div className="grid items-start gap-4 lg:grid-cols-2">
+      <ContactPurchases
+        contactId={contact.id}
+        locale={locale}
+        purchases={purchases.map((purchase) => ({ ...purchase, paidAt: purchase.paidAt.toISOString(), handledAt: purchase.handledAt?.toISOString() ?? null }))}
+        manualOrders={contact.manualOrders.map((order) => ({ ...order, items: readPayItems(order.items), orderedAt: order.orderedAt.toISOString() }))}
+      />
+
+      {/* grid-cols-1 is minmax(0,1fr): an auto track grew to the widest
+          conversation preview and pushed the page past a phone's edge. */}
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
         {/* Editable details */}
         <ContactDetailEditor
           contactId={contact.id}
@@ -268,13 +250,24 @@ export default async function ContactDetailPage(
           initialStage={contact.stage}
           initialTags={contact.tags}
           initialNotes={contact.notes ?? ''}
+          initialAiBrief={contact.aiBrief ?? ''}
+          initialCustomFields={readCustomFields(contact.customFields)}
           initialMarketingOptIn={contact.marketingOptIn}
         />
 
         {/* Summary and timeline */}
-        <div className="spatial-surface rounded-card p-5 sm:p-6">
+        <div className="spatial-surface min-w-0 rounded-card p-5 sm:p-6">
           <h2 className="ui-h3">{locale === 'fa' ? 'خلاصه' : 'Summary'}</h2>
           <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-5 gap-y-2 text-[13px]">
+            {contact.identifiedAt && (
+              <>
+                <dt className="text-[var(--text-muted)]">{locale === 'fa' ? 'وضعیت' : 'Status'}</dt>
+                <dd className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[var(--text-primary)]">
+                  {locale === 'fa' ? 'در فهرست مشتریان' : 'In the customers list'}
+                  <ContactCustomerToggle contactId={contact.id} identified />
+                </dd>
+              </>
+            )}
             <dt className="text-[var(--text-muted)]">{locale === 'fa' ? 'اولین تماس' : 'First contact'}</dt>
             <dd className="text-[var(--text-primary)]">{dateFmt.format(contact.createdAt)}</dd>
             <dt className="text-[var(--text-muted)]">{locale === 'fa' ? 'گفتگوها' : 'Conversations'}</dt>
@@ -333,6 +326,7 @@ export default async function ContactDetailPage(
           )}
         </div>
       </div>
+
     </div>
   )
 }

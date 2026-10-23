@@ -4,6 +4,8 @@ import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { readContactAddress } from '@/lib/crm/contact-address'
 import { loadContactPurchases } from '@/lib/payments/card/fulfilment'
+import { checkWorkspaceResourceCreateAllowed } from '@/lib/billing/entitlements'
+import { AI_BRIEF_MAX, cleanCustomFields, customFieldsSchema, readCustomFields } from '@/lib/crm/customer-brief'
 
 type Params = { params: Promise<{ contactId: string }> }
 
@@ -11,14 +13,18 @@ const updateSchema = z.object({
   stage: z.enum(['lead', 'qualified', 'customer', 'lost']).optional(),
   name: z.string().min(1).max(120).optional(),
   notes: z.string().max(5000).nullish(),
+  aiBrief: z.string().max(AI_BRIEF_MAX).nullish(),
+  customFields: customFieldsSchema.optional(),
   tags: z.array(z.string().max(40)).max(20).optional(),
   marketingOptIn: z.boolean().optional(),
+  // The owner moves an audience member into the customers list (or back).
+  identified: z.boolean().optional(),
 })
 
 async function ownContact(workspaceId: string, contactId: string) {
   return prisma.contact.findFirst({
     where: { id: contactId, workspaceId },
-    select: { id: true, marketingOptIn: true },
+    select: { id: true, marketingOptIn: true, identifiedAt: true },
   })
 }
 
@@ -36,6 +42,9 @@ export async function GET(_req: Request, props: Params) {
       stage: true,
       tags: true,
       notes: true,
+      aiBrief: true,
+      customFields: true,
+      identifiedAt: true,
       marketingOptIn: true,
       createdAt: true,
       updatedAt: true,
@@ -77,10 +86,10 @@ export async function GET(_req: Request, props: Params) {
 
   // The profile shows the delivery address; the rest of the metadata (agent
   // memory, sync bookkeeping) stays server-side.
-  const { metadata, ...profile } = contact
+  const { metadata, customFields, ...profile } = contact
   const purchases = await loadContactPurchases(user.workspaceId, { id: contact.id, phone: contact.phone }, contact.conversations.map((c) => c.id), 10).catch(() => [])
   return NextResponse.json(
-    { contact: { ...profile, address: readContactAddress(metadata), purchases } },
+    { contact: { ...profile, customFields: readCustomFields(customFields), address: readContactAddress(metadata), purchases } },
     { headers: { 'Cache-Control': 'private, no-store, max-age=0' } },
   )
 }
@@ -98,12 +107,28 @@ export async function PATCH(req: Request, props: Params) {
   if (!parsed.success)
     return NextResponse.json({ error: 'INVALID' }, { status: 400 })
 
+  const { identified, customFields, ...fields } = parsed.data
+  if (identified && !existing.identifiedAt) {
+    const capacity = await checkWorkspaceResourceCreateAllowed(user.workspaceId, 'customers')
+    if (!capacity.allowed) {
+      return NextResponse.json({
+        error: capacity.reason,
+        plan: capacity.plan,
+        limit: capacity.limit,
+        used: capacity.used,
+        upgradeUrl: '/billing#vigent-plans',
+      }, { status: 409 })
+    }
+  }
   const consent = parsed.data.marketingOptIn
   const consentChanged = consent !== undefined && consent !== existing.marketingOptIn
   const contact = await prisma.contact.update({
     where: { id: params.contactId },
     data: {
-      ...parsed.data,
+      ...fields,
+      ...(customFields ? { customFields: cleanCustomFields(customFields) } : {}),
+      ...(identified === true && !existing.identifiedAt ? { identifiedAt: new Date() } : {}),
+      ...(identified === false ? { identifiedAt: null } : {}),
       ...(consentChanged && consent === true
         ? { marketingOptInAt: new Date(), marketingOptOutAt: null }
         : {}),

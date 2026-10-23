@@ -6,6 +6,7 @@ import type { ChatMessage } from '@/lib/ai/openrouter'
 import { resolveSystemPrompt } from '@/lib/ai/prompt-builder'
 import { customerPreferenceInstruction, type CustomerAgentPreference } from '@/lib/ai/customer-agent-preferences'
 import { evidenceMemoryInstruction, type EvidenceMemory } from '@/lib/ai/memory-evidence'
+import { customerBriefInstruction, type CustomField, type ManualOrderForAi } from '@/lib/crm/customer-brief'
 import { identificationInstruction } from '@/lib/ai/customer-identification'
 import { buildPlatformContextBlock } from '@/lib/ai/platform-context'
 import { readInboundSource } from '@/lib/conversations/source'
@@ -40,6 +41,8 @@ export function buildSystemPrompt(params: {
         customerPreferences?: CustomerAgentPreference[]
         /** Evidence-anchored long-term memory for this contact+agent (provenance, quarantine, audit). */
         evidenceMemory?: EvidenceMemory | null
+        /** What the owner wrote on this customer's profile for the AI. */
+        customerBrief?: { aiBrief: string | null; customFields: CustomField[]; manualOrders: ManualOrderForAi[] } | null
         /** Language of the customer's current turn (kernel mirrors it). */
         turnLanguage?: TurnLanguage
         /** Channel the customer is currently talking on (TELEGRAM / WHATSAPP / ...). */
@@ -77,6 +80,12 @@ export function buildSystemPrompt(params: {
         // statements and pending conflict confirmations. Same isolation rules
         // as the preferences block above — this customer's own data only.
         base += evidenceMemoryInstruction((turnLanguage ?? agent.language) === 'en' ? 'en' : 'fa', params.evidenceMemory ?? null)
+
+        // The owner's brief on this customer (tone, priority, recorded details,
+        // orders taken outside the chat). Subordinate to facts and safety too.
+        if (params.customerBrief) {
+                base += customerBriefInstruction((turnLanguage ?? agent.language) === 'en' ? 'en' : 'fa', params.customerBrief)
+        }
 
         // Platform-awareness block: tells the agent which surface it is on
         // (Telegram / WhatsApp / Instagram DM / public comment / story reply /

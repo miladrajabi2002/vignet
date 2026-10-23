@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Users, CreditCard, Clock, UserRoundSearch } from 'lucide-react'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { CUSTOMER_WHERE } from '@/lib/crm/customer'
 import { AdminUsersSearchForm } from '@/components/admin/admin-users-search-form'
 import {
   PageHeader,
@@ -100,7 +101,7 @@ export default async function AdminUsersPage(
       prisma.user.count({ where: { ...ADMIN_VISIBLE_USER_WHERE, createdAt: { gte: startOfToday() } } }),
       // Every user owns exactly one workspace (1:1), so the old redundant
       // "workspaces" KPI is replaced by the customers actually served.
-      prisma.contact.count({ where: { workspace: ADMIN_VISIBLE_WORKSPACE_WHERE } }),
+      prisma.contact.count({ where: { workspace: ADMIN_VISIBLE_WORKSPACE_WHERE, ...CUSTOMER_WHERE } }),
       prisma.workspace.count({ where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, plan: { in: ['STARTER', 'PRO', 'BUSINESS'] } } }),
       prisma.workspace.count({ where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, onboardingCompleted: false, onboardingStepUpdatedAt: { lt: stalledSince } } }),
       prisma.user.findMany({

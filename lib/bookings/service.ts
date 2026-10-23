@@ -1,4 +1,5 @@
 import { prisma, type Tx } from '@/lib/prisma'
+import { markContactIdentified } from '@/lib/crm/customer'
 import {
   buildAvailableSlots,
   inspectRequestedSlot,
@@ -310,12 +311,16 @@ async function bookInTransaction(
           name: input.customerName,
           phone: normalizeContactPhone(input.customerPhone) ?? input.customerPhone,
           tags: ['appointment'],
+          identifiedAt: new Date(),
         },
         select: { id: true },
       })
       contactId = created.id
     }
   }
+
+  // Booked: a customer, whatever the profile was before.
+  if (contactId) await markContactIdentified(tx, workspaceId, contactId)
 
   const created = await tx.appointment.create({
     data: {

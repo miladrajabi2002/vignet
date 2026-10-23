@@ -25,6 +25,7 @@ import {
   type ContactStage,
 } from '@/components/crm/contact-stage-badge'
 import { ContactDetailEditor } from '@/components/crm/contact-detail'
+import type { CustomField } from '@/lib/crm/customer-brief'
 import { ContactDeleteAction } from '@/components/crm/contact-delete-action'
 import { contactAvatarSrc } from '@/lib/crm/avatar'
 import { contactDisplayName } from '@/lib/crm/display'
@@ -58,6 +59,9 @@ type ContactDetailData = {
   stage: string
   tags: string[]
   notes: string | null
+  aiBrief: string | null
+  customFields: CustomField[]
+  identifiedAt: string | null
   marketingOptIn: boolean
   createdAt: string
   updatedAt: string
@@ -525,6 +529,13 @@ export function ContactDetailSheet({
                 </div>
               </section>
 
+              {detail.aiBrief && (
+                <section className="rounded-2xl border border-[var(--border-default)] bg-white p-4">
+                  <h4 className="text-xs font-semibold text-[var(--text-secondary)]">{t('detail.aiBrief')}</h4>
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-[var(--text-secondary)]">{detail.aiBrief}</p>
+                </section>
+              )}
+
               <section className="rounded-2xl border border-[var(--border-default)] bg-white p-4">
                 <h4 className="text-xs font-semibold text-[var(--text-secondary)]">{t('detail.notes')}</h4>
                 <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-[var(--text-secondary)]">
@@ -574,6 +585,8 @@ export function ContactDetailSheet({
                 initialStage={detail.stage}
                 initialTags={detail.tags}
                 initialNotes={detail.notes ?? ''}
+                initialAiBrief={detail.aiBrief ?? ''}
+                initialCustomFields={detail.customFields ?? []}
                 initialMarketingOptIn={detail.marketingOptIn}
                 embedded
                 onSaved={(updated) => setDetail((current) => current ? { ...current, ...updated } : current)}

@@ -3,6 +3,7 @@ import { looksLikePersonName } from '@/lib/ai/customer-identification'
 import { applyContactIdentity } from '@/lib/crm/contact-identity'
 import { withContactAddress, type ContactAddress } from '@/lib/crm/contact-address'
 import { cleanContactName } from '@/lib/crm/display'
+import { markContactIdentified } from '@/lib/crm/customer'
 
 /**
  * Details a customer CONFIRMED while buying, booking or enrolling belong on
@@ -63,6 +64,9 @@ export async function recordConfirmedCustomer(params: ConfirmedCustomerParams): 
         phone,
       })
     : params.contactId
+  // Confirmed an order, a booking or a course place: a customer, even when
+  // the profile was only an Instagram follower's.
+  if (contactId) await markContactIdentified(prisma, params.workspaceId, contactId)
   if (!contactId || !params.address) return contactId
 
   // Read-modify-write of the JSON column under a row lock, like every other

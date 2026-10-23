@@ -5,6 +5,7 @@
  * list as a customer with what they bought.
  */
 import type { CardPayment, Prisma } from '@prisma/client'
+import { markContactIdentified } from '@/lib/crm/customer'
 import { prisma } from '@/lib/prisma'
 import { orderRef } from '@/lib/commerce/order-ref'
 import { captureError } from '@/lib/errors/capture'
@@ -79,10 +80,13 @@ export async function recordPaidCustomer(payment: CardPayment): Promise<void> {
 
     const stage = { stage: 'customer' }
     if (contactId) {
+      // Paid: a customer, even when they were only an Instagram follower.
+      await markContactIdentified(prisma, payment.workspaceId, contactId)
       await prisma.contact.updateMany({ where: { id: contactId, workspaceId: payment.workspaceId, deletedAt: null, stage: { not: 'customer' } }, data: stage })
     } else if (phone) {
       // A link paid outside any chat: the profile with that number, when there is one.
       await prisma.contact.updateMany({ where: { workspaceId: payment.workspaceId, deletedAt: null, phone: { in: phoneVariants(phone) }, stage: { not: 'customer' } }, data: stage })
+      await prisma.contact.updateMany({ where: { workspaceId: payment.workspaceId, deletedAt: null, phone: { in: phoneVariants(phone) }, identifiedAt: null }, data: { identifiedAt: new Date() } })
     }
 
     if (conversation) {

@@ -1136,21 +1136,15 @@ async function processChannelInbound(
                         }
                         if (!contactId && (cleanContactName(msg.senderName) || normalizeContactPhone(msg.senderPhone))) {
                                 // A sender with no name and no phone is not a
-                                // customer yet, so a null there is expected.
-                                // Otherwise this happens when the workspace has hit its
-                                // customer limit (TRIAL=100, STARTER=2000, …).
-                                // The conversation is still persisted (with
-                                // contactId=null), but it shows as «ناشناس» in
-                                // the inbox and no profile backfill runs. Surface
-                                // it loudly so the operator knows to upgrade or
-                                // clean up old contacts — silently dropping the
-                                // inbound contact is the worst UX.
+                                // customer yet, so a null there is expected. A
+                                // named sender always gets a contact (audience when
+                                // the plan's customer limit is reached), so a null
+                                // here is unexpected: the chat shows as «ناشناس»
+                                // and no profile backfill runs. Surface it loudly.
                                 captureWarning(
                                         'inbound:contact-resolve-failed',
                                         new Error(
-                                                `Workspace ${agent.workspaceId} could not resolve a contact for sender ${msg.senderId} on ${type}. ` +
-                                                `This usually means the workspace has reached its customer limit. ` +
-                                                `Upgrade the plan or remove old contacts.`,
+                                                `Workspace ${agent.workspaceId} could not resolve a contact for sender ${msg.senderId} on ${type}.`,
                                         ),
                                         { workspaceId: agent.workspaceId, metadata: { channelId: resolved.channelId, channel: type } },
                                 )
@@ -1238,8 +1232,10 @@ async function processChannelInbound(
                                                 if (!profile) return
                                                 if (!contactIdValue) {
                                                         // An Instagram DM carries only a sender id, so the sender
-                                                        // had no contact. The profile names them: file the
-                                                        // customer with that name and avatar and link the chat.
+                                                        // had no contact. The profile names them: file them with
+                                                        // that name and avatar and link the chat. A profile name
+                                                        // makes them audience, not a customer (Contact.identifiedAt):
+                                                        // the inbox shows them, the customers list does not.
                                                         const name = cleanContactName(profile.name) ?? cleanContactName(profile.username)
                                                         if (!name) return
                                                         const filedId = await resolveInboundContact({

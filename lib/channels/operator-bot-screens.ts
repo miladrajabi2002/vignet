@@ -199,7 +199,7 @@ async function periodStats(workspaceId: string, since: Date) {
     prisma.conversation.count({ where: conversationWhere }),
     prisma.conversation.count({ where: { ...conversationWhere, status: 'RESOLVED' } }),
     prisma.handoffAlert.count({ where: { workspaceId, createdAt: { gte: since } } }),
-    prisma.contact.count({ where: { workspaceId, createdAt: { gte: since } } }),
+    prisma.contact.count({ where: { workspaceId, identifiedAt: { gte: since } } }),
     prisma.storeOrder.count({ where: { workspaceId, deletedAt: null, createdAt: { gte: since } } }),
     prisma.orderDraft.count({ where: { workspaceId, submittedAt: { gte: since } } }),
     prisma.appointment.count({ where: { workspaceId, createdAt: { gte: since }, status: { not: 'CANCELLED' } } }),
@@ -618,7 +618,7 @@ export async function dailyReportScreen(op: OperatorContext): Promise<BotScreen>
         prisma.conversation.count({ where }),
         prisma.conversation.count({ where: { ...where, status: 'RESOLVED' } }),
         prisma.handoffAlert.count({ where: { workspaceId: op.workspaceId, createdAt: { gte: from, lt: to } } }),
-        prisma.contact.count({ where: { workspaceId: op.workspaceId, createdAt: { gte: from, lt: to } } }),
+        prisma.contact.count({ where: { workspaceId: op.workspaceId, identifiedAt: { gte: from, lt: to } } }),
       ])
       return { conversations, resolved, handedOff, contacts }
     })(),

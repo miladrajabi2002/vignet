@@ -1,6 +1,7 @@
 'use client'
 
 import { useId, useState } from 'react'
+import { Plus, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { MaterialSelect } from '@/components/ui/material-select'
@@ -9,6 +10,7 @@ import { AutoSaveStatus } from '@/components/ui/auto-save-status'
 import { TagInput } from '@/components/ui/tag-input'
 import { useAutoSave } from '@/lib/hooks/use-auto-save'
 import { cn } from '@/lib/utils'
+import { AI_BRIEF_MAX, AI_BRIEF_PRESETS, CUSTOM_FIELDS_MAX, type CustomField } from '@/lib/crm/customer-brief'
 
 const STAGES = ['lead', 'qualified', 'customer', 'lost'] as const
 type Stage = (typeof STAGES)[number]
@@ -26,6 +28,8 @@ export function ContactDetailEditor({
   initialStage,
   initialTags,
   initialNotes,
+  initialAiBrief = '',
+  initialCustomFields = [],
   initialMarketingOptIn,
   embedded = false,
   onSaved,
@@ -35,6 +39,8 @@ export function ContactDetailEditor({
   initialStage: string
   initialTags: string[]
   initialNotes: string
+  initialAiBrief?: string
+  initialCustomFields?: CustomField[]
   initialMarketingOptIn: boolean
   embedded?: boolean
   onSaved?: (contact: {
@@ -42,6 +48,7 @@ export function ContactDetailEditor({
     stage: string
     tags: string[]
     notes: string | null
+    aiBrief: string | null
     marketingOptIn: boolean
   }) => void
 }) {
@@ -53,6 +60,7 @@ export function ContactDetailEditor({
   const stageId = useId()
   const tagsId = useId()
   const notesId = useId()
+  const aiBriefId = useId()
   const [name, setName] = useState(initialName)
   const [stage, setStage] = useState<Stage>(
     (STAGES as readonly string[]).includes(initialStage)
@@ -61,6 +69,8 @@ export function ContactDetailEditor({
   )
   const [tags, setTags] = useState<string[]>(initialTags)
   const [notes, setNotes] = useState(initialNotes)
+  const [aiBrief, setAiBrief] = useState(initialAiBrief)
+  const [fields, setFields] = useState<CustomField[]>(initialCustomFields)
   const [marketingOptIn, setMarketingOptIn] = useState(initialMarketingOptIn)
   const [error, setError] = useState<string | null>(null)
 
@@ -71,6 +81,9 @@ export function ContactDetailEditor({
       stage,
       tags,
       notes: notes.trim() || null,
+      aiBrief: aiBrief.trim() || null,
+      // Half-typed rows (a label with no value yet) are not saved.
+      customFields: fields.filter((field) => field.label.trim() && field.value.trim()),
       marketingOptIn,
     },
     save: async (value) => {
@@ -96,7 +109,7 @@ export function ContactDetailEditor({
     <div
       onBlur={auto.flush}
       className={cn(
-        'space-y-4',
+        'min-w-0 space-y-4',
         !embedded && 'spatial-surface rounded-card p-5 sm:p-6',
       )}
     >
@@ -140,9 +153,81 @@ export function ContactDetailEditor({
       </div>
 
       <div>
+        <label htmlFor={aiBriefId} className="ui-field-label">
+          {t('detail.aiBrief')}
+        </label>
+        <p className="mb-2 text-[12px] leading-5 text-[var(--text-muted)]">{t('detail.aiBriefHint')}</p>
+        <textarea
+          id={aiBriefId}
+          value={aiBrief}
+          onChange={(e) => setAiBrief(e.target.value.slice(0, AI_BRIEF_MAX))}
+          rows={3}
+          placeholder={t('detail.aiBriefPlaceholder')}
+          className="input resize-y leading-7"
+        />
+        <div className="mt-2 flex flex-wrap items-center gap-1.5" role="group" aria-label={t('detail.aiBriefPresets')}>
+          <span className="text-[11.5px] text-[var(--text-muted)]">{t('detail.aiBriefPresets')}:</span>
+          {AI_BRIEF_PRESETS[locale].filter((line) => !aiBrief.includes(line)).map((line) => (
+            <button
+              key={line}
+              type="button"
+              onClick={() => setAiBrief((current) => (current.trim() ? `${current.trim()}\n${line}` : line).slice(0, AI_BRIEF_MAX))}
+              className="min-h-8 rounded-full border border-[var(--border-default)] px-3 text-[12px] text-[var(--text-secondary)] transition-colors hover:bg-black/[0.035]"
+            >
+              {line}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <span className="ui-field-label">{t('detail.customFields')}</span>
+        <p className="mb-2 text-[12px] leading-5 text-[var(--text-muted)]">{t('detail.customFieldsHint')}</p>
+        <div className="space-y-2">
+          {fields.map((field, index) => (
+            <div key={index} className="flex items-center gap-2">
+              <input
+                value={field.label}
+                onChange={(e) => setFields((current) => current.map((item, i) => (i === index ? { ...item, label: e.target.value.slice(0, 40) } : item)))}
+                placeholder={t('detail.fieldLabel')}
+                aria-label={t('detail.fieldLabel')}
+                className="input w-[38%] min-w-0"
+              />
+              <input
+                value={field.value}
+                onChange={(e) => setFields((current) => current.map((item, i) => (i === index ? { ...item, value: e.target.value.slice(0, 300) } : item)))}
+                placeholder={t('detail.fieldValue')}
+                aria-label={t('detail.fieldValue')}
+                className="input min-w-0 flex-1"
+              />
+              <button
+                type="button"
+                onClick={() => setFields((current) => current.filter((_, i) => i !== index))}
+                aria-label={t('detail.removeField')}
+                className="grid size-10 shrink-0 place-items-center rounded-xl text-[var(--text-muted)] hover:bg-black/[0.035]"
+              >
+                <X className="size-4" aria-hidden />
+              </button>
+            </div>
+          ))}
+          {fields.length < CUSTOM_FIELDS_MAX && (
+            <button
+              type="button"
+              onClick={() => setFields((current) => [...current, { label: '', value: '' }])}
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-dashed border-[var(--border-default)] px-3 text-[12.5px] text-[var(--text-secondary)] hover:bg-black/[0.035]"
+            >
+              <Plus className="size-4" aria-hidden />
+              {t('detail.addField')}
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div>
         <label htmlFor={notesId} className="ui-field-label">
           {t('detail.notes')}
         </label>
+        <p className="mb-2 text-[12px] leading-5 text-[var(--text-muted)]">{t('detail.notesHint')}</p>
         <textarea
           id={notesId}
           value={notes}

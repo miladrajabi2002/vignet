@@ -1075,7 +1075,7 @@ async function upsertContactFromWoo(
     // (e.g. WhatsApp username, marketing opt-in).
     const current = await prisma.contact.findUnique({
       where: { id: existing.id },
-      select: { metadata: true, name: true, phone: true, lastActivityAt: true, tags: true },
+      select: { metadata: true, name: true, phone: true, lastActivityAt: true, tags: true, identifiedAt: true },
     })
     const mergedMetadata = {
       ...(current?.metadata && typeof current.metadata === 'object'
@@ -1102,6 +1102,8 @@ async function upsertContactFromWoo(
         ...(phone && !current?.phone ? { phone } : {}),
         ...(mergedTags ? { tags: mergedTags } : {}),
         metadata: mergedMetadata,
+        // A store buyer is a customer.
+        ...(current?.identifiedAt ? {} : { identifiedAt: new Date() }),
         // Bump lastActivityAt so this contact surfaces in the "recently
         // active" list — but only if it was null before. We don't want
         // a customer sync to override a real chat lastActivityAt.
@@ -1130,6 +1132,7 @@ async function upsertContactFromWoo(
       // so they enter the pipeline directly at the 'customer' stage
       // rather than starting as a 'lead' that the operator must promote.
       stage: 'customer',
+      identifiedAt: new Date(),
       // Set lastActivityAt to now so the contact shows up in the "recently
       // active" list immediately after sync.
       lastActivityAt: new Date(),

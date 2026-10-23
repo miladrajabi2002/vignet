@@ -23,6 +23,7 @@ import { checkWorkspaceResourceCreateAllowed } from '@/lib/billing/entitlements'
 import { getEffectivePlanDefs, planResourceLimit, recommendedUpgradePlan } from '@/lib/billing/plans'
 import { searchVariants } from '@/lib/search/persian'
 import { dashboardTitle } from '@/lib/dashboard/page-title'
+import { AUDIENCE_WHERE, CUSTOMER_WHERE } from '@/lib/crm/customer'
 
 export const generateMetadata = dashboardTitle('مشتریان', 'Customers')
 
@@ -61,6 +62,7 @@ export default async function ContactsPage(
       channel?: string
       tag?: string
       contact?: string
+      view?: string
     }>
   }
 ) {
@@ -78,9 +80,14 @@ export default async function ContactsPage(
     : ''
   const tag = searchParams.tag?.trim().slice(0, 40) || ''
   const detailContactId = searchParams.contact?.trim().slice(0, 128) || undefined
+  // Customers by default; «مخاطبان» lists the audience — people who only
+  // messaged or ran an Instagram scenario (lib/crm/customer.ts).
+  const audienceView = searchParams.view === 'audience'
+  const listScope = audienceView ? AUDIENCE_WHERE : CUSTOMER_WHERE
   const phoneVariants = contactPhoneLookupVariants(query)
   const where: Prisma.ContactWhereInput = {
     workspaceId: user.workspaceId,
+    ...listScope,
     ...(stage ? { stage } : {}),
     ...(channel ? (CHANNEL_FILTER_WHERE[channel] ?? {}) : {}),
     ...(tag ? { tags: { has: tag } } : {}),
@@ -101,7 +108,7 @@ export default async function ContactsPage(
       : {}),
   }
 
-  const [contacts, totalCount, matchedCount, stageGroups, contactTrend, latestContact, customerCapacity, planDefs] = await Promise.all([
+  const [contacts, totalCount, matchedCount, stageGroups, contactTrend, latestContact, customerCapacity, planDefs, otherListCount] = await Promise.all([
     prisma.contact.findMany({
       where,
       // Order by denormalized "last activity" first (bumped on every inbound/
@@ -150,11 +157,11 @@ export default async function ContactsPage(
         },
       },
     }),
-    prisma.contact.count({ where: { workspaceId: user.workspaceId } }),
+    prisma.contact.count({ where: { workspaceId: user.workspaceId, ...listScope } }),
     prisma.contact.count({ where }),
     prisma.contact.groupBy({
       by: ['stage'],
-      where: { workspaceId: user.workspaceId },
+      where: { workspaceId: user.workspaceId, ...listScope },
       _count: { _all: true },
     }),
     contactsDailyByWorkspace(user.workspaceId, 14),
@@ -165,6 +172,7 @@ export default async function ContactsPage(
     }),
     checkWorkspaceResourceCreateAllowed(user.workspaceId, 'customers'),
     getEffectivePlanDefs(),
+    prisma.contact.count({ where: { workspaceId: user.workspaceId, ...(audienceView ? CUSTOMER_WHERE : AUDIENCE_WHERE) } }),
   ])
 
   const recommendedPlan = recommendedUpgradePlan(
@@ -218,8 +226,10 @@ export default async function ContactsPage(
     entry.enrollments += row._count._all
     outcomes.set(row.contactId, entry)
   }
-  const liveVersion = contactLiveVersion({ count: totalCount, latest: latestContact })
+  // /api/crm/live counts every contact, customers and audience alike.
+  const liveVersion = contactLiveVersion({ count: totalCount + otherListCount, latest: latestContact })
   const listParams = new URLSearchParams()
+  if (audienceView) listParams.set('view', 'audience')
   if (page > 1) listParams.set('page', String(page))
   if (query) listParams.set('q', query)
   if (stage) listParams.set('stage', stage)
@@ -317,12 +327,17 @@ export default async function ContactsPage(
   return (
     <div className="mx-auto max-w-none space-y-6">
       <ContactsView
-        key={`contacts:${page}:${query}:${stage}:${channel}:${tag}`}
+        key={`contacts:${audienceView ? 'audience' : 'customers'}:${page}:${query}:${stage}:${channel}:${tag}`}
         initial={rows}
         locale={locale}
         liveVersion={liveVersion}
         liveEnabled={page === 1}
-        liveScope={`contacts:${page}:${query}:${stage}:${channel}:${tag}`}
+        liveScope={`contacts:${audienceView ? 'audience' : 'customers'}:${page}:${query}:${stage}:${channel}:${tag}`}
+        audience={{
+          active: audienceView,
+          customerCount: audienceView ? otherListCount : totalCount,
+          audienceCount: audienceView ? totalCount : otherListCount,
+        }}
         query={query}
         initialStageFilter={stage}
         initialChannelFilter={channel}
@@ -376,6 +391,7 @@ export default async function ContactsPage(
             hasNext={hasNext}
             makeHref={(nextPage) => {
               const params = new URLSearchParams()
+              if (audienceView) params.set('view', 'audience')
               if (nextPage > 1) params.set('page', String(nextPage))
               if (query) params.set('q', query)
               if (stage) params.set('stage', stage)

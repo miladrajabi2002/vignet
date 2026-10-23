@@ -9,6 +9,7 @@
  * both take the last seat.
  */
 import type { CourseStatus, EnrollmentStatus, Prisma } from '@prisma/client'
+import { markContactIdentified } from '@/lib/crm/customer'
 import { prisma } from '@/lib/prisma'
 import { notifyWorkspace } from '@/lib/notifications/create'
 import { captureError } from '@/lib/errors/capture'
@@ -262,9 +263,11 @@ export async function enrollInCourse(workspaceId: string, courseId: string, inpu
           if (error instanceof WorkspaceResourceLimitError) throw new CourseError('CUSTOMER_LIMIT')
           throw error
         }
-        contactId = (await tx.contact.create({ data: { workspaceId, name: input.name, phone: normalizeContactPhone(input.phone) ?? input.phone, tags: ['course'] }, select: { id: true } })).id
+        contactId = (await tx.contact.create({ data: { workspaceId, name: input.name, phone: normalizeContactPhone(input.phone) ?? input.phone, tags: ['course'], identifiedAt: new Date() }, select: { id: true } })).id
       }
     }
+    // Signed up: a customer, whatever the profile was before.
+    if (contactId) await markContactIdentified(tx, workspaceId, contactId)
 
     // Already signed up (same person, still active): hand back that record.
     const duplicate = contactId || input.phone

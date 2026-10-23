@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => {
     courseEnrollment: { updateMany: vi.fn() },
     restockAlert: { updateMany: vi.fn() },
     skillFinding: { updateMany: vi.fn() },
+    contactManualOrder: { updateMany: vi.fn() },
     campaignRecipient: {
       findMany: vi.fn(),
       findFirst: vi.fn(),
@@ -103,6 +104,7 @@ describe('cross-channel contact identity merge', () => {
     mocks.tx.courseEnrollment.updateMany.mockResolvedValue({ count: 0 })
     mocks.tx.restockAlert.updateMany.mockResolvedValue({ count: 0 })
     mocks.tx.skillFinding.updateMany.mockResolvedValue({ count: 0 })
+    mocks.tx.contactManualOrder.updateMany.mockResolvedValue({ count: 0 })
     mocks.tx.contact.update.mockResolvedValue({})
     mocks.tx.contact.updateMany.mockResolvedValue({ count: 1 })
   })
@@ -192,21 +194,49 @@ describe('cross-channel contact identity merge', () => {
     }))
   })
 
-  it('returns null instead of creating a contact once the plan customer cap is reached', async () => {
-    mocks.getLimit.mockResolvedValue({ plan: 'TRIAL', limit: 50 })
-    mocks.assertCapacity.mockRejectedValue(new mocks.WorkspaceResourceLimitError('customers', 50))
+  it('files a sender known only by a profile name as audience, outside the customer cap', async () => {
+    // An Instagram commenter who ran a scenario: a display name, nothing else.
     mocks.tx.contact.findMany.mockResolvedValueOnce([])
+    mocks.tx.contact.create.mockResolvedValue({ id: 'contact-ig' })
 
     const id = await resolveInboundContact({
       workspaceId: 'workspace-1',
-      channel: 'TELEGRAM',
-      senderId: 'telegram-brand-new',
+      channel: 'INSTAGRAM',
+      senderId: 'ig-commenter',
       senderName: 'Sara',
+      senderUsername: 'sara.shop',
     })
 
-    expect(id).toBeNull()
+    expect(id).toBe('contact-ig')
+    expect(mocks.assertCapacity).not.toHaveBeenCalled()
+    expect(mocks.tx.contact.create.mock.calls[0][0].data).toMatchObject({ name: 'Sara', identifiedAt: null })
+  })
+
+  it('files a sender with a phone as a customer, or as audience once the plan cap is reached', async () => {
+    mocks.tx.contact.findMany.mockResolvedValueOnce([])
+    mocks.tx.contact.create.mockResolvedValue({ id: 'contact-wa' })
+    await resolveInboundContact({
+      workspaceId: 'workspace-1',
+      channel: 'WHATSAPP',
+      senderId: '989128352271',
+      senderName: 'Sara',
+      senderPhone: '989128352271',
+    })
+    expect(mocks.tx.contact.create.mock.calls[0][0].data.identifiedAt).toBeInstanceOf(Date)
+
+    mocks.getLimit.mockResolvedValue({ plan: 'TRIAL', limit: 50 })
+    mocks.assertCapacity.mockRejectedValue(new mocks.WorkspaceResourceLimitError('customers', 50))
+    mocks.tx.contact.findMany.mockResolvedValueOnce([])
+    const id = await resolveInboundContact({
+      workspaceId: 'workspace-1',
+      channel: 'WHATSAPP',
+      senderId: '989128352272',
+      senderName: 'Reza',
+      senderPhone: '989128352272',
+    })
+    expect(id).toBe('contact-wa')
     expect(mocks.assertCapacity).toHaveBeenCalledWith(mocks.tx, 'workspace-1', 'customers', 50)
-    expect(mocks.tx.contact.create).not.toHaveBeenCalled()
+    expect(mocks.tx.contact.create.mock.calls[1][0].data.identifiedAt).toBeNull()
   })
 
   it('never creates a customer for a sender with no name and no valid phone', async () => {
@@ -288,6 +318,8 @@ describe('applyContactIdentity', () => {
       })
 
       expect(result).toBe('contact-new')
+      // Gave a phone: a customer.
+      expect(mocks.tx.contact.create.mock.calls[0][0].data.identifiedAt).toBeInstanceOf(Date)
       expect(mocks.tx.conversation.update).toHaveBeenCalledWith({
         where: { id: 'conv-1' },
         data: { contactId: 'contact-new' },
@@ -314,6 +346,9 @@ describe('applyContactIdentity', () => {
         phone: null,
       })
       expect(mocks.tx.contact.update.mock.calls.at(-1)?.[0].data).not.toHaveProperty('name')
+
+      // An Instagram follower (audience) who now gives a name becomes a customer.
+      expect(mocks.tx.contact.update.mock.calls.at(-1)?.[0].data.identifiedAt).toBeInstanceOf(Date)
 
       // «None» is a channel placeholder, not a name: it is filled.
       const placeholder = { ...named, name: 'None' }

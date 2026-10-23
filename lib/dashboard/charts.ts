@@ -100,16 +100,16 @@ export async function chargesDailyByWorkspace(
 	return buildSeries(rows, days)
 }
 
-/** Daily new contacts (customers) for a workspace. */
+/** Daily new customers for a workspace, by the day they became one (audience excluded). */
 export async function contactsDailyByWorkspace(
 	workspaceId: string,
 	days = 7,
 ): Promise<DailySeries> {
 	const since = new Date(Date.now() - days * 86_400_000)
 	const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`
-    SELECT to_char(date_trunc('day', ("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
+    SELECT to_char(date_trunc('day', ("identifiedAt" AT TIME ZONE 'UTC') AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
     FROM "Contact"
-    WHERE "workspaceId" = ${workspaceId} AND "createdAt" >= ${since} AND "deletedAt" IS NULL
+    WHERE "workspaceId" = ${workspaceId} AND "identifiedAt" >= ${since} AND "deletedAt" IS NULL
     GROUP BY 1 ORDER BY 1
   `
 	return buildSeries(rows, days)

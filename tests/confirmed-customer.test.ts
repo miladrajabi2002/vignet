@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => {
   return {
     tx,
     contactFindFirst: vi.fn(),
+    contactUpdateMany: vi.fn(),
     transaction: vi.fn(),
     applyContactIdentity: vi.fn(),
   }
@@ -15,7 +16,7 @@ const mocks = vi.hoisted(() => {
 
 vi.mock('@/lib/prisma', () => ({
   prisma: {
-    contact: { findFirst: mocks.contactFindFirst },
+    contact: { findFirst: mocks.contactFindFirst, updateMany: mocks.contactUpdateMany },
     $transaction: mocks.transaction,
   },
 }))

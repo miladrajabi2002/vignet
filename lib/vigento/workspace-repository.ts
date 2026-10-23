@@ -36,7 +36,7 @@ export class WorkspaceVigentoRepository {
         _count: { _all: true },
       }),
       prisma.message.count({ where: { createdAt: { gte: since }, conversation: { workspaceId } } }),
-      prisma.contact.count({ where: { workspaceId, createdAt: { gte: since } } }),
+      prisma.contact.count({ where: { workspaceId, identifiedAt: { gte: since } } }),
       prisma.appointment.count({
         where: { workspaceId, startsAt: { gte: since }, status: { in: ['PENDING', 'CONFIRMED'] } },
       }),

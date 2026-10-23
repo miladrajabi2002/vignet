@@ -22,6 +22,7 @@ import {
 } from '@/lib/ai/openrouter'
 import { retrieveContext, buildMessages, type CatalogProduct } from '@/lib/ai/rag'
 import { readCustomerAgentPreferences } from '@/lib/ai/customer-agent-preferences'
+import { MANUAL_ORDERS_FOR_AI, readCustomFields } from '@/lib/crm/customer-brief'
 import { readEvidenceMemory, activeFacts } from '@/lib/ai/memory-evidence'
 import { captureStatedFacts } from '@/lib/ai/fact-capture'
 import { emptyOrderSignals } from '@/lib/commerce/order-signals'
@@ -355,7 +356,18 @@ async function prepareTurn(params: StartChatParams): Promise<
         const contact = contactId
                 ? await prisma.contact.findFirst({
                         where: { id: contactId, workspaceId },
-                        select: { name: true, phone: true, metadata: true },
+                        select: {
+                                name: true,
+                                phone: true,
+                                metadata: true,
+                                aiBrief: true,
+                                customFields: true,
+                                manualOrders: {
+                                        orderBy: { orderedAt: 'desc' },
+                                        take: MANUAL_ORDERS_FOR_AI,
+                                        select: { title: true, amount: true, orderedAt: true, note: true },
+                                },
+                        },
                 })
                 : null
         if (!resolvedContactName) resolvedContactName = contact?.name ?? null
@@ -454,6 +466,9 @@ async function prepareTurn(params: StartChatParams): Promise<
                 contactName: resolvedContactName,
                 customerPreferences,
                 evidenceMemory,
+                customerBrief: contact
+                        ? { aiBrief: contact.aiBrief, customFields: readCustomFields(contact.customFields), manualOrders: contact.manualOrders }
+                        : null,
                 turnLanguage: language,
                 channel: params.channel,
                 inboundSource: params.inboundMetadata ?? null,
