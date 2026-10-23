@@ -49,7 +49,6 @@ export async function AgentConfiguration({ agentId, section }: { agentId: string
           language: agent.language,
           welcomeMessage: agent.welcomeMessage,
           fallbackMessage: agent.fallbackMessage,
-          handoffEnabled: agent.handoffEnabled,
           handoffMessage: agent.handoffMessage,
           handoffKeywords: agent.handoffKeywords,
           active: agent.active,

@@ -127,7 +127,6 @@ export const agentCreateSchema = z.object({
   imageInputEnabled: z.boolean().optional(),
   welcomeMessage: z.string().max(500).optional(),
   fallbackMessage: z.string().max(500).optional(),
-  handoffEnabled: z.boolean().optional(),
   handoffMessage: z.string().max(500).optional(),
   handoffKeywords: z.array(z.string().max(50)).max(50).optional(),
   // ─ F1: layered prompt

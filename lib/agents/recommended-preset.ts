@@ -45,7 +45,6 @@ export function getRecommendedAgentPreset(
     promptConfig: normalizePromptConfig(role.config),
     welcomeMessage: WELCOME_BY_BUSINESS[pack.key],
     language: 'fa' as const,
-    handoffEnabled: true,
     handoffKeywords: ['اپراتور', 'انسان', 'شکایت', 'پرداخت ناموفق'],
     requireCustomerInfo: ['APPOINTMENTS', 'SERVICES', 'EDUCATION'].includes(pack.key),
   }

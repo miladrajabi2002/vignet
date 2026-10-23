@@ -16,7 +16,6 @@ describe('recommended onboarding agent preset', () => {
     const preset = getRecommendedAgentPreset('APPOINTMENTS')
 
     expect(preset.requireCustomerInfo).toBe(true)
-    expect(preset.handoffEnabled).toBe(true)
   })
 
   it('narrows the behavior to the chosen goals and keeps the full preset otherwise', () => {

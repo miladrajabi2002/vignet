@@ -624,7 +624,6 @@ function AgentStep({
   const [welcome, setWelcome] = useState(preset.welcomeMessage)
   const [formality, setFormality] = useState<Formality>('casual')
   const [requireCustomerInfo, setRequireCustomerInfo] = useState(preset.requireCustomerInfo)
-  const [handoffEnabled, setHandoffEnabled] = useState(true)
   // Billed per analysed photo, so it stays off unless the owner asks for it.
   const [imageInputEnabled, setImageInputEnabled] = useState(false)
   const goalOptions = getBusinessGoals(businessType)
@@ -644,7 +643,7 @@ function AgentStep({
       const response = await fetch('/api/agents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ setupMode: 'recommended', name: name.trim(), welcomeMessage: welcome.trim(), formality, goals, requireCustomerInfo, handoffEnabled, imageInputEnabled }),
+        body: JSON.stringify({ setupMode: 'recommended', name: name.trim(), welcomeMessage: welcome.trim(), formality, goals, requireCustomerInfo, imageInputEnabled }),
       })
       if (!response.ok) throw new Error('CREATE_FAILED')
       const data = await response.json().catch(() => null)
@@ -741,13 +740,6 @@ function AgentStep({
                 <p className="text-[12px] leading-5 text-[var(--text-muted)]">{fa ? 'در ویجت سایت و چت لینک؛ مشتری مستقیم در لیست مشتری‌ها ثبت می‌شود.' : 'On the website widget and chat link; the contact is saved to your CRM.'}</p>
               </div>
               <Switch checked={requireCustomerInfo} onChange={setRequireCustomerInfo} aria-label={fa ? 'گرفتن نام و شماره پیش از گفتگو' : 'Ask for name and number before chatting'} />
-            </div>
-            <div className="flex items-center justify-between gap-4 px-3.5 py-3">
-              <div className="min-w-0">
-                <p className="text-[13px] font-bold leading-6 text-[var(--text-primary)]">{fa ? 'تحویل خودکار به اپراتور' : 'Automatic operator handoff'}</p>
-                <p className="text-[12px] leading-5 text-[var(--text-muted)]">{fa ? 'وقتی مشتری شکایت دارد، خودش اپراتور می‌خواهد یا موضوع حساس است.' : 'For complaints, direct requests and sensitive cases.'}</p>
-              </div>
-              <Switch checked={handoffEnabled} onChange={setHandoffEnabled} aria-label={fa ? 'تحویل خودکار به اپراتور' : 'Automatic operator handoff'} />
             </div>
             <div className="flex items-center justify-between gap-4 px-3.5 py-3">
               <div className="min-w-0">

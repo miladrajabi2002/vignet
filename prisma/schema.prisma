@@ -236,7 +236,8 @@ model Agent {
   avatar                  String?
   welcomeMessage          String?
   fallbackMessage         String?
-  handoffEnabled          Boolean  @default(false)
+  // Always on: there is no setting to switch operator handoff off.
+  handoffEnabled          Boolean  @default(true)
   handoffMessage          String?
   handoffKeywords         String[] @default([])
   active                  Boolean  @default(true)

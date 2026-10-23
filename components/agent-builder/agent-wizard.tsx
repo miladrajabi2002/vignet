@@ -44,7 +44,6 @@ interface FormState {
         fallbackMessage: string
         model: string
         language: 'fa' | 'en'
-        handoffEnabled: boolean
         handoffMessage: string
         requireCustomerInfo: boolean
         customerInfoPrompt: string
@@ -255,7 +254,6 @@ export function AgentWizard({
 		fallbackMessage: '',
 		model: modelPolicy.plan === 'TRIAL' ? modelPolicy.trialModel : '',
                 language: locale,
-                handoffEnabled: true,
                 handoffMessage: '',
                 requireCustomerInfo: preset?.role === 'lead_capture',
 		customerInfoPrompt: '',
@@ -308,7 +306,6 @@ export function AgentWizard({
                                         fallbackMessage: form.fallbackMessage || undefined,
                                         model: form.model || undefined,
                                         language: form.language,
-                                        handoffEnabled: form.handoffEnabled,
                                         handoffMessage: form.handoffMessage || undefined,
                                         handoffKeywords: handoffWords,
                                         requireCustomerInfo: form.requireCustomerInfo,
@@ -350,11 +347,6 @@ export function AgentWizard({
 			value: `${isFa ? selectedRole.nameFa : selectedRole.nameEn} · ${TONE_LABELS[draft.conversationFormality][locale]}`,
 		},
 		{ ok: true, label: isFa ? 'مدل' : 'Model', value: form.model || activeModelLabel },
-		{
-			ok: true,
-			label: isFa ? 'تحویل به اپراتور' : 'Operator handoff',
-			value: form.handoffEnabled ? (isFa ? 'فعال' : 'On') : (isFa ? 'خاموش' : 'Off'),
-		},
 		{
 			ok: workspaceProductCount > 0,
 			label: isFa ? 'محصولات و دانش' : 'Products and knowledge',
@@ -702,35 +694,30 @@ export function AgentWizard({
 						<div className="grid items-start gap-3 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)]">
 							<div className="spatial-surface divide-y divide-[var(--border-subtle)] overflow-hidden rounded-sheet">
 								<div className="p-4 sm:p-5">
-									<div className="flex items-center justify-between gap-4">
-										<div>
-											<p className="text-[13px] font-bold text-[var(--text-primary)]">{isFa ? 'تحویل خودکار به اپراتور' : 'Automatic operator handoff'}</p>
-											<p className="text-[12px] leading-5 text-[var(--text-muted)]">{isFa ? 'وقتی مشتری شکایت دارد، چانه می‌زند، خودش اپراتور می‌خواهد یا موضوع حساس است' : 'For complaints, negotiation, direct requests and high-risk cases'}</p>
-										</div>
-										<Switch checked={form.handoffEnabled} onChange={(v) => set('handoffEnabled', v)} aria-label={isFa ? 'تحویل خودکار به اپراتور' : 'Automatic operator handoff'} />
+									<div>
+										<p className="text-[13px] font-bold text-[var(--text-primary)]">{isFa ? 'تحویل به اپراتور' : 'Operator handoff'}</p>
+										<p className="text-[12px] leading-5 text-[var(--text-muted)]">{isFa ? 'وقتی مشتری شکایت دارد، چانه می‌زند، خودش اپراتور می‌خواهد یا موضوع حساس است، گفتگو به اپراتور می‌رسد' : 'Complaints, negotiation, direct requests and high-risk cases go to an operator'}</p>
 									</div>
-									{form.handoffEnabled && (
-										<div className="mt-3 space-y-3">
-											<div>
-												<label htmlFor="wizard-handoff-words" className="ui-field-label">{isFa ? 'کلمه‌هایی که گفتگو را فوراً به اپراتور می‌سپارند' : 'Words that always hand off'}</label>
-												<TagInput
-													id="wizard-handoff-words"
-													value={handoffWords}
-													onChange={setHandoffWords}
-													locale={locale}
-													placeholder={isFa ? 'کلمه را بنویسید و Enter بزنید' : 'Type a word and press Enter'}
-												/>
-											</div>
-											<Field label={isFa ? 'پیامی که مشتری موقع تحویل می‌بیند' : 'Message the customer sees on handoff'}>
-												<input
-													value={form.handoffMessage}
-													onChange={(e) => set('handoffMessage', e.target.value)}
-													placeholder={isFa ? 'همکارم تا چند دقیقهٔ دیگر جواب می‌دهد.' : 'A teammate will reply in a few minutes.'}
-													className="input"
-												/>
-											</Field>
+									<div className="mt-3 space-y-3">
+										<div>
+											<label htmlFor="wizard-handoff-words" className="ui-field-label">{isFa ? 'کلمه‌هایی که گفتگو را فوراً به اپراتور می‌سپارند' : 'Words that always hand off'}</label>
+											<TagInput
+												id="wizard-handoff-words"
+												value={handoffWords}
+												onChange={setHandoffWords}
+												locale={locale}
+												placeholder={isFa ? 'کلمه را بنویسید و Enter بزنید' : 'Type a word and press Enter'}
+											/>
 										</div>
-									)}
+										<Field label={isFa ? 'پیامی که مشتری موقع تحویل می‌بیند' : 'Message the customer sees on handoff'}>
+											<input
+												value={form.handoffMessage}
+												onChange={(e) => set('handoffMessage', e.target.value)}
+												placeholder={isFa ? 'همکارم تا چند دقیقهٔ دیگر جواب می‌دهد.' : 'A teammate will reply in a few minutes.'}
+												className="input"
+											/>
+										</Field>
+									</div>
 								</div>
 
 								<div className="p-4 sm:p-5">

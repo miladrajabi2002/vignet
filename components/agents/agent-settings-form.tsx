@@ -63,7 +63,6 @@ export interface AgentSettingsData {
         language: string
         welcomeMessage: string | null
         fallbackMessage: string | null
-        handoffEnabled: boolean
         handoffMessage: string | null
         handoffKeywords: string[]
         active: boolean
@@ -116,7 +115,6 @@ export function AgentSettingsForm({
                 model: agent.model ? resolveModelAlias(agent.model) : '',
                 welcomeMessage: agent.welcomeMessage ?? '',
                 fallbackMessage: agent.fallbackMessage ?? '',
-                handoffEnabled: agent.handoffEnabled,
                 handoffMessage: agent.handoffMessage ?? '',
                 handoffKeywords: agent.handoffKeywords.join(', '),
                 active: agent.active,
@@ -596,37 +594,28 @@ export function AgentSettingsForm({
                                                 {tf('handoffDesc')}
                                         </p>
                                 </div>
-                                <Toggle
-                                        label={tf('handoffEnabled')}
-                                        checked={form.handoffEnabled}
-                                        onChange={(v) => set('handoffEnabled', v)}
-                                />
-                                {form.handoffEnabled && (
-                                        <>
-                                                <Field label={tf('handoffMessage')}>
-                                                        <input
-                                                                value={form.handoffMessage}
-                                                                onChange={(e) => set('handoffMessage', e.target.value)}
-                                                                placeholder={tf('handoffMessagePlaceholder')}
-                                                                className="input text-sm"
-                                                        />
-                                                </Field>
-                                                <Field label={tf('handoffKeywords')}>
-                                                        <input
-                                                                value={form.handoffKeywords}
-                                                                onChange={(e) => set('handoffKeywords', e.target.value)}
-                                                                placeholder={tf('handoffKeywordsPlaceholder')}
-                                                                className="input text-sm"
-                                                        />
-                                                        <p className="mt-1 text-xs text-[var(--text-muted)]">
-                                                                {tf('handoffKeywordsHint')}
-                                                        </p>
-                                                </Field>
-                                                <p className="rounded-xl bg-[var(--bg-base)] p-3 text-xs text-[var(--text-secondary)]">
-                                                        {tf('longChatAutoHandoffHint', { threshold: longChatThreshold.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US') })}
-                                                </p>
-                                        </>
-                                )}
+                                <Field label={tf('handoffMessage')}>
+                                        <input
+                                                value={form.handoffMessage}
+                                                onChange={(e) => set('handoffMessage', e.target.value)}
+                                                placeholder={tf('handoffMessagePlaceholder')}
+                                                className="input text-sm"
+                                        />
+                                </Field>
+                                <Field label={tf('handoffKeywords')}>
+                                        <input
+                                                value={form.handoffKeywords}
+                                                onChange={(e) => set('handoffKeywords', e.target.value)}
+                                                placeholder={tf('handoffKeywordsPlaceholder')}
+                                                className="input text-sm"
+                                        />
+                                        <p className="mt-1 text-xs text-[var(--text-muted)]">
+                                                {tf('handoffKeywordsHint')}
+                                        </p>
+                                </Field>
+                                <p className="rounded-xl bg-[var(--bg-base)] p-3 text-xs text-[var(--text-secondary)]">
+                                        {tf('longChatAutoHandoffHint', { threshold: longChatThreshold.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US') })}
+                                </p>
                         </div>
                         </div>
 

@@ -67,15 +67,13 @@ export async function POST(req: Request) {
     }
     const profile = readBusinessProfile(workspace.businessProfile)
     // The setup screen lets the owner adjust the goals, name, greeting, tone
-    // and the conversation switches (pre-chat name + number, operator handoff,
-    // reading photos) before the agent is made; everything else stays as the template sets it.
+    // and the conversation switches (pre-chat name + number, reading photos) before the agent is made; everything else stays as the template sets it.
     const overrides = json as {
       name?: unknown
       welcomeMessage?: unknown
       formality?: unknown
       goals?: unknown
       requireCustomerInfo?: unknown
-      handoffEnabled?: unknown
       imageInputEnabled?: unknown
     }
     const goals = Array.isArray(overrides.goals)
@@ -98,9 +96,6 @@ export async function POST(req: Request) {
       requireCustomerInfo: typeof overrides.requireCustomerInfo === 'boolean'
         ? overrides.requireCustomerInfo
         : preset.requireCustomerInfo,
-      handoffEnabled: typeof overrides.handoffEnabled === 'boolean'
-        ? overrides.handoffEnabled
-        : preset.handoffEnabled,
       // Billed per analysed image: on only when the owner asked for it.
       imageInputEnabled: overrides.imageInputEnabled === true,
       promptConfig: formality
@@ -151,9 +146,8 @@ export async function POST(req: Request) {
       imageInputEnabled: data.imageInputEnabled ?? false,
       welcomeMessage: data.welcomeMessage,
       fallbackMessage: data.fallbackMessage,
-      // Smart handoff is a safety/default capability. Clients may still
-      // explicitly disable proactive escalation for an individual agent.
-      handoffEnabled: data.handoffEnabled ?? true,
+      // Operator handoff is always on; no agent can switch it off.
+      handoffEnabled: true,
       handoffMessage: data.handoffMessage,
       handoffKeywords: data.handoffKeywords ?? [],
       // ─ F1: layered prompt

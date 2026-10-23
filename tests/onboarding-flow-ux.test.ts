@@ -39,7 +39,9 @@ describe('simplified onboarding flow', () => {
     // The agent-wide switches are asked here, not decided silently by the template.
     expect(flow).toContain('گرفتن نام و شماره پیش از گفتگو')
     expect(flow).toContain('useState(preset.requireCustomerInfo)')
-    expect(flow).toContain('goals, requireCustomerInfo, handoffEnabled, imageInputEnabled }')
+    expect(flow).toContain('goals, requireCustomerInfo, imageInputEnabled }')
+    // Operator handoff is always on: no switch for it anywhere.
+    expect(flow).not.toContain('handoffEnabled')
     // A store connected during setup asks what the agent may do with it.
     expect(flow).toContain("onConnected={() => setPanel('access')}")
     expect(flow).toContain('<StoreAccessPrompt onDone={proceed} onSkip={proceed} />')
