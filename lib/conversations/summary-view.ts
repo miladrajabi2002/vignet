@@ -35,6 +35,18 @@ export function summaryFields(summary: string | null | undefined): SummaryField[
     })
 }
 
+/**
+ * How a field reads on screen. The request label drops its «از طریق …» tail
+ * (the header already names the app), and a request joined from several
+ * customer messages («… ← … ← …») comes back as those messages, one each.
+ */
+export function summaryFieldView(field: SummaryField): { label: string; items: string[] } {
+  const request = isRequest(field.label) || field.label.startsWith('سایر پیام‌های مشتری') || field.label.toLowerCase().startsWith('other customer messages')
+  const label = request ? field.label.replace(/\s+(?:از طریق|via)\s.+$/i, '').trim() : field.label
+  const items = request ? field.value.split(/\s+[←→]\s+/).map((item) => item.trim()).filter(Boolean) : [field.value]
+  return { label, items: items.length ? items : [field.value] }
+}
+
 /** 09128352271 → 0912•••2271, for places a colleague or a passer-by can read. */
 export function maskPhones(text: string): string {
   return text.replace(/(\+?98|0)?(9\d{2})(\d{3})(\d{4})/g, (_m, prefix: string | undefined, a: string, _b: string, d: string) => `${prefix ?? ''}${a}•••${d}`)

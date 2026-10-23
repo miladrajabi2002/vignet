@@ -8,7 +8,7 @@ import { SalesInsightCard, type SalesInsightView } from '@/components/crm/sales-
 import { CopyButton } from '@/components/ui/copy-button'
 import { displayPhone } from '@/lib/phone'
 import { relativeTime } from '@/lib/format'
-import { summaryFields } from '@/lib/conversations/summary-view'
+import { summaryFields, summaryFieldView } from '@/lib/conversations/summary-view'
 
 export interface HandoffAlertProp {
         id: string
@@ -57,12 +57,13 @@ export function ConversationDetails({
         const fa = locale === 'fa'
         const waiting = status !== 'RESOLVED' && (status === 'HANDED_OFF' || (handoffAlert != null && handoffAlert.state !== 'resolved'))
         const what = summary ?? handoffAlert?.summary ?? null
+        const fields = summaryFields(what).map(summaryFieldView)
         const copyClass = '!min-h-7 !min-w-7 !rounded-lg !border-transparent !bg-transparent !px-1 hover:!bg-[var(--bg-hover)]'
 
         return (
                 <>
                 {/* Who answers next matters on every visit, so it sits above the tabs. */}
-                <div className="border-b border-[var(--border-subtle)] p-3">
+                <div className="shrink-0 border-b border-[var(--border-subtle)] p-3">
                         <ConversationActions key={conversationId} conversationId={conversationId} status={status} satisfaction={insight.satisfaction ?? null} />
                 </div>
                 <ConversationSideTabs
@@ -75,14 +76,28 @@ export function ConversationDetails({
                                                         <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
                                                         {fa ? 'چه می‌خواهد؟' : 'What do they want?'}
                                                 </h3>
-                                                {summaryFields(what).length ? (
-                                                        <dl className="mt-1.5 space-y-2 text-[13px] leading-6">
-                                                                {summaryFields(what).map((field, index) => (
-                                                                        <div key={index} className="min-w-0">
-                                                                                {field.label ? <dt className="text-[12px] text-[var(--text-muted)]">{field.label}</dt> : null}
+                                                {fields.length ? (
+                                                        <dl className="mt-2 divide-y divide-[var(--border-subtle)] text-[13px] leading-6">
+                                                                {fields.map((field, index) => (
+                                                                        <div key={index} className="min-w-0 py-2 first:pt-0 last:pb-0">
+                                                                                {field.label ? <dt className="text-[12px] font-medium text-[var(--text-muted)]">{field.label}</dt> : null}
                                                                                 {/* bdi keeps a phone or Latin value reading the right way while
-                                                                                    it lines up under its label like the rest. */}
-                                                                                <dd className="min-w-0 break-words text-[var(--text-primary)]"><bdi dir="auto">{field.value}</bdi></dd>
+                                                                                    it lines up under its label like the rest. Several customer
+                                                                                    messages read as a short list, each kept to two lines; the
+                                                                                    whole text is in the thread. */}
+                                                                                {field.items.length > 1 ? (
+                                                                                        <dd className="mt-1 min-w-0">
+                                                                                                <ul className="space-y-1.5">
+                                                                                                        {field.items.map((item, at) => (
+                                                                                                                <li key={at} className="border-s-2 border-[var(--border-default)] ps-2.5 text-[var(--text-primary)]">
+                                                                                                                        <bdi dir="auto" className="line-clamp-2 break-words">{item}</bdi>
+                                                                                                                </li>
+                                                                                                        ))}
+                                                                                                </ul>
+                                                                                        </dd>
+                                                                                ) : (
+                                                                                        <dd className="min-w-0 text-[var(--text-primary)]"><bdi dir="auto" className="line-clamp-4 break-words">{field.items[0]}</bdi></dd>
+                                                                                )}
                                                                         </div>
                                                                 ))}
                                                         </dl>

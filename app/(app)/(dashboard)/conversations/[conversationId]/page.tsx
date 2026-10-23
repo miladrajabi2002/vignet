@@ -10,7 +10,6 @@ import {
         ConversationThread,
         type ThreadMessage,
 } from '@/components/crm/conversation-thread'
-import { displayPhone } from '@/lib/phone'
 import { ContactAvatar } from '@/components/crm/contact-avatar'
 import { SalesInsightBadge } from '@/components/crm/sales-insight'
 import { ConversationStatusBadge } from '@/components/crm/conversation-status-badge'
@@ -54,20 +53,17 @@ export default async function ConversationThreadPage(props: {
                 payment: !platform.enabled || gateway?.payGatewaySuspendedAt || usage?.reached ? 'GATEWAY_PAUSED' : !gateway?.payGatewayEnabled ? 'GATEWAY_OFF' : !activeCards ? 'NO_CARD' : null,
                 products: products ? null : 'NO_PRODUCTS',
         }
-        const meta = [
-                conversation.agent.name,
-                handle ? `@${handle}` : null,
-                conversation.contact?.phone ? displayPhone(conversation.contact.phone) : null,
-        ].filter(Boolean)
-
         return (
-                // Desktop: the page is exactly one screen tall (header 6.25rem plus
-                // the main padding), so the thread scrolls inside its card and the
-                // reply box never drops below the fold.
-                <div className="mx-auto flex h-full max-w-none flex-col gap-3 lg:h-[calc(100dvh-10rem)] lg:min-h-[36rem]">
-                        <BackButton href="/conversations" label={t('title')} className="w-fit self-start shrink-0" />
+                // Desktop: the page is exactly one screen tall (header 6.25rem, the
+                // main's top padding and 1rem left of its bottom one), so the thread
+                // scrolls inside its card and the reply box never drops below the fold.
+                <div className="mx-auto flex h-full max-w-none flex-col gap-3 lg:-mb-6 lg:h-[calc(100dvh-8.5rem)] lg:min-h-[36rem]">
+                        <BackButton href="/conversations" label={t('title')} className="w-fit self-start shrink-0 lg:hidden" />
 
-                        <div className="spatial-surface flex shrink-0 items-center gap-3 rounded-card p-3 sm:p-4">
+                        {/* Who it is, nothing more: the agent, handle and phone are one
+                            tap away under «مشتری», so the header stays one quiet line. */}
+                        <div className="spatial-surface flex shrink-0 items-center gap-3 rounded-card p-3 lg:py-2.5">
+                                <BackButton href="/conversations" label={t('title')} variant="icon" className="hidden lg:inline-flex" />
                                 <ContactAvatar src={avatar} alt={who} size="md" loading="eager" />
                                 <div className="min-w-0 flex-1">
                                         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -80,14 +76,6 @@ export default async function ConversationThreadPage(props: {
                                                 {attention && <ConversationStatusBadge status="HANDED_OFF" label={fa ? 'نیاز به اپراتور' : 'Needs operator'} attention />}
                                                 <span className="hidden sm:inline-flex"><SalesInsightBadge insight={insight} locale={locale} compactOnMobile /></span>
                                         </div>
-                                        <p className="mt-0.5 line-clamp-2 break-words text-[12px] leading-5 text-[var(--text-muted)] sm:truncate">
-                                                {meta.map((item, index) => (
-                                                        <span key={index}>
-                                                                {index > 0 && ' · '}
-                                                                <bdi dir={index === 0 ? 'auto' : 'ltr'}>{item}</bdi>
-                                                        </span>
-                                                ))}
-                                        </p>
                                 </div>
                                 <ConversationHeaderActions conversationId={conversation.id} status={conversation.status} />
                         </div>
@@ -109,7 +97,7 @@ export default async function ConversationThreadPage(props: {
                                         />
                                 }
                                 details={
-                                        <div className="overflow-hidden rounded-card border border-[var(--border-subtle)] bg-[var(--bg-base)] shadow-[var(--elev-1)]">
+                                        <div className="overflow-hidden rounded-card border border-[var(--border-subtle)] bg-[var(--bg-base)] shadow-[var(--elev-1)] lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
                                                 <ConversationDetails
                                                         locale={locale}
                                                         conversationId={conversation.id}

@@ -113,9 +113,11 @@ export function ConversationMobileLayout({
         ))}
       </div>
 
-      {/* Phones and tablets: one column and the page scrolls. Desktop: the
-          grid fills what is left of the screen, the thread scrolls inside its
-          own card with the reply box always in view, the details beside it. */}
+      {/* Phones and tablets: one column and the page scrolls; min-w-0 on both
+          panels keeps a long name from widening the column past the screen.
+          Desktop: the grid fills what is left of the screen, the thread
+          scrolls inside its own card with the reply box always in view, and
+          beside it only the open tab's body scrolls under its fixed tabs. */}
       <div ref={panelsRef} className="grid min-h-[calc(100dvh-11rem)] gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_21rem]">
         <section
           id={`${id}-thread-panel`}
@@ -129,7 +131,7 @@ export function ConversationMobileLayout({
           id={`${id}-details-panel`}
           role="tabpanel"
           aria-labelledby={`${id}-details-tab`}
-          className={cn('space-y-3 lg:block lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:rounded-card lg:[scrollbar-width:thin]', tab === 'details' ? 'block' : 'hidden')}
+          className={cn('min-w-0 space-y-3 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden', tab === 'details' ? 'block' : 'hidden')}
         >
           {details}
         </aside>

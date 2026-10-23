@@ -47,7 +47,7 @@ export function ConversationSideTabs({
   }
 
   return (
-    <div className="flex min-h-0 flex-col">
+    <div className="flex min-h-0 flex-col lg:flex-1">
       <div
         role="tablist"
         aria-label={fa ? 'جزئیات گفتگو' : 'Conversation details'}
@@ -83,7 +83,8 @@ export function ConversationSideTabs({
           id={`${id}-${tab.key}-panel`}
           aria-labelledby={`${id}-${tab.key}-tab`}
           hidden={active !== tab.key}
-          className="space-y-3 p-3"
+          // Desktop: the tabs stay put and only the open tab's body scrolls.
+          className="space-y-3 p-3 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain lg:[scrollbar-width:thin]"
         >
           {tab.content}
         </div>
