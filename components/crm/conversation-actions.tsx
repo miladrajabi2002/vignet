@@ -78,8 +78,12 @@ export function ConversationHeaderActions({
         type="button"
         disabled={busy}
         onClick={() => void setResolved(!resolved)}
+        aria-label={resolved ? (fa ? 'باز کردن دوباره' : 'Reopen') : undefined}
+        title={resolved ? (fa ? 'باز کردن دوباره' : 'Reopen') : undefined}
         className={cn(
           'spatial-press inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-control px-2.5 text-[13px] font-bold sm:px-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 disabled:opacity-50',
+          // On a phone «reopen» is the icon alone, the same square as delete.
+          resolved && 'w-10 justify-center px-0 sm:w-auto sm:px-3',
           resolved
             ? 'border border-[var(--border-default)] bg-white font-medium text-[var(--text-primary)] hover:border-[var(--border-hover)]'
             : 'bg-[var(--text-primary)] text-white',
@@ -94,8 +98,7 @@ export function ConversationHeaderActions({
         )}
         {resolved ? (
           <>
-            {/* The long label pushed the customer's name into an ellipsis on phones. */}
-            <span className="sm:hidden">{fa ? 'بازگشایی' : 'Reopen'}</span>
+            {/* A label pushed the customer's name into an ellipsis on phones. */}
             <span className="hidden sm:inline">{fa ? 'باز کردن دوباره' : 'Reopen'}</span>
           </>
         ) : (fa ? 'حل شد' : 'Resolve')}

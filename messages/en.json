@@ -776,7 +776,7 @@
     "send": "Send",
     "sending": "Sending…",
     "operatorBadge": "Operator",
-    "replyHint": "This message is sent directly to the contact and the conversation moves to “handed off”.",
+    "replyHint": "Sending a message here hands the replies over to you.",
     "replyNoChannel": "This channel can't be replied to from the panel (widget/API only).",
     "replyFailed": "Failed to send message",
     "anonymous": "Anonymous user",

@@ -78,6 +78,8 @@ export interface ChatComposerProps {
 	inputLabel?: string
 	/** Optional controls placed before the send button (e.g. a mic button). */
 	leading?: ReactNode
+	/** Controls on the far side from the send button (the visual left), e.g. the operator's tools. */
+	tools?: ReactNode
 	/** Extra content rendered under the pill (hints, counters, errors). */
 	footer?: ReactNode
 	className?: string
@@ -102,6 +104,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(
 			sendButtonSize = COMPOSER_GEOMETRY.sendButtonSize,
 			inputLabel,
 			leading,
+			tools,
 			footer,
 			className,
 			textareaClassName,
@@ -151,6 +154,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(
 					)}
 					style={{ borderRadius: COMPOSER_GEOMETRY.pillRadius }}
 				>
+					{tools}
 					<textarea
 						ref={textareaRef}
 						name={name}
@@ -180,7 +184,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(
 						className={cn(
 							// 16px is intentional: anything smaller makes iOS Safari zoom
 							// the page when the field takes focus.
-							'flex-1 resize-none bg-transparent px-2 py-2 text-[16px] leading-6',
+							'min-w-0 flex-1 resize-none bg-transparent px-2 py-2 text-[16px] leading-6',
 							'text-[var(--text-primary)] placeholder:text-[color:color-mix(in_srgb,var(--text-secondary)_70%,transparent)]',
 							'outline-none [scrollbar-width:thin]',
 							textareaClassName,

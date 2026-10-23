@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import type { ChannelType } from '@prisma/client'
 import Link from 'next/link'
-import { Check, CircleCheck, CreditCard, Loader2, Lock, Package, Search, StickyNote, TriangleAlert, X } from 'lucide-react'
+import { Check, CircleCheck, CreditCard, Loader2, Lock, Package, Plus, Search, StickyNote, TriangleAlert, X } from 'lucide-react'
 import { ChatComposer, type ChatComposerHandle } from '@/components/chat/chat-composer'
 import { cn } from '@/lib/utils'
 import { deliveryReasonDetail } from '@/lib/channels/delivery-errors'
@@ -30,10 +30,26 @@ type PickerProduct = {
 /** One message carries at most this many products (Meta's carousel limit). */
 const MAX_PRODUCTS = 10
 
-const CHIP =
-  'spatial-press inline-flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-[12px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50'
-const CHIP_IDLE = 'border-[var(--border-default)] bg-white text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]'
-const CHIP_LOCKED = 'border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-hint)] hover:text-[var(--text-muted)]'
+/** The tools inside the field: one 36px square each, 32px wide on a phone. */
+const TOOL =
+  'relative grid h-9 w-8 shrink-0 place-items-center rounded-xl transition-colors sm:w-9 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-35'
+const TOOL_IDLE = 'text-[var(--text-muted)] hover:enabled:bg-[var(--bg-hover)] hover:enabled:text-[var(--text-primary)]'
+const TOOL_LOCKED = 'text-[var(--text-hint)] hover:text-[var(--text-muted)]'
+const TOOL_ON = {
+  products: 'bg-[var(--text-primary)] text-white',
+  pay: 'bg-[var(--text-primary)] text-white',
+  note: 'bg-[var(--notif-tint)] text-[var(--notif-strong)]',
+} as const
+
+/** The little count on «ارسال محصول» once products are picked. */
+function ToolCount({ value }: { value: string }) {
+  return <span className="absolute -top-1 -end-1 grid h-4 min-w-4 place-items-center rounded-full bg-[var(--accent-strong)] px-1 text-[10px] font-bold leading-none text-white tabular-nums ring-2 ring-white">{value}</span>
+}
+
+/** Marks a tool that needs setting up first; a tap says what. */
+function ToolLock() {
+  return <Lock className="absolute bottom-1 end-1 h-2.5 w-2.5" strokeWidth={2.5} aria-hidden="true" />
+}
 
 /**
  * Why a composer tool is off, so the chip can say what to switch on. Null
@@ -79,9 +95,9 @@ function productDeliveryHint(channel: ChannelType | undefined, fa: boolean): str
  *
  * Input handling (Enter to send, auto-grow, send button, busy state) belongs to
  * the shared <ChatComposer>; this component owns the send request, the delivery
- * feedback, and two helpers under the field: a product catalog (up to ten
- * products sent as real cards on every channel) and an internal note the
- * customer never sees.
+ * feedback, and three tools inside the field: a product catalog (up to ten
+ * products sent as real cards on every channel), a payment request, and an
+ * internal note the customer never sees.
  */
 export function OperatorReply({
   conversationId,
@@ -117,10 +133,14 @@ export function OperatorReply({
   const [payAmountTouched, setPayAmountTouched] = useState(false)
   const [payFor, setPayFor] = useState('')
   const [lockShown, setLockShown] = useState<Exclude<ComposerToolLock, null> | null>(null)
+  const [toolsOpen, setToolsOpen] = useState(false)
   const nf = new Intl.NumberFormat(fa ? 'fa-IR' : 'en-US')
   const sendsProducts = !noteMode && !payMode && attached.length > 0
   const payValue = Number(payAmount.replace(/\D/g, ''))
   const payTotal = itemsTotal(payItems)
+  const activeTool = noteMode ? 'note' : payMode ? 'pay' : attached.length > 0 ? 'products' : null
+  // Phones only (sm:hidden on the folded button): text in the field folds the tools.
+  const folded = text.trim().length > 0 && !toolsOpen && !pickerOpen
 
   /** Open the payment panel; products already picked become its items. */
   function openPayment() {
@@ -375,86 +395,106 @@ export function OperatorReply({
         </div>
       )}
 
-      <ChatComposer
-        ref={composerRef}
-        value={text}
-        onChange={(value) => {
-          setText(value)
-          if (noteSaved) setNoteSaved(false)
-        }}
-        onSend={() => void (noteMode ? saveNote() : payMode ? sendPayment() : send())}
-        busy={busy}
-        hasAttachment={sendsProducts || (payMode && payValue > 0)}
-        placeholder={noteMode
-          ? (fa ? 'یادداشت داخلی؛ مشتری نمی‌بیند…' : 'Internal note; the customer will not see it…')
-          : payMode
-            ? (fa ? 'یک متن کوتاه همراه کارت پرداخت (اختیاری)…' : 'A short line to go with the payment card (optional)…')
-          : sendsProducts
-            ? (fa ? 'یک متن کوتاه همراه محصولات (اختیاری)…' : 'A short line to go with the products (optional)…')
-            : t('replyPlaceholder')}
-        inputLabel={noteMode ? (fa ? 'یادداشت داخلی' : 'Internal note') : (fa ? 'پاسخ اپراتور' : 'Operator reply')}
-        dir={fa ? 'rtl' : 'ltr'}
-        sendLabel={noteMode ? (fa ? 'ثبت یادداشت' : 'Save note') : payMode ? (fa ? 'فرستادن کارت پرداخت' : 'Send the payment card') : t('send')}
-        maxLength={noteMode ? 1000 : 4000}
-        className={cn(noteMode && '[&>div:first-child]:border-[color:color-mix(in_srgb,var(--notif-strong)_35%,transparent)] [&>div:first-child]:bg-[var(--notif-soft)]')}
-      />
-
-      {/* One row on a phone (scrolls sideways) so the box stays short. The
-          picker hangs off the wrapper, outside the scrolling row, which would
-          otherwise clip it. */}
+      {/* The picker hangs off this wrapper, above the whole field. */}
       <div className="relative">
-        <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto [scrollbar-width:none] sm:flex-wrap sm:overflow-visible">
-          <button
-            type="button"
-            onClick={() => {
-              if (tools.products) { setLockShown(lockShown === tools.products ? null : tools.products); return }
-              setPickerOpen((open) => !open)
-            }}
-            disabled={noteMode || payMode || commentThread}
-            aria-expanded={pickerOpen}
-            aria-haspopup="dialog"
-            title={commentThread
-              ? (deliveryReasonDetail('products_need_dm', fa) ?? undefined)
-              : (fa ? 'چند محصول را با عکس و قیمت برای مشتری بفرستید' : 'Send several products with photo and price')}
-            className={cn(CHIP, tools.products ? CHIP_LOCKED : pickerOpen || attached.length > 0 ? 'border-[var(--text-primary)] bg-white text-[var(--text-primary)]' : CHIP_IDLE)}
-            aria-describedby={lockShown === tools.products && tools.products ? `composer-lock-${conversationId}` : undefined}
-          >
-            {tools.products ? <Lock className="h-3.5 w-3.5" aria-hidden="true" /> : <Package className="h-3.5 w-3.5" aria-hidden="true" />}
-            {fa ? 'ارسال محصول' : 'Send products'}
-            {attached.length > 0 && (
-              <span className="rounded-full bg-[var(--text-primary)] px-1.5 text-[12px] font-bold leading-5 text-white tabular-nums">{nf.format(attached.length)}</span>
-            )}
-          </button>
-          {!commentThread && (
-            <button
-              type="button"
-              onClick={openPayment}
-              disabled={noteMode || busy}
-              aria-pressed={payMode}
-              title={tools.payment ? LOCK_COPY[tools.payment][fa ? 'fa' : 'en'] : (fa ? 'کارت بانکی و مبلغ دقیق را برای پرداخت به مشتری بفرستید' : 'Send the customer your bank card and the exact amount to pay')}
-              aria-describedby={lockShown === tools.payment && tools.payment ? `composer-lock-${conversationId}` : undefined}
-              className={cn(CHIP, tools.payment ? CHIP_LOCKED : payMode ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-white' : CHIP_IDLE)}
-            >
-              {tools.payment ? <Lock className="h-3.5 w-3.5" aria-hidden="true" /> : <CreditCard className="h-3.5 w-3.5" aria-hidden="true" />}
-              {fa ? 'درخواست پرداخت' : 'Request payment'}
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => {
-              setNoteMode((on) => !on)
-              setPayMode(false)
-              setPickerOpen(false)
-              setError(null)
-              composerRef.current?.focus()
-            }}
-            aria-pressed={noteMode}
-            className={cn(CHIP, noteMode ? 'border-[color:color-mix(in_srgb,var(--notif-strong)_40%,transparent)] bg-[var(--notif-tint)] text-[var(--notif-strong)]' : CHIP_IDLE)}
-          >
-            <StickyNote className="h-3.5 w-3.5" aria-hidden="true" />
-            {fa ? 'یادداشت' : 'Note'}
-          </button>
-        </div>
+        <ChatComposer
+          ref={composerRef}
+          value={text}
+          onChange={(value) => {
+            setText(value)
+            setToolsOpen(false)
+            if (noteSaved) setNoteSaved(false)
+          }}
+          onSend={() => void (noteMode ? saveNote() : payMode ? sendPayment() : send())}
+          busy={busy}
+          hasAttachment={sendsProducts || (payMode && payValue > 0)}
+          placeholder={noteMode
+            ? (fa ? 'یادداشت داخلی…' : 'Internal note…')
+            : payMode || sendsProducts
+              ? (fa ? 'متن همراه (اختیاری)…' : 'A line to go with it (optional)…')
+              : t('replyPlaceholder')}
+          inputLabel={noteMode ? (fa ? 'یادداشت داخلی' : 'Internal note') : payMode ? (fa ? 'متن همراه کارت پرداخت' : 'Text with the payment card') : sendsProducts ? (fa ? 'متن همراه محصولات' : 'Text with the products') : (fa ? 'پاسخ اپراتور' : 'Operator reply')}
+          dir={fa ? 'rtl' : 'ltr'}
+          sendLabel={noteMode ? (fa ? 'ثبت یادداشت' : 'Save note') : payMode ? (fa ? 'فرستادن کارت پرداخت' : 'Send the payment card') : t('send')}
+          maxLength={noteMode ? 1000 : 4000}
+          className={cn(noteMode && '[&>div:first-child]:border-[color:color-mix(in_srgb,var(--notif-strong)_35%,transparent)] [&>div:first-child]:bg-[var(--notif-soft)]')}
+          tools={
+            // Inside the field, opposite the send button. On a phone, once there
+            // is text, the three fold into one button so the text keeps the width;
+            // a tap opens them again. Nothing here ever scrolls sideways.
+            <div dir={fa ? 'rtl' : 'ltr'} className="mb-0.5 flex shrink-0 items-center self-end">
+              {folded && (
+                <button
+                  type="button"
+                  onClick={() => setToolsOpen(true)}
+                  aria-label={fa ? 'ابزارها: محصول، پرداخت، یادداشت' : 'Tools: products, payment, note'}
+                  title={fa ? 'ابزارها' : 'Tools'}
+                  className={cn(TOOL, 'sm:hidden', activeTool ? TOOL_ON[activeTool] : TOOL_IDLE)}
+                >
+                  {activeTool === 'note' ? <StickyNote className="h-[18px] w-[18px]" aria-hidden="true" />
+                    : activeTool === 'pay' ? <CreditCard className="h-[18px] w-[18px]" aria-hidden="true" />
+                    : activeTool === 'products' ? <Package className="h-[18px] w-[18px]" aria-hidden="true" />
+                    : <Plus className="h-[18px] w-[18px]" aria-hidden="true" />}
+                  {attached.length > 0 && <ToolCount value={nf.format(attached.length)} />}
+                </button>
+              )}
+              <div className={cn('flex items-center', folded && 'hidden sm:flex')}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (tools.products) { setLockShown(lockShown === tools.products ? null : tools.products); return }
+                    setPickerOpen((open) => !open)
+                  }}
+                  disabled={noteMode || payMode || commentThread}
+                  aria-expanded={pickerOpen}
+                  aria-haspopup="dialog"
+                  aria-label={attached.length ? (fa ? `ارسال محصول (${nf.format(attached.length)} انتخاب‌شده)` : `Send products (${attached.length} picked)`) : (fa ? 'ارسال محصول' : 'Send products')}
+                  title={commentThread
+                    ? (deliveryReasonDetail('products_need_dm', fa) ?? undefined)
+                    : tools.products ? LOCK_COPY[tools.products][fa ? 'fa' : 'en']
+                    : (fa ? 'ارسال محصول: چند محصول با عکس و قیمت' : 'Send products with photo and price')}
+                  aria-describedby={lockShown === tools.products && tools.products ? `composer-lock-${conversationId}` : undefined}
+                  className={cn(TOOL, tools.products ? TOOL_LOCKED : attached.length > 0 ? TOOL_ON.products : pickerOpen ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]' : TOOL_IDLE)}
+                >
+                  <Package className="h-[18px] w-[18px]" aria-hidden="true" />
+                  {tools.products && <ToolLock />}
+                  {attached.length > 0 && <ToolCount value={nf.format(attached.length)} />}
+                </button>
+                {!commentThread && (
+                  <button
+                    type="button"
+                    onClick={openPayment}
+                    disabled={noteMode || busy}
+                    aria-pressed={payMode}
+                    aria-label={fa ? 'درخواست پرداخت' : 'Request payment'}
+                    title={tools.payment ? LOCK_COPY[tools.payment][fa ? 'fa' : 'en'] : (fa ? 'درخواست پرداخت: کارت بانکی و مبلغ دقیق' : 'Request payment: your bank card and the exact amount')}
+                    aria-describedby={lockShown === tools.payment && tools.payment ? `composer-lock-${conversationId}` : undefined}
+                    className={cn(TOOL, tools.payment ? TOOL_LOCKED : payMode ? TOOL_ON.pay : TOOL_IDLE)}
+                  >
+                    <CreditCard className="h-[18px] w-[18px]" aria-hidden="true" />
+                    {tools.payment && <ToolLock />}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNoteMode((on) => !on)
+                    setPayMode(false)
+                    setPickerOpen(false)
+                    setError(null)
+                    composerRef.current?.focus()
+                  }}
+                  aria-pressed={noteMode}
+                  aria-label={fa ? 'یادداشت داخلی' : 'Internal note'}
+                  title={fa ? 'یادداشت داخلی: فقط شما و همکارانتان می‌بینید' : 'Internal note: only you and your team see it'}
+                  className={cn(TOOL, noteMode ? TOOL_ON.note : TOOL_IDLE)}
+                >
+                  <StickyNote className="h-[18px] w-[18px]" aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+          }
+        />
 
         {pickerOpen && (
           <ProductPicker
@@ -484,12 +524,7 @@ export function OperatorReply({
             ? (fa ? 'یادداشت فقط در خط زمان همین گفتگو برای شما و همکارانتان می‌ماند.' : 'The note stays on this conversation’s timeline for you and your team only.')
             : payMode
               ? (fa ? 'متن اختیاری بالای کارت پرداخت می‌آید؛ ایجنت همچنان پاسخ مشتری را می‌دهد.' : 'The optional text goes above the payment card; the agent keeps answering the customer.')
-              : (
-                <>
-                  <span className="sm:hidden">{fa ? 'به‌نام شما می‌رود و ایجنت در این گفتگو کنار می‌کشد.' : 'Sent as you; the agent steps back here.'}</span>
-                  <span className="hidden sm:inline">{t('replyHint')}</span>
-                </>
-              )}
+              : t('replyHint')}
         </p>
       )}
     </div>
@@ -564,7 +599,7 @@ function ProductPicker({
     <div
       role="dialog"
       aria-label={fa ? 'انتخاب محصول' : 'Pick products'}
-      className="absolute bottom-full start-0 z-30 mb-2 flex max-h-[min(28rem,70dvh)] w-full max-w-md flex-col rounded-card border border-[var(--border-default)] bg-white p-2 shadow-[var(--elev-2)]"
+      className="absolute bottom-full end-0 z-30 mb-2 flex max-h-[min(28rem,70dvh)] w-full max-w-md flex-col rounded-card border border-[var(--border-default)] bg-white p-2 shadow-[var(--elev-2)]"
     >
       <div className="flex items-center gap-1.5">
         <div className="relative min-w-0 flex-1">

@@ -57,7 +57,9 @@ export default async function ConversationThreadPage(props: {
                 // Desktop: the page is exactly one screen tall (header 6.25rem, the
                 // main's top padding and 1rem left of its bottom one), so the thread
                 // scrolls inside its card and the reply box never drops below the fold.
-                <div className="mx-auto flex h-full max-w-none flex-col gap-3 lg:-mb-6 lg:h-[calc(100dvh-8.5rem)] lg:min-h-[36rem]">
+                // Phones: the main keeps 7rem at the bottom for the tab bar, which this
+                // page hides, so the page takes that back and ends 1rem under the thread.
+                <div className="mx-auto flex h-full max-w-none flex-col gap-3 max-md:-mb-[calc(6rem+env(safe-area-inset-bottom))] lg:-mb-6 lg:h-[calc(100dvh-8.5rem)] lg:min-h-[36rem]">
                         <BackButton href="/conversations" label={t('title')} className="w-fit self-start shrink-0 lg:hidden" />
 
                         {/* Who it is, nothing more: the agent, handle and phone are one
