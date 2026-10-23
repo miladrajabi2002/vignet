@@ -688,7 +688,7 @@ export function PayPageClient({
 					</span>
 				</div>
 				<div className={s.topEnd}>
-					<span className={s.topCode}>سفارش <span dir="ltr" className={s.mono}>{card.code}</span></span>
+					{closed ? <span className={s.topCode}>سفارش <span dir="ltr" className={s.mono}>{card.code}</span></span> : null}
 					{(open && !closed) || leaving ? (
 						<button type="button" className={`${s.help} ${leaving ? s.gone : ''}`} onClick={() => setGuide(true)} aria-label="راهنمای پرداخت"><CircleHelp aria-hidden /></button>
 					) : null}
