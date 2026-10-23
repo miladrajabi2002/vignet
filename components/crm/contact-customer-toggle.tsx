@@ -9,7 +9,16 @@ import { UserCheck } from 'lucide-react'
  * Audience ↔ customer (Contact.identifiedAt). An audience row only messaged or
  * ran an Instagram scenario; the owner can move it into the customers list.
  */
-export function ContactCustomerToggle({ contactId, identified }: { contactId: string; identified: boolean }) {
+export function ContactCustomerToggle({
+  contactId,
+  identified,
+  onChange,
+}: {
+  contactId: string
+  identified: boolean
+  /** The phone detail sheet keeps its own copy of the contact; it hears the new state here. */
+  onChange?: (identified: boolean) => void
+}) {
   const t = useTranslations('contacts')
   const router = useRouter()
   const [busy, setBusy] = useState(false)
@@ -29,6 +38,7 @@ export function ContactCustomerToggle({ contactId, identified }: { contactId: st
         setError(body?.error === 'CUSTOMER_LIMIT' ? t('detail.markLimit') : t('detail.markFailed'))
         return
       }
+      onChange?.(!identified)
       router.refresh()
     } catch {
       setError(t('detail.markFailed'))

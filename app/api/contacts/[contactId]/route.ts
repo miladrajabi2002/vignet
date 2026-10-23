@@ -6,6 +6,8 @@ import { readContactAddress } from '@/lib/crm/contact-address'
 import { loadContactPurchases } from '@/lib/payments/card/fulfilment'
 import { checkWorkspaceResourceCreateAllowed } from '@/lib/billing/entitlements'
 import { AI_BRIEF_MAX, cleanCustomFields, customFieldsSchema, readCustomFields } from '@/lib/crm/customer-brief'
+import { readPayItems } from '@/lib/payments/card/items'
+import { conversationPreviewText } from '@/lib/conversations/preview'
 
 type Params = { params: Promise<{ contactId: string }> }
 
@@ -65,7 +67,13 @@ export async function GET(_req: Request, props: Params) {
       baleId: true,
       baleUsername: true,
       baleAvatarUrl: true,
+      manualOrders: {
+        orderBy: { orderedAt: 'desc' },
+        take: 50,
+        select: { id: true, title: true, items: true, amount: true, orderedAt: true, note: true },
+      },
       conversations: {
+        where: { deletedAt: null },
         orderBy: { lastMessageAt: 'desc' },
         take: 50,
         select: {
@@ -76,6 +84,7 @@ export async function GET(_req: Request, props: Params) {
           lastMessageAt: true,
           createdAt: true,
           agent: { select: { name: true } },
+          messages: { where: { role: { in: ['USER', 'ASSISTANT'] } }, orderBy: { createdAt: 'desc' }, take: 1, select: { content: true } },
         },
       },
     },
@@ -86,10 +95,24 @@ export async function GET(_req: Request, props: Params) {
 
   // The profile shows the delivery address; the rest of the metadata (agent
   // memory, sync bookkeeping) stays server-side.
-  const { metadata, customFields, ...profile } = contact
-  const purchases = await loadContactPurchases(user.workspaceId, { id: contact.id, phone: contact.phone }, contact.conversations.map((c) => c.id), 10).catch(() => [])
+  const { metadata, customFields, manualOrders, conversations, ...profile } = contact
+  // The same limits as the profile page, so the phone sheet's purchase total matches it.
+  const purchases = await loadContactPurchases(user.workspaceId, { id: contact.id, phone: contact.phone }, conversations.map((c) => c.id)).catch(() => [])
   return NextResponse.json(
-    { contact: { ...profile, customFields: readCustomFields(customFields), address: readContactAddress(metadata), purchases } },
+    {
+      contact: {
+        ...profile,
+        customFields: readCustomFields(customFields),
+        address: readContactAddress(metadata),
+        purchases,
+        manualOrders: manualOrders.map((order) => ({ ...order, items: readPayItems(order.items) })),
+        // Only a one-line preview of the last message leaves the server.
+        conversations: conversations.map(({ messages, ...conversation }) => ({
+          ...conversation,
+          preview: messages[0] ? conversationPreviewText(messages[0].content) : '',
+        })),
+      },
+    },
     { headers: { 'Cache-Control': 'private, no-store, max-age=0' } },
   )
 }

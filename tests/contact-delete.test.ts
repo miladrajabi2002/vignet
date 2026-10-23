@@ -65,7 +65,24 @@ describe('GET /api/contacts/:contactId', () => {
       baleId: null,
       baleUsername: null,
       baleAvatarUrl: null,
-      conversations: [],
+      manualOrders: [{
+        id: 'order-1',
+        title: 'Shirt',
+        items: [{ name: 'Shirt', quantity: 2, unitPrice: 100 }],
+        amount: 200,
+        orderedAt: new Date('2026-08-03T12:00:00.000Z'),
+        note: null,
+      }],
+      conversations: [{
+        id: 'conversation-1',
+        channel: 'INSTAGRAM',
+        status: 'OPEN',
+        messageCount: 3,
+        lastMessageAt: new Date('2026-08-02T10:00:00.000Z'),
+        createdAt: new Date('2026-08-01T10:00:00.000Z'),
+        agent: { name: 'Agent' },
+        messages: [{ content: '**Hello** there' }],
+      }],
     })
 
     const response = await GET(
@@ -81,19 +98,24 @@ describe('GET /api/contacts/:contactId', () => {
         select: expect.objectContaining({
           instagramUsername: true,
           conversations: expect.objectContaining({
+            where: { deletedAt: null },
             take: 50,
             orderBy: { lastMessageAt: 'desc' },
           }),
         }),
       }),
     )
-    expect(await response.json()).toEqual({
+    const body = await response.json()
+    expect(body).toEqual({
       contact: expect.objectContaining({
         id: 'contact-1',
         instagramUsername: 'customer',
-        conversations: [],
+        manualOrders: [expect.objectContaining({ id: 'order-1', items: [{ name: 'Shirt', quantity: 2, unitPrice: 100, productId: null }] })],
       }),
     })
+    // The phone sheet gets a one-line preview, never the message itself.
+    expect(body.contact.conversations).toEqual([expect.objectContaining({ id: 'conversation-1', preview: 'Hello there' })])
+    expect(body.contact.conversations[0]).not.toHaveProperty('messages')
   })
 })
 
