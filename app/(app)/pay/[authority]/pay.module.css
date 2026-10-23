@@ -1,0 +1,2188 @@
+/*
+ * The hosted card-to-card page. One column on every screen: the bank card on
+ * top, then the order and the exact amount, then the live state. It never
+ * scrolls on a phone: the card shrinks with the viewport height instead.
+ * Once the transfer is seen, the card turns over and its back is the receipt.
+ */
+.root {
+	--bg: #f5f5f3;
+	--surface: #ffffff;
+	--sunk: #f1f0ed;
+	--line: rgba(17, 17, 17, 0.09);
+	--line-strong: rgba(17, 17, 17, 0.2);
+	--fg: #111111;
+	--fg2: #55524c;
+	--muted: #77726b;
+	/* The page takes the colour of the card it pays into. */
+	--violet: var(--bank-d, #5b3de8);
+	--violet-ink: color-mix(in srgb, var(--bank-d, #5b3de8) 80%, #000);
+	--violet-soft: color-mix(in srgb, var(--bank-l, #7b61ff) 13%, var(--surface));
+	--ok: #0e9a69;
+	--ok-ink: #07784f;
+	--ok-soft: #e6f6ef;
+	--warn-ink: #8f5400;
+	--warn-soft: #fff4dd;
+	--warn-line: #fde3a7;
+	--bad-ink: #c4231d;
+	--bad-soft: #fdecec;
+	--ok-light: #16b37d;
+	--ok-deep: #047857;
+	--out: cubic-bezier(0.2, 0.8, 0.2, 1);
+	--spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+	--mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace;
+	/* The link between the card and the order: its colour, its pace, its glow. */
+	--g: 10px;
+	--flow: var(--bank-d, #5b3de8);
+	--beat: 2.8s;
+	--tint: color-mix(in srgb, var(--flow) 9%, var(--surface));
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	height: 100dvh;
+	overflow-x: hidden;
+	overflow-y: auto;
+	/* It is sized never to scroll; if a tiny screen still has to, no bar shows. */
+	scrollbar-width: none;
+	background: var(--bg);
+	color: var(--fg);
+	-webkit-tap-highlight-color: transparent;
+}
+:global(.dark) .root,
+:global(.dark) .sheetWrap {
+	--bg: #0f0f10;
+	--surface: #18181b;
+	--sunk: #202024;
+	--line: rgba(255, 255, 255, 0.09);
+	--line-strong: rgba(255, 255, 255, 0.2);
+	--fg: #f3f3f1;
+	--fg2: #c2c1bc;
+	--muted: #95948e;
+	--violet: var(--bank-l, #8d78ff);
+	--violet-ink: color-mix(in srgb, var(--bank-l, #8d78ff) 70%, #fff);
+	--violet-soft: color-mix(in srgb, var(--bank-l, #8d78ff) 18%, var(--surface));
+	--ok: #21c08a;
+	--ok-ink: #74e2b8;
+	--ok-soft: rgba(16, 185, 129, 0.14);
+	--warn-ink: #ffd083;
+	--warn-soft: rgba(245, 158, 11, 0.14);
+	--warn-line: rgba(245, 158, 11, 0.3);
+	--bad-ink: #ff8f8a;
+	--bad-soft: rgba(239, 68, 68, 0.14);
+}
+
+.root::-webkit-scrollbar,
+.items::-webkit-scrollbar {
+	display: none;
+}
+
+.mono {
+	font-family: var(--mono);
+}
+
+/* A soft glow in the bank's colour behind the card; green once paid. */
+.amb,
+.ambOk {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	transition: opacity 0.8s;
+}
+.amb {
+	background: radial-gradient(70% 38% at 50% 32%, color-mix(in srgb, var(--bank-l) 13%, transparent), transparent 70%);
+}
+.ambOk {
+	opacity: 0;
+	background: radial-gradient(70% 40% at 50% 34%, color-mix(in srgb, var(--ok) 16%, transparent), transparent 70%);
+}
+.root[data-phase='paid'] .amb {
+	opacity: 0;
+}
+.root[data-phase='paid'] .ambOk {
+	opacity: 1;
+}
+
+/* ---------- header ---------- */
+.top {
+	position: relative;
+	z-index: 2;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: max(12px, env(safe-area-inset-top)) 16px 6px;
+}
+.mer {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-width: 0;
+}
+.merAv {
+	display: grid;
+	flex: none;
+	place-items: center;
+	width: 40px;
+	height: 40px;
+	border-radius: 12px;
+	background: var(--fg);
+	color: var(--bg);
+	font-size: 17px;
+	font-weight: 800;
+}
+.merTx {
+	display: grid;
+	min-width: 0;
+	line-height: 1.45;
+}
+.merTx b {
+	overflow: hidden;
+	font-size: 15px;
+	font-weight: 800;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+.merSub {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	min-width: 0;
+	color: var(--ok-ink);
+	font-size: 11.5px;
+	font-weight: 500;
+}
+.merSub svg {
+	flex: none;
+	width: 13px;
+	height: 13px;
+}
+.merSub span {
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+.topEnd {
+	display: flex;
+	flex: none;
+	align-items: center;
+	gap: 8px;
+	margin-inline-start: auto;
+}
+.topCode {
+	display: none;
+	color: var(--muted);
+	font-size: 12.5px;
+}
+.help {
+	display: grid;
+	place-items: center;
+	width: 34px;
+	height: 34px;
+	border: 1px solid var(--line);
+	border-radius: 11px;
+	background: var(--surface);
+	color: var(--fg2);
+	cursor: pointer;
+	transition: border-color 0.2s;
+}
+.help:hover {
+	border-color: var(--line-strong);
+}
+.help svg {
+	width: 17px;
+	height: 17px;
+}
+.timer {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	gap: 6px;
+	padding: 3px 10px 3px 4px;
+	border-radius: 999px;
+	background: var(--warn-soft);
+	color: var(--warn-ink);
+	font-size: 13px;
+	font-weight: 800;
+	font-variant-numeric: tabular-nums;
+	transition: background 0.4s, color 0.4s;
+}
+.timer[data-low] {
+	background: var(--bad-soft);
+	color: var(--bad-ink);
+}
+.timer svg {
+	width: 20px;
+	height: 20px;
+	transform: rotate(-90deg);
+}
+.timer circle {
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 4;
+}
+.timer circle:first-child {
+	opacity: 0.2;
+}
+.timer circle:last-child {
+	stroke-linecap: round;
+	transition: stroke-dashoffset 1s linear;
+}
+
+/* ---------- column ---------- */
+.col {
+	position: relative;
+	z-index: 1;
+	display: flex;
+	flex: 1 0 auto;
+	flex-direction: column;
+	gap: var(--g);
+	width: 100%;
+	max-width: 440px;
+	min-height: 0;
+	margin: 0 auto;
+	padding: 4px 16px 6px;
+}
+
+.rise {
+	animation: rise 0.55s var(--out) both;
+	animation-delay: calc(var(--i, 0) * 60ms);
+}
+@keyframes rise {
+	from {
+		opacity: 0;
+		transform: translateY(10px);
+	}
+}
+
+/* Rows that fold away (or open) without a jump: grid rows 1fr ↔ 0fr. */
+.fold {
+	display: grid;
+	grid-template-rows: 1fr;
+	transition: grid-template-rows 0.55s 0.25s var(--out), opacity 0.3s;
+}
+.fold > div {
+	min-height: 0;
+	overflow: hidden;
+}
+.foldIn {
+	grid-template-rows: 0fr;
+	opacity: 0;
+}
+.root[data-phase='paid'] .foldOut {
+	grid-template-rows: 0fr;
+	opacity: 0;
+}
+.root[data-phase='paid'] .foldIn {
+	grid-template-rows: 1fr;
+	opacity: 1;
+	transition: grid-template-rows 0.6s 0.35s var(--out), opacity 0.45s 0.45s;
+}
+.foldBody {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+/* The heading that appears once paid. */
+.paidHead {
+	display: grid;
+	justify-items: center;
+	gap: 2px;
+	padding: 4px 0 6px;
+	text-align: center;
+}
+.paidHead h1 {
+	margin: 0;
+	font-size: 21px;
+	font-weight: 800;
+	line-height: 1.5;
+	text-wrap: balance;
+}
+.paidHead p {
+	margin: 0;
+	color: var(--fg2);
+	font-size: 13px;
+}
+.paidHead p b {
+	color: var(--fg);
+	font-size: 18px;
+	font-weight: 800;
+	font-variant-numeric: tabular-nums;
+}
+
+/* ---------- the card on its holder ---------- */
+.hold {
+	position: relative;
+	display: grid;
+	flex: none;
+	align-self: center;
+	gap: 0;
+	/* The card gives way to the viewport height so the page never scrolls. */
+	width: clamp(min(100%, 240px), calc((100dvh - 512px) * 1.586 + 18px), 100%);
+	padding: 8px;
+	transition: width 0.6s var(--out);
+	border: 1px solid var(--line);
+	border-radius: 24px;
+	background: var(--surface);
+}
+/* While we wait, the card breathes a little in its own colour. */
+.root[data-phase='wait'] .hold {
+	animation: breathe 3.6s ease-in-out infinite;
+}
+@keyframes breathe {
+	0%,
+	100% {
+		box-shadow: 0 10px 30px -22px color-mix(in srgb, var(--bank-d, #000) 60%, transparent);
+	}
+	50% {
+		box-shadow: 0 18px 44px -18px color-mix(in srgb, var(--bank-d, #000) 70%, transparent);
+	}
+}
+/* The tray is lit from below, where the link to the order meets it. */
+.hold::before {
+	position: absolute;
+	inset: 0;
+	border-radius: 23px;
+	background: linear-gradient(to top, var(--tint), transparent 40px);
+	content: '';
+	pointer-events: none;
+	transition: opacity 0.5s;
+}
+.root[data-phase='paid'] .hold::before {
+	opacity: 0;
+}
+/* Each drop that reaches the tray lights its rim; a copy lights it harder. */
+.trayGlow,
+.trayHit {
+	position: absolute;
+	inset: -1px;
+	padding: 1.5px;
+	border-radius: 24px;
+	background: radial-gradient(46% 80% at 50% 100%, var(--flow), transparent 78%);
+	opacity: 0;
+	pointer-events: none;
+	-webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+	-webkit-mask-composite: xor;
+	mask-composite: exclude;
+}
+.root[data-phase='wait'] .trayGlow,
+.root[data-phase='found'] .trayGlow {
+	animation: arrive var(--beat) 1.4s ease-out infinite;
+}
+@keyframes arrive {
+	0%,
+	34% {
+		opacity: 0;
+	}
+	46% {
+		opacity: 0.9;
+	}
+	82%,
+	100% {
+		opacity: 0;
+	}
+}
+.trayHit {
+	background: radial-gradient(70% 100% at 50% 100%, var(--flow), transparent 85%);
+	animation: hit 0.9s 0.3s ease-out both;
+}
+@keyframes hit {
+	0% {
+		opacity: 0;
+	}
+	14% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 0;
+	}
+}
+
+/* ---------- the link: the tray narrows into the order strip ---------- */
+.link {
+	position: relative;
+	z-index: 2;
+	flex: none;
+	align-self: center;
+	width: 52px;
+	height: 20px;
+	margin-block: calc(-1px - var(--g));
+	transform-origin: 50% 0;
+	animation: linkIn 0.55s 0.6s var(--out) backwards;
+	transition: height 0.45s 0.15s var(--out), margin 0.45s 0.15s var(--out), opacity 0.25s;
+}
+.link svg {
+	display: block;
+	width: 100%;
+	height: 100%;
+	overflow: visible;
+}
+@keyframes linkIn {
+	from {
+		opacity: 0;
+		transform: scaleY(0);
+	}
+}
+.root[data-phase='paid'] .link {
+	height: 0;
+	margin-block: calc(var(--g) / -2);
+	opacity: 0;
+}
+.lkEdge {
+	fill: none;
+	stroke: var(--line);
+	stroke-width: 1;
+}
+.lkPipe {
+	fill: color-mix(in srgb, var(--flow) 15%, transparent);
+	transition: fill 0.4s;
+}
+.lkDrop,
+.lkShot {
+	fill: var(--flow);
+	opacity: 0;
+	transform-box: fill-box;
+	transform-origin: center;
+}
+/* Drops rise from the order into the card: this amount goes to this card. */
+.root[data-phase='wait'] .lkDrop,
+.root[data-phase='found'] .lkDrop {
+	animation: drop var(--beat) calc(1.4s + var(--k) * 140ms) cubic-bezier(0.45, 0, 0.25, 1) infinite;
+}
+@keyframes drop {
+	0% {
+		opacity: 0;
+		transform: translateY(0) scale(0.5);
+	}
+	8% {
+		opacity: 1;
+		transform: translateY(-2px) scale(1);
+	}
+	38% {
+		opacity: 1;
+		transform: translateY(-14px) scale(1);
+	}
+	46%,
+	100% {
+		opacity: 0;
+		transform: translateY(-17px) scale(0.6);
+	}
+}
+.link[data-shot] .lkShot {
+	animation: shot 0.42s var(--out);
+}
+@keyframes shot {
+	0% {
+		opacity: 0;
+		transform: translateY(0) scale(0.6);
+	}
+	20% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 0;
+		transform: translateY(-21px) scale(1.2);
+	}
+}
+.root[data-phase='found'] {
+	--flow: var(--ok);
+	--beat: 1.4s;
+}
+
+/* The card answers the copy button: a light passes over its digits. */
+.ping {
+	position: absolute;
+	inset: 0;
+	border-radius: 20px;
+	background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.55) 50%, transparent 70%) no-repeat;
+	background-size: 200% 100%;
+	box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.7);
+	pointer-events: none;
+	animation: ping 0.9s var(--out) both;
+}
+@keyframes ping {
+	0% {
+		opacity: 1;
+		background-position: 150% 0;
+	}
+	100% {
+		opacity: 0;
+		background-position: -50% 0;
+	}
+}
+.flip {
+	position: relative;
+	perspective: 1100px;
+	animation: cardIn 0.8s var(--out) both;
+}
+@keyframes cardIn {
+	from {
+		opacity: 0;
+		transform: rotateX(16deg) translateY(14px);
+	}
+}
+.flipIn {
+	display: grid;
+	transform-style: preserve-3d;
+	transition: transform 1s cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+.flipIn > * {
+	grid-area: 1 / 1;
+	-webkit-backface-visibility: hidden;
+	backface-visibility: hidden;
+}
+.back {
+	transform: rotateY(180deg);
+}
+.root[data-phase='paid'] .flipIn {
+	transform: rotateY(180deg);
+}
+.front {
+	position: relative;
+	overflow: hidden;
+	border-radius: 20px;
+}
+.front::after,
+.okCard::after {
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.28) 48%, transparent 60%);
+	content: '';
+	transform: translateX(-120%);
+	pointer-events: none;
+}
+.front::after {
+	animation: sheen 1.4s 0.55s var(--out) both;
+}
+.root[data-phase='paid'] .okCard::after {
+	animation: sheen 1.2s 1s var(--out) both;
+}
+@keyframes sheen {
+	to {
+		transform: translateX(120%);
+	}
+}
+
+/* The receipt face. */
+.okCard {
+	position: relative;
+	overflow: hidden;
+	aspect-ratio: 1.586;
+	width: 100%;
+	border-radius: 20px;
+	background: radial-gradient(120% 90% at 100% 0%, rgba(255, 255, 255, 0.2), transparent 55%), linear-gradient(135deg, var(--ok-light), var(--ok-deep) 85%);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 18px 34px -18px rgba(4, 120, 87, 0.7);
+	color: #fff;
+	container-type: inline-size;
+}
+.okIn {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	padding: 6.5cqi 7cqi 6cqi;
+}
+.okTop {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+}
+.okBadge {
+	padding: 1cqi 3.2cqi;
+	border-radius: 99px;
+	background: rgba(255, 255, 255, 0.2);
+	font-size: 4.6cqi;
+	font-weight: 800;
+}
+.okLogo {
+	display: grid;
+	place-items: center;
+	width: 17cqi;
+	height: 17cqi;
+	padding: 1.8cqi;
+	border-radius: 3.2cqi;
+	background: #fff;
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+.okLogo img {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+}
+.okMid {
+	display: flex;
+	flex: 1;
+	align-items: center;
+	justify-content: center;
+	gap: 4cqi;
+}
+.okMid svg {
+	width: 15cqi;
+	height: 15cqi;
+}
+.okMid circle {
+	fill: rgba(255, 255, 255, 0.18);
+	stroke: rgba(255, 255, 255, 0.55);
+	stroke-width: 1.5;
+}
+.okMid path {
+	fill: none;
+	stroke: #fff;
+	stroke-dasharray: 40;
+	stroke-dashoffset: 40;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+	stroke-width: 4;
+}
+.root[data-phase='paid'] .okMid path {
+	animation: draw 0.45s 0.85s ease-out forwards;
+}
+@keyframes draw {
+	to {
+		stroke-dashoffset: 0;
+	}
+}
+.okAmt {
+	display: grid;
+	line-height: 1.35;
+}
+.okAmt span {
+	font-size: 4.2cqi;
+	opacity: 0.9;
+}
+.okAmt b {
+	font-size: 8cqi;
+	font-weight: 800;
+}
+.okAmt b small {
+	margin-inline-start: 1.5cqi;
+	font-size: 4cqi;
+	font-weight: 700;
+}
+.okBot {
+	display: flex;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 3cqi;
+	font-size: 4cqi;
+}
+.okBot span {
+	color: rgba(255, 255, 255, 0.85);
+}
+
+/* Dots that burst from the card at the moment it turns. */
+.dots {
+	position: absolute;
+	inset: 0;
+	z-index: 3;
+	pointer-events: none;
+}
+.dots i {
+	position: absolute;
+	top: 42%;
+	left: 50%;
+	width: 6px;
+	height: 6px;
+	margin: -3px;
+	border-radius: 50%;
+	background: var(--c);
+	opacity: 0;
+}
+.dots i:nth-child(3n) {
+	width: 4px;
+	height: 4px;
+	margin: -2px;
+}
+.root[data-phase='paid'] .dots i {
+	animation: burst 0.85s 0.75s var(--out) both;
+}
+@keyframes burst {
+	0% {
+		opacity: 1;
+		transform: rotate(var(--a)) translateY(0) scale(1);
+	}
+	100% {
+		opacity: 0;
+		transform: rotate(var(--a)) translateY(calc(var(--d) * -1)) scale(0.4);
+	}
+}
+
+/* ---------- copy buttons ---------- */
+.help:focus-visible,
+.itemsBtn:focus-visible,
+.seg button:focus-visible,
+.primary:focus-visible,
+.shX:focus-visible,
+.claim:focus-visible {
+	outline: 2px solid var(--violet);
+	outline-offset: 2px;
+}
+.okTick path {
+	stroke-dasharray: 22;
+	stroke-dashoffset: 22;
+	animation: draw 0.35s 0.05s ease-out forwards;
+}
+.flash {
+	position: absolute;
+	inset: -4px;
+	border-radius: 16px;
+	box-shadow: 0 0 0 2px var(--ok);
+	opacity: 0;
+	pointer-events: none;
+	animation: flash 0.7s ease-out;
+}
+@keyframes flash {
+	0% {
+		opacity: 0.8;
+		transform: scale(0.98);
+	}
+	100% {
+		opacity: 0;
+		transform: scale(1.02);
+	}
+}
+
+/* ---------- order strip ---------- */
+.order {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 9px 12px;
+	border: 1px solid var(--line);
+	border-radius: 16px;
+	background: var(--surface);
+}
+.itemsBtn {
+	display: flex;
+	flex: 1;
+	align-items: center;
+	gap: 12px;
+	min-width: 0;
+	padding: 0;
+	border: 0;
+	border-radius: 10px;
+	background: none;
+	color: inherit;
+	font: inherit;
+	text-align: inherit;
+	cursor: pointer;
+}
+.orderL {
+	display: grid;
+	flex: 1;
+	min-width: 0;
+	line-height: 1.55;
+}
+.orderCode {
+	color: var(--muted);
+	font-size: 11px;
+}
+.orderLine {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+	color: var(--fg2);
+	font-size: 13px;
+	font-weight: 500;
+}
+.orderLine svg {
+	flex: none;
+	width: 15px;
+	height: 15px;
+}
+.orderLine > span:first-of-type {
+	min-width: 0;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+.more {
+	flex: none;
+	padding: 1px 7px;
+	border-radius: 999px;
+	background: var(--sunk);
+	color: var(--fg2);
+	font-size: 11px;
+	font-weight: 800;
+}
+.orderT {
+	flex: none;
+	line-height: 1.3;
+	text-align: left;
+}
+.orderT b {
+	display: block;
+	font-size: 16px;
+	font-weight: 800;
+	font-variant-numeric: tabular-nums;
+}
+.orderT small {
+	color: var(--muted);
+	font-size: 11px;
+}
+.chev {
+	flex: none;
+	width: 18px;
+	height: 18px;
+	color: var(--muted);
+}
+
+/* ---------- the two copy buttons, in the card's colour ---------- */
+.acts {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 8px;
+}
+.act {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 7px;
+	min-height: 50px;
+	padding: 0 10px;
+	overflow: hidden;
+	border: 0;
+	border-radius: 15px;
+	background: linear-gradient(135deg, var(--bank-l, #7b61ff), var(--bank-d, #5b3de8));
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 10px 22px -14px var(--bank-d, #5b3de8);
+	color: #fff;
+	font: inherit;
+	font-size: 13.5px;
+	font-weight: 800;
+	white-space: nowrap;
+	cursor: pointer;
+	transition: transform 0.15s, background 0.3s, box-shadow 0.3s;
+}
+.act:active {
+	transform: scale(0.97);
+}
+.act:focus-visible {
+	outline: 2px solid var(--violet);
+	outline-offset: 2px;
+}
+.actIcon {
+	display: grid;
+	flex: none;
+	place-items: center;
+	width: 26px;
+	height: 26px;
+	border-radius: 8px;
+	background: rgba(255, 255, 255, 0.2);
+}
+.actIcon svg {
+	width: 16px;
+	height: 16px;
+}
+.act[data-done] {
+	background: var(--ok-soft);
+	box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ok) 30%, transparent);
+	color: var(--ok-ink);
+}
+.act[data-done] .actIcon {
+	background: var(--ok);
+	color: #fff;
+}
+/* The button to press next catches the light now and then. */
+.act[data-next]::after {
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.38) 50%, transparent 65%);
+	content: '';
+	transform: translateX(130%);
+	animation: shine 2.8s 1s ease-in-out infinite;
+	pointer-events: none;
+}
+@keyframes shine {
+	0% {
+		transform: translateX(130%);
+	}
+	45%,
+	100% {
+		transform: translateX(-130%);
+	}
+}
+
+/* ---------- amount ---------- */
+.amt {
+	display: grid;
+	gap: 0;
+	padding: 8px 14px 10px;
+	border: 1px solid var(--line);
+	border-radius: 18px;
+	background: var(--surface);
+}
+.amtHead {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	min-height: 26px;
+}
+.label {
+	min-width: 0;
+	overflow: hidden;
+	color: var(--muted);
+	font-size: 11.5px;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+.label b {
+	color: var(--fg2);
+	font-weight: 700;
+}
+.amtVal {
+	position: relative;
+	z-index: 0;
+	display: flex;
+	align-items: baseline;
+	justify-content: flex-end;
+	gap: 6px;
+	min-height: 40px;
+	padding: 2px 0;
+	direction: ltr;
+}
+.roll {
+	display: inline-flex;
+	font-family: var(--mono);
+	font-size: 27px;
+	font-weight: 700;
+	letter-spacing: 0.01em;
+	line-height: 1.3;
+	font-variant-numeric: tabular-nums;
+}
+.roll span {
+	display: inline-block;
+	animation: roll 0.55s var(--spring) both;
+	animation-delay: var(--d);
+}
+@keyframes roll {
+	from {
+		opacity: 0;
+		filter: blur(3px);
+		transform: translateY(-65%);
+	}
+}
+.rollId {
+	color: var(--violet);
+	text-shadow: 0 0 18px color-mix(in srgb, var(--bank-l, #7b61ff) 35%, transparent);
+}
+.unit {
+	color: var(--muted);
+	font-size: 13px;
+	font-weight: 700;
+	animation: rise 0.4s var(--out) both;
+}
+.amtPing {
+	position: absolute;
+	inset: -2px -6px;
+	z-index: -1;
+	border-radius: 12px;
+	background: var(--violet-soft);
+	pointer-events: none;
+	animation: fadeOut 0.9s ease-out both;
+}
+@keyframes fadeOut {
+	from {
+		opacity: 1;
+	}
+	to {
+		opacity: 0;
+	}
+}
+.hint {
+	margin: 0;
+	color: var(--muted);
+	font-size: 11.5px;
+	line-height: 1.6;
+}
+.hint b {
+	color: var(--violet-ink);
+}
+.seg {
+	position: relative;
+	display: inline-grid;
+	flex: none;
+	grid-template-columns: 1fr 1fr;
+	padding: 2px;
+	border-radius: 9px;
+	background: var(--sunk);
+}
+.seg::before {
+	position: absolute;
+	top: 2px;
+	right: 2px;
+	bottom: 2px;
+	width: calc(50% - 2px);
+	border-radius: 7px;
+	background: linear-gradient(135deg, var(--bank-l, #7b61ff), var(--bank-d, #5b3de8));
+	box-shadow: 0 2px 6px -2px var(--bank-d, #5b3de8);
+	content: '';
+	transition: transform 0.35s var(--spring);
+}
+.seg[data-unit='toman']::before {
+	transform: translateX(-100%);
+}
+.seg button {
+	position: relative;
+	padding: 3px 13px;
+	border: 0;
+	background: none;
+	color: var(--muted);
+	font: inherit;
+	font-size: 11.5px;
+	font-weight: 700;
+	cursor: pointer;
+	transition: color 0.2s;
+}
+.seg button[aria-pressed='true'] {
+	color: #fff;
+}
+
+/* ---------- live state ---------- */
+.foot {
+	display: grid;
+}
+.foot > * {
+	grid-area: 1 / 1;
+}
+.live {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 11px 14px;
+	border-radius: 16px;
+	background: var(--violet-soft);
+	color: var(--violet-ink);
+	transition: background 0.4s, color 0.4s;
+}
+.live[data-tone='review'] {
+	background: var(--warn-soft);
+	color: var(--warn-ink);
+}
+.root[data-phase='found'] .live {
+	background: var(--ok-soft);
+	color: var(--ok-ink);
+}
+.liveTx {
+	display: grid;
+	flex: 1;
+	min-width: 0;
+	line-height: 1.55;
+}
+.liveTx b {
+	font-size: 13.5px;
+	font-weight: 800;
+}
+.liveTx span {
+	font-size: 11.5px;
+	opacity: 0.85;
+}
+.radar {
+	position: relative;
+	flex: none;
+	width: 24px;
+	height: 24px;
+}
+.radar b {
+	position: absolute;
+	inset: 8px;
+	border-radius: 50%;
+	background: currentColor;
+}
+.radar i {
+	position: absolute;
+	inset: 0;
+	border: 1.5px solid currentColor;
+	border-radius: 50%;
+	opacity: 0;
+	animation: radar 2.4s cubic-bezier(0.2, 0.6, 0.3, 1) infinite;
+}
+.radar i + i {
+	animation-delay: 1.2s;
+}
+@keyframes radar {
+	0% {
+		opacity: 0.9;
+		transform: scale(0.3);
+	}
+	100% {
+		opacity: 0;
+		transform: scale(1.3);
+	}
+}
+.poll {
+	flex: none;
+	width: 20px;
+	height: 20px;
+	transform: rotate(-90deg);
+}
+.poll circle {
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 2.5;
+}
+.poll circle:first-child {
+	opacity: 0.2;
+}
+.poll circle:last-child {
+	stroke-dasharray: 50.27;
+	stroke-linecap: round;
+	animation: poll 5s linear infinite;
+}
+@keyframes poll {
+	to {
+		stroke-dashoffset: 50.27;
+	}
+}
+.spin {
+	flex: none;
+	width: 22px;
+	height: 22px;
+}
+.spin circle {
+	fill: none;
+	stroke: currentColor;
+	stroke-dasharray: 40 100;
+	stroke-linecap: round;
+	stroke-width: 2.5;
+	transform-origin: center;
+	animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+.claim {
+	justify-self: center;
+	padding: 2px 8px;
+	border: 0;
+	border-radius: 8px;
+	background: none;
+	color: var(--muted);
+	font: inherit;
+	font-size: 12px;
+	text-decoration: underline;
+	text-underline-offset: 3px;
+	cursor: pointer;
+}
+.claim:disabled {
+	opacity: 0.6;
+}
+
+/* ---------- after payment ---------- */
+.receipt {
+	display: grid;
+	margin: 0;
+	padding: 10px 8px 2px;
+	font-size: 12.5px;
+}
+.receipt div {
+	display: flex;
+	justify-content: space-between;
+	gap: 10px;
+	padding: 7px 0;
+	border-bottom: 1px dashed var(--line);
+}
+.receipt div:last-child {
+	border-bottom: 0;
+}
+.receipt dt {
+	flex: none;
+	color: var(--muted);
+}
+.receipt dd {
+	min-width: 0;
+	margin: 0;
+	overflow: hidden;
+	font-weight: 700;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+.done {
+	display: grid;
+	gap: 6px;
+	text-align: center;
+	visibility: hidden;
+	opacity: 0;
+}
+.root[data-phase='paid'] .done {
+	visibility: visible;
+	opacity: 1;
+	animation: rise 0.5s 1.1s var(--out) both;
+}
+.root[data-phase='paid'] .live {
+	visibility: hidden;
+}
+.done p {
+	margin: 0;
+	color: var(--muted);
+	font-size: 12px;
+}
+.primary {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	width: 100%;
+	min-height: 48px;
+	overflow: hidden;
+	border: 0;
+	border-radius: 14px;
+	background: var(--fg);
+	color: var(--bg);
+	font: inherit;
+	font-size: 14.5px;
+	font-weight: 800;
+	text-decoration: none;
+	cursor: pointer;
+	transition: opacity 0.2s;
+}
+.primary:hover {
+	opacity: 0.92;
+}
+.primary span {
+	position: relative;
+}
+.fill {
+	position: absolute;
+	inset: 0;
+	background: rgba(255, 255, 255, 0.16);
+	transform: scaleX(0);
+	transform-origin: right;
+	animation: fill var(--fill-s, 5s) linear forwards;
+}
+@keyframes fill {
+	to {
+		transform: scaleX(1);
+	}
+}
+.count {
+	display: inline-grid;
+	place-items: center;
+	min-width: 22px;
+	height: 22px;
+	border-radius: 7px;
+	background: rgba(255, 255, 255, 0.18);
+	font-size: 12.5px;
+}
+
+/* expired, failed, cancelled */
+.final {
+	display: grid;
+	justify-items: center;
+	gap: 6px;
+	padding: 6px 4px 0;
+	text-align: center;
+}
+.final h1 {
+	margin: 0;
+	font-size: 19px;
+	font-weight: 800;
+	line-height: 1.6;
+}
+.final p {
+	max-width: 34ch;
+	margin: 0;
+	color: var(--fg2);
+	font-size: 13.5px;
+	line-height: 1.8;
+}
+.finalIcon {
+	display: grid;
+	place-items: center;
+	width: 52px;
+	height: 52px;
+	border-radius: 50%;
+	background: var(--sunk);
+	color: var(--fg2);
+}
+.finalIcon[data-tone='bad'] {
+	background: var(--bad-soft);
+	color: var(--bad-ink);
+}
+
+/* ---------- expired: the clock runs out, the card loses its colour ---------- */
+.exp {
+	display: grid;
+	justify-items: center;
+	gap: 4px;
+	padding: 4px 4px 0;
+	text-align: center;
+}
+.exp h1 {
+	margin: 0;
+	font-size: 20px;
+	font-weight: 800;
+	line-height: 1.55;
+	text-wrap: balance;
+}
+.exp p {
+	max-width: 34ch;
+	margin: 0;
+	color: var(--fg2);
+	font-size: 13px;
+	line-height: 1.8;
+}
+/* A clock whose last sliver of time drains, then its hand snaps to twelve. */
+.clockFace {
+	position: relative;
+	display: grid;
+	place-items: center;
+	width: 54px;
+	height: 54px;
+	margin-bottom: 4px;
+	border-radius: 50%;
+	background: var(--surface);
+	box-shadow: 0 0 0 1px var(--line), 0 14px 28px -18px rgba(17, 17, 17, 0.45);
+}
+.root[data-phase='closed'] .clockFace {
+	animation: pop 0.5s var(--spring) both;
+}
+.clockFace.ghost {
+	position: absolute;
+	z-index: 6;
+	margin: 0;
+	animation: none;
+}
+.clockFace[data-wait] {
+	visibility: hidden;
+}
+.clockFace::after {
+	position: absolute;
+	inset: 0;
+	border: 1.5px solid var(--warn-ink);
+	border-radius: 50%;
+	content: '';
+	opacity: 0;
+}
+.root[data-phase='closed'] .clockFace::after {
+	animation: ripple 0.9s 1.25s ease-out both;
+}
+@keyframes ripple {
+	0% {
+		opacity: 0.55;
+		transform: scale(1);
+	}
+	100% {
+		opacity: 0;
+		transform: scale(1.6);
+	}
+}
+.clockFace svg {
+	width: 40px;
+	height: 40px;
+	overflow: visible;
+}
+.clockTrack {
+	fill: none;
+	stroke: var(--sunk);
+	stroke-width: 3.5;
+}
+.clockRest {
+	fill: none;
+	stroke: var(--warn-ink);
+	stroke-dasharray: 100;
+	stroke-dashoffset: 84;
+	stroke-linecap: round;
+	stroke-width: 3.5;
+	transform: rotate(-90deg);
+	transform-origin: 23px 23px;
+}
+.root[data-phase='closed'] .clockRest {
+	animation: drainArc 0.8s 0.45s cubic-bezier(0.55, 0, 0.75, 0.4) both;
+}
+@keyframes drainArc {
+	80% {
+		opacity: 1;
+	}
+	to {
+		stroke-dashoffset: 100;
+		opacity: 0;
+	}
+}
+.clockHand {
+	fill: none;
+	stroke: var(--fg);
+	stroke-linecap: round;
+	stroke-width: 2.6;
+	transform-origin: 23px 23px;
+	transform: rotate(-75deg);
+}
+.root[data-phase='closed'] .clockHand {
+	transform: none;
+	animation: handHome 0.8s 0.55s var(--spring) both;
+}
+@keyframes handHome {
+	from {
+		transform: rotate(-75deg);
+	}
+}
+.clockHub {
+	fill: var(--fg);
+}
+.expWhen {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	margin-top: 4px;
+	padding: 2px 10px;
+	border-radius: 999px;
+	background: var(--warn-soft);
+	color: var(--warn-ink);
+	font-size: 11.5px;
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+}
+.expWhen svg {
+	width: 13px;
+	height: 13px;
+}
+
+/* The colour drains from the card in the reading direction; it stays legible, just spent. */
+.front::before {
+	position: absolute;
+	inset: 0;
+	z-index: 1;
+	background: #808080;
+	content: '';
+	clip-path: inset(0 0 0 100%);
+	mix-blend-mode: saturation;
+	pointer-events: none;
+}
+.root[data-phase='closed'] .front::before {
+	animation: drain 1.15s 0.25s cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+@keyframes drain {
+	to {
+		clip-path: inset(0 0 0 0);
+	}
+}
+.root[data-phase='closed'] .front {
+	opacity: 0.72;
+	transition: opacity 1s 0.4s;
+}
+.root[data-phase='closed'] .front::after {
+	animation: sheenBack 1.15s 0.25s cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+@keyframes sheenBack {
+	from {
+		transform: translateX(120%);
+	}
+	to {
+		transform: translateX(-120%);
+	}
+}
+
+/* «I've paid», for a transfer made just before or after the deadline. */
+.late {
+	display: grid;
+	gap: 10px;
+	padding: 12px 14px 14px;
+	border: 1px solid var(--line);
+	border-radius: 18px;
+	background: var(--surface);
+}
+.lateTx {
+	display: grid;
+	gap: 2px;
+	line-height: 1.7;
+}
+.lateTx b {
+	font-size: 14px;
+	font-weight: 800;
+}
+.lateTx span {
+	color: var(--fg2);
+	font-size: 12.5px;
+}
+.late .primary svg {
+	position: relative;
+	width: 18px;
+	height: 18px;
+}
+.late .primary:disabled {
+	opacity: 0.6;
+	cursor: default;
+}
+.late .live {
+	animation: rise 0.45s var(--out) both;
+}
+.lateErr {
+	margin: 0;
+	color: var(--bad-ink);
+	font-size: 12px;
+	text-align: center;
+}
+
+
+/* ---------- the deadline arrives while the customer is on the page ---------- */
+/* The last seconds tick visibly. */
+.timer[data-final] {
+	animation: tickPulse 1s ease-in-out infinite;
+}
+@keyframes tickPulse {
+	0%,
+	100% {
+		transform: scale(1);
+	}
+	14% {
+		transform: scale(1.09);
+	}
+}
+.top .gone {
+	opacity: 0;
+	transform: scale(0.6);
+	transition: opacity 0.25s, transform 0.3s var(--out);
+}
+/* The heading above the card and the «I've paid» box open like the rest of the page folds. */
+.foldLapse {
+	grid-template-rows: 0fr;
+	opacity: 0;
+}
+.root[data-phase='closed'] .foldLapse {
+	grid-template-rows: 1fr;
+	opacity: 1;
+	transition: grid-template-rows 0.6s 0.15s var(--out), opacity 0.35s 0.25s;
+}
+.root[data-phase='closed'] .foldLate {
+	transition: grid-template-rows 0.6s 0.55s var(--out), opacity 0.4s 0.7s;
+}
+.root[data-phase='closed'] .exp h1 {
+	animation: rise 0.5s 0.4s var(--out) both;
+}
+.root[data-phase='closed'] .expWhen {
+	animation: rise 0.5s 0.5s var(--out) both;
+}
+.root[data-phase='closed'] .late > * {
+	animation: rise 0.5s var(--out) both;
+}
+.root[data-phase='closed'] .late > :nth-child(1) {
+	animation-delay: 0.75s;
+}
+.root[data-phase='closed'] .late > :nth-child(2) {
+	animation-delay: 0.85s;
+}
+/* What the customer no longer needs leaves downward, last first. */
+.root[data-phase='closed'] .foldBody > * {
+	opacity: 0;
+	transform: translateY(10px) scale(0.98);
+	transition: opacity 0.25s, transform 0.35s var(--out);
+}
+.root[data-phase='closed'] .foldBody > :nth-child(1) {
+	transition-delay: 0.1s;
+}
+.root[data-phase='closed'] .foldBody > :nth-child(2) {
+	transition-delay: 0.05s;
+}
+.root.lapsed .foldOut {
+	grid-template-rows: 0fr;
+	opacity: 0;
+}
+.foot {
+	max-height: 160px;
+	transition: max-height 0.5s var(--out), opacity 0.25s, margin 0.5s var(--out);
+}
+.root[data-phase='closed'] .foot {
+	max-height: 0;
+	margin-top: calc(var(--g) * -1);
+	opacity: 0;
+	pointer-events: none;
+}
+/* The footer line changes with the page's state: it fades in anew each time. */
+.secT {
+	animation: secIn 0.45s var(--out) both;
+}
+@keyframes secIn {
+	from {
+		opacity: 0;
+	}
+}
+/* A late transfer: the expired heading and box close first, then the live bar opens. */
+.root.lapsed:not([data-phase='closed']) .foldLapse {
+	transition: grid-template-rows 0.4s var(--out), opacity 0.2s;
+}
+.root.lapsed:not([data-phase='closed']) .foot {
+	transition: max-height 0.5s 0.35s var(--out), opacity 0.3s 0.4s, margin 0.5s 0.35s var(--out);
+}
+/* A late transfer that is confirmed brings the colour back the way it left. */
+.root.lapsed[data-phase='found'] .front::before,
+.root.lapsed[data-phase='paid'] .front::before {
+	animation: undrain 0.7s cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+@keyframes undrain {
+	from {
+		clip-path: inset(0 0 0 0);
+	}
+	to {
+		clip-path: inset(0 100% 0 0);
+	}
+}
+
+/* ---------- the transfer is found: a green light reads the card ---------- */
+.scan {
+	position: absolute;
+	inset: 0 0 auto;
+	z-index: 2;
+	height: 34%;
+	background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--ok-light) 45%, transparent) 80%, rgba(255, 255, 255, 0.85));
+	opacity: 0;
+	pointer-events: none;
+	transform: translateY(-100%);
+	mix-blend-mode: screen;
+}
+.root[data-phase='found'] .scan {
+	animation: scan 1s 0.05s cubic-bezier(0.5, 0, 0.3, 1) both;
+}
+@keyframes scan {
+	15%,
+	85% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 0;
+		transform: translateY(300%);
+	}
+}
+.root[data-phase='found'] .rollId {
+	color: var(--ok);
+	text-shadow: 0 0 18px color-mix(in srgb, var(--ok) 40%, transparent);
+	transition: color 0.4s, text-shadow 0.4s;
+}
+.amt {
+	transition: border-color 0.4s, box-shadow 0.4s;
+}
+.root[data-phase='found'] .amt {
+	border-color: color-mix(in srgb, var(--ok) 45%, transparent);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 12%, transparent);
+}
+
+/* ---------- paid: the card lifts as it turns, a wave and confetti leave it ---------- */
+.root[data-phase='paid'] .flip {
+	animation: lift 1.05s var(--out) both;
+}
+@keyframes lift {
+	45% {
+		transform: translateY(-12px) scale(1.045);
+	}
+}
+.wave {
+	position: absolute;
+	inset: -1px;
+	border-radius: 24px;
+	box-shadow: 0 0 0 2px var(--ok);
+	opacity: 0;
+	pointer-events: none;
+}
+.root[data-phase='paid'] .wave {
+	animation: wave 1.1s 0.7s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+.root[data-phase='paid'] .wave + .wave {
+	animation-delay: 0.9s;
+}
+@keyframes wave {
+	0% {
+		opacity: 0.7;
+		transform: scale(1);
+	}
+	100% {
+		opacity: 0;
+		transform: scale(1.22, 1.32);
+	}
+}
+.root[data-phase='paid'] .paidHead h1 {
+	animation: rise 0.55s 0.75s var(--out) both;
+}
+.root[data-phase='paid'] .paidHead p {
+	animation: rise 0.55s 0.88s var(--out) both;
+}
+.root[data-phase='paid'] .receipt div {
+	animation: rise 0.45s var(--out) both;
+}
+.root[data-phase='paid'] .receipt div:nth-child(1) { animation-delay: 1.1s; }
+.root[data-phase='paid'] .receipt div:nth-child(2) { animation-delay: 1.17s; }
+.root[data-phase='paid'] .receipt div:nth-child(3) { animation-delay: 1.24s; }
+.root[data-phase='paid'] .receipt div:nth-child(4) { animation-delay: 1.31s; }
+.confetti {
+	position: absolute;
+	left: 0;
+	z-index: 5;
+	pointer-events: none;
+}
+/* The link, the tray's light and the order leave with the deadline. */
+.root[data-phase='closed'] .link {
+	height: 0;
+	margin-block: calc(var(--g) / -2);
+	opacity: 0;
+}
+.root[data-phase='closed'] .hold::before {
+	opacity: 0;
+}
+.root[data-phase='closed'] .foldOut {
+	grid-template-rows: 0fr;
+	opacity: 0;
+	transition: grid-template-rows 0.55s 0.2s var(--out), opacity 0.3s 0.3s;
+}
+
+.sec {
+	position: relative;
+	z-index: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	margin: auto 0 0;
+	padding: 4px 16px max(10px, env(safe-area-inset-bottom));
+	color: var(--muted);
+	font-size: 11.5px;
+	line-height: 1.5;
+	text-align: center;
+}
+.sec svg {
+	flex: none;
+	width: 14px;
+	height: 14px;
+}
+
+/* ---------- sheets: items and the guide ---------- */
+.sheetWrap {
+	--bg: #f5f5f3;
+	--surface: #ffffff;
+	--sunk: #f1f0ed;
+	--line: rgba(17, 17, 17, 0.09);
+	--line-strong: rgba(17, 17, 17, 0.2);
+	--fg: #111111;
+	--fg2: #55524c;
+	--muted: #77726b;
+	--warn-ink: #8f5400;
+	--warn-soft: #fff4dd;
+	--warn-line: #fde3a7;
+	--out: cubic-bezier(0.2, 0.8, 0.2, 1);
+	--spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+	--mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace;
+	position: fixed;
+	inset: 0;
+	z-index: 60;
+	display: flex;
+	align-items: flex-end;
+	justify-content: center;
+	/* The sheet slides from below the page; clipped here, it never makes the page scroll. */
+	overflow: hidden;
+}
+.sheetBg {
+	position: absolute;
+	inset: 0;
+	background: rgba(12, 12, 16, 0.5);
+	opacity: 0;
+	-webkit-backdrop-filter: blur(8px);
+	backdrop-filter: blur(8px);
+	transition: opacity 0.3s;
+}
+.sheetWrap[data-open] .sheetBg {
+	opacity: 1;
+}
+.sheet {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	max-height: 88dvh;
+	padding: 0 18px max(18px, env(safe-area-inset-bottom));
+	border-radius: 28px 28px 0 0;
+	background: var(--surface);
+	color: var(--fg);
+	box-shadow: 0 -14px 44px -14px rgba(0, 0, 0, 0.35);
+	transform: translateY(100%);
+	transition: transform 0.42s var(--out);
+	outline: none;
+}
+.sheetWrap[data-open] .sheet {
+	transform: translateY(var(--drag, 0px));
+}
+.sheet[data-dragging] {
+	transition: none;
+}
+.grab {
+	flex: none;
+	padding: 8px 0 12px;
+	touch-action: none;
+	cursor: grab;
+}
+.grab span {
+	display: block;
+	width: 42px;
+	height: 5px;
+	margin: 0 auto;
+	border-radius: 3px;
+	background: var(--line-strong);
+}
+.shHead {
+	display: flex;
+	flex: none;
+	align-items: center;
+	gap: 12px;
+	padding-bottom: 10px;
+	border-bottom: 1px solid var(--line);
+}
+.shHead h2 {
+	margin: 0;
+	font-size: 16px;
+	font-weight: 800;
+	line-height: 1.5;
+}
+.shHead p {
+	margin: 0;
+	color: var(--muted);
+	font-size: 12px;
+}
+.shIcon {
+	display: grid;
+	flex: none;
+	place-items: center;
+	width: 42px;
+	height: 42px;
+	border-radius: 13px;
+	background: var(--sunk);
+	color: var(--fg2);
+}
+.shIcon svg {
+	width: 20px;
+	height: 20px;
+}
+.shX {
+	display: grid;
+	flex: none;
+	place-items: center;
+	width: 36px;
+	height: 36px;
+	margin-inline-start: auto;
+	border: 0;
+	border-radius: 50%;
+	background: var(--sunk);
+	color: var(--fg2);
+	cursor: pointer;
+	transition: transform 0.25s var(--out), background 0.2s;
+}
+.shX:hover {
+	transform: rotate(90deg);
+}
+.shX svg {
+	width: 18px;
+	height: 18px;
+}
+.items {
+	min-height: 0;
+	margin: 0;
+	padding: 4px 0;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	scrollbar-width: none;
+	list-style: none;
+}
+.items li {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 12px;
+	padding: 8px 0;
+	border-bottom: 1px dashed var(--line);
+	animation: rise 0.4s var(--out) both;
+	animation-delay: calc(80ms + var(--i, 0) * 35ms);
+}
+.items li:last-child {
+	border-bottom: 0;
+}
+.qty {
+	display: grid;
+	place-items: center;
+	min-width: 46px;
+	height: 30px;
+	padding: 0 8px;
+	border-radius: 9px;
+	background: var(--sunk);
+	color: var(--fg2);
+	font-size: 11.5px;
+	font-weight: 800;
+	white-space: nowrap;
+}
+.itemTx {
+	display: grid;
+	min-width: 0;
+	line-height: 1.6;
+}
+.itemTx b {
+	display: -webkit-box;
+	overflow: hidden;
+	font-size: 13.5px;
+	font-weight: 700;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+}
+.itemTx small {
+	color: var(--muted);
+	font-size: 11.5px;
+}
+.itemSum {
+	font-size: 13.5px;
+	font-weight: 800;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+.sum {
+	display: grid;
+	flex: none;
+	gap: 6px;
+	margin: 4px 0 10px;
+	padding: 10px 14px;
+	border-radius: 16px;
+	background: var(--sunk);
+	font-size: 12.5px;
+}
+.sum div {
+	display: flex;
+	justify-content: space-between;
+	gap: 10px;
+}
+.sum dt {
+	color: var(--muted);
+}
+.sum dd {
+	margin: 0;
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+}
+.sumId dd {
+	color: var(--violet-ink);
+}
+.sumTotal {
+	margin-top: 4px;
+	padding-top: 8px;
+	border-top: 1px solid var(--line);
+	font-size: 14px;
+}
+.sumTotal dt {
+	color: var(--fg) !important;
+	font-weight: 800;
+}
+.sumTotal dd {
+	font-weight: 800 !important;
+}
+
+/* the guide, after the ZarinPay guide card */
+.guide {
+	display: grid;
+	gap: 14px;
+	min-height: 0;
+}
+.gHead {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+.gTitle {
+	display: grid;
+	flex: 1;
+	min-width: 0;
+	line-height: 1.5;
+}
+.gIcon {
+	display: grid;
+	flex: none;
+	place-items: center;
+	width: 46px;
+	height: 46px;
+	border-radius: 50%;
+	background: linear-gradient(135deg, var(--bank-l, #7b61ff), var(--bank-d, #5b3de8));
+	box-shadow: 0 10px 22px -8px var(--bank-d, #5b3de8);
+	color: #fff;
+	animation: pop 0.55s var(--spring) both;
+}
+.gIcon svg {
+	width: 24px;
+	height: 24px;
+}
+@keyframes pop {
+	from {
+		opacity: 0;
+		transform: scale(0.4);
+	}
+}
+.gHead h2 {
+	margin: 0;
+	font-size: 17px;
+	font-weight: 800;
+}
+.gHead p {
+	margin: 0;
+	color: var(--muted);
+	font-size: 12px;
+}
+.gSteps {
+	display: grid;
+	gap: 12px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+.gSteps li {
+	display: flex;
+	align-items: flex-start;
+	gap: 14px;
+	animation: rise 0.45s var(--out) both;
+	animation-delay: calc(120ms + var(--i, 0) * 70ms);
+}
+.gSteps li > span {
+	display: grid;
+	flex: none;
+	place-items: center;
+	width: 28px;
+	height: 28px;
+	border-radius: 50%;
+	background: var(--violet-soft);
+	color: var(--violet-ink);
+	font-size: 14px;
+	font-weight: 800;
+}
+.gSteps h3 {
+	margin: 0;
+	font-size: 14px;
+	font-weight: 700;
+}
+.gSteps p {
+	margin: 0;
+	color: var(--fg2);
+	font-size: 12.5px;
+	line-height: 1.75;
+}
+.gSteps p b {
+	color: var(--fg);
+	font-family: var(--mono);
+}
+.gNote {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	padding: 10px 12px;
+	border: 1px solid var(--warn-line);
+	border-radius: 14px;
+	background: var(--warn-soft);
+	color: var(--warn-ink);
+	font-size: 12.5px;
+	line-height: 1.8;
+}
+.gNote svg {
+	flex: none;
+	width: 18px;
+	height: 18px;
+	margin-top: 3px;
+}
+.gNote p {
+	margin: 0;
+}
+
+/* ---------- wider screens ---------- */
+@media (min-width: 768px) {
+	.top {
+		padding: 14px 28px;
+		border-bottom: 1px solid var(--line);
+		background: color-mix(in srgb, var(--surface) 72%, transparent);
+		-webkit-backdrop-filter: blur(8px);
+		backdrop-filter: blur(8px);
+	}
+	.topCode {
+		display: inline;
+	}
+	.col {
+		justify-content: center;
+		--g: 12px;
+		gap: var(--g);
+		padding: 14px 0;
+	}
+	.col {
+		max-width: 400px;
+	}
+	.hold {
+		width: clamp(256px, calc((100dvh - 548px) * 1.586 + 18px), 100%);
+	}
+	.exp {
+		padding-top: 0;
+	}
+	.gHead {
+		position: relative;
+		flex-direction: column;
+		gap: 4px;
+		text-align: center;
+	}
+	.gHead .shX {
+		position: absolute;
+		top: 0;
+		left: 0;
+	}
+	.gTitle {
+		justify-items: center;
+	}
+	.gIcon {
+		width: 64px;
+		height: 64px;
+		margin-bottom: 10px;
+	}
+	.gIcon svg {
+		width: 30px;
+		height: 30px;
+	}
+	.gHead h2 {
+		font-size: 20px;
+	}
+	.gSteps h3 {
+		font-size: 15px;
+	}
+	.gSteps {
+		gap: 16px;
+	}
+	.val {
+		font-size: 24px;
+	}
+	.sec {
+		margin: 0;
+		padding-bottom: 16px;
+	}
+	.sheetWrap {
+		align-items: center;
+		padding: 24px;
+	}
+	.sheet {
+		width: 480px;
+		max-height: min(680px, 90dvh);
+		padding: 24px 26px;
+		border-radius: 26px;
+		box-shadow: 0 30px 70px -20px rgba(0, 0, 0, 0.4);
+		opacity: 0;
+		transform: translateY(16px) scale(0.96);
+		transition: transform 0.32s var(--out), opacity 0.22s;
+	}
+	.sheetWrap[data-open] .sheet {
+		opacity: 1;
+		transform: none;
+	}
+	.grab {
+		display: none;
+	}
+	.guide {
+		gap: 22px;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.root *,
+	.root *::before,
+	.root *::after,
+	.sheetWrap *,
+	.sheetWrap *::before {
+		animation-duration: 0.01ms !important;
+		animation-delay: 0s !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		transition-delay: 0s !important;
+	}
+}

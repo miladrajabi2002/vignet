@@ -91,7 +91,7 @@ export function BankCardFace({
  * upper one and a shaded lower one) and a soft shadow make it read as
  * pressed into the plastic rather than printed on it.
  */
-function ShetabArrow() {
+export function ShetabArrow() {
 	return (
 		<svg aria-hidden viewBox="0 0 14 18" className="absolute top-1/2 -translate-y-1/2 overflow-visible" style={{ left: '2.3cqi', width: '3.9cqi', height: '5cqi', filter: 'drop-shadow(0 .3cqi .35cqi rgba(0,0,0,.32))' }}>
 			<path d="M13 1.5v15L1.6 9Z" fill="rgba(206,206,214,.85)" stroke="rgba(255,255,255,.7)" strokeWidth=".6" strokeLinejoin="round" />
