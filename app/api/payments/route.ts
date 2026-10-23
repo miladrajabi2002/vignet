@@ -68,7 +68,6 @@ export async function POST(req: Request) {
     reference: manualLinkReference(test),
     description: test ? 'واریز آزمایشی راه‌اندازی' : parsed.data.description ?? null,
     customerName: parsed.data.customerName ?? null,
-    ttlMinutes: test ? 15 : 60,
   })
   if (!created.ok) return NextResponse.json({ error: created.error }, { status: 400 })
   const workspace = await prisma.workspace.findUniqueOrThrow({ where: { id: user.workspaceId }, select: { payGatewaySettings: true } })

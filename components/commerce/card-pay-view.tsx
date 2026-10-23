@@ -64,20 +64,32 @@ function CopyRow({ label, shown, value, fa }: { label: string; shown: string; va
 
 /**
  * The live state of a payment: asks the server every few seconds while it is
- * open (slower when the tab is hidden) and stops once it is final.
+ * open (slower when the tab is hidden) and stops once it is final. `watch`
+ * can keep it asking past that (an expired payment whose amount is still held).
  */
-export function useCardPayStatus(authority: string, initial: CardPayStatus, { live = true, onChange }: { live?: boolean; onChange?: (status: CardPayStatus, paidAt: string | null) => void } = {}) {
+export function useCardPayStatus(
+	authority: string,
+	initial: CardPayStatus,
+	{ live = true, onChange, watch }: { live?: boolean; onChange?: (status: CardPayStatus, paidAt: string | null) => void; watch?: (status: CardPayStatus) => boolean } = {},
+) {
 	const [status, setStatus] = useState<CardPayStatus>(initial)
 	const [paidAt, setPaidAt] = useState<string | null>(null)
+	// Bumped when a closed payment opens again (a late «پرداخت کردم»), so it is watched again.
+	const [round, setRound] = useState(0)
+	const current = useRef(initial)
 	const notify = useRef(onChange)
 	notify.current = onChange
+	const keepWatching = useRef(watch)
+	keepWatching.current = watch
 
 	const apply = useCallback((next: CardPayStatus, paid: string | null = null) => {
 		if (paid) setPaidAt(paid)
-		setStatus((previous) => {
-			if (previous !== next) notify.current?.(next, paid)
-			return next
-		})
+		const previous = current.current
+		if (previous === next) return
+		current.current = next
+		setStatus(next)
+		notify.current?.(next, paid)
+		if (!OPEN.includes(previous) && OPEN.includes(next)) setRound((count) => count + 1)
 	}, [])
 
 	useEffect(() => {
@@ -91,7 +103,7 @@ export function useCardPayStatus(authority: string, initial: CardPayStatus, { li
 					const data = (await response.json()) as { status?: CardPayStatus; paidAt?: string | null }
 					if (!stopped && data.status) {
 						apply(data.status, data.paidAt ?? null)
-						if (!OPEN.includes(data.status)) return
+						if (!OPEN.includes(data.status) && !keepWatching.current?.(data.status)) return
 					}
 				}
 			} catch { /* offline: try again on the next tick */ }
@@ -102,7 +114,7 @@ export function useCardPayStatus(authority: string, initial: CardPayStatus, { li
 			stopped = true
 			if (timer) window.clearTimeout(timer)
 		}
-	}, [live, authority, apply])
+	}, [live, authority, apply, round])
 
 	return { status, paidAt, apply }
 }

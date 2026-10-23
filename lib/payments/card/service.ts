@@ -160,7 +160,6 @@ export interface CreatePaymentInput {
   customerPhone?: string | null
   callbackUrl?: string | null
   returnUrl?: string | null
-  ttlMinutes?: number
   /** Skip the workspace switch (a hand-made link from the dashboard still needs a card). */
   now?: Date
 }
@@ -196,7 +195,8 @@ export async function createCardPayment(input: CreatePaymentInput): Promise<Crea
   const usage = await getGatewayUsage(input.workspaceId, workspace.plan, workspace.payGatewayCapOverride)
   if (usage.reached) return { ok: false, error: 'CAP_REACHED' }
   const settings = readPayGatewaySettings(workspace.payGatewaySettings)
-  const ttlMs = (input.ttlMinutes ?? settings.ttlMinutes) * 60_000
+  // One deadline for every payment, whatever made it (chat, link, API).
+  const ttlMs = settings.ttlMinutes * 60_000
   const received = await receivedTodayByCard(input.workspaceId, now)
 
   try {
@@ -403,9 +403,14 @@ export async function unbackedClaimCount(payment: Pick<CardPayment, 'id' | 'work
  */
 export async function claimCardPayment(paymentId: string, opts: { tellCustomer?: boolean } = {}, now = new Date()): Promise<{ changed: boolean; payment: CardPayment | null; limited?: boolean }> {
   const current = await prisma.cardPayment.findUnique({ where: { id: paymentId } })
-  if (!current || current.status !== 'PENDING') return { changed: false, payment: current }
+  // Past the deadline the amount stays held for a late SMS; a claim in that window still goes to review.
+  const lateButHeld = current?.status === 'EXPIRED' && current.holdUntil != null && current.holdUntil > now
+  if (!current || (current.status !== 'PENDING' && !lateButHeld)) return { changed: false, payment: current }
   if ((await unbackedClaimCount(current, now)) >= CLAIM_LIMIT_PER_DAY) return { changed: false, payment: current, limited: true }
-  const changed = await prisma.cardPayment.updateMany({ where: { id: paymentId, status: 'PENDING' }, data: { status: 'CLAIMED', claimedAt: now } })
+  const changed = await prisma.cardPayment.updateMany({
+    where: { id: paymentId, OR: [{ status: 'PENDING' }, { status: 'EXPIRED', holdUntil: { gt: now } }] },
+    data: { status: 'CLAIMED', claimedAt: now },
+  })
   const payment = await prisma.cardPayment.findUnique({ where: { id: paymentId } })
   if (!changed.count || !payment) return { changed: false, payment }
   await syncDraft(payment, CARD_DRAFT_REVIEW)

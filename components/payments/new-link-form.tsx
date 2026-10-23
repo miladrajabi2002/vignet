@@ -175,7 +175,7 @@ export function NewPaymentButton({ locked }: { locked: 'card' | 'platform' | nul
 							{typeof navigator !== 'undefined' && 'share' in navigator ? (
 								<Button variant="outline" size="sm" className="w-fit" onClick={share}><Share2 className="size-4" aria-hidden />{fa ? 'اشتراک‌گذاری' : 'Share'}</Button>
 							) : null}
-							<p className="text-[12.5px] leading-6 text-[var(--text-muted)]">{fa ? 'مشتری کارت و مبلغ دقیق را می‌بیند و واریزش از روی پیامک بانک خودکار تأیید می‌شود. لینک تا یک ساعت باز است.' : 'The customer sees the card and the exact amount, and the transfer is confirmed from the bank SMS. The link stays open for an hour.'}</p>
+							<p className="text-[12.5px] leading-6 text-[var(--text-muted)]">{fa ? 'مشتری کارت و مبلغ دقیق را می‌بیند و واریزش از روی پیامک بانک خودکار تأیید می‌شود. لینک ۲۰ دقیقه باز است.' : 'The customer sees the card and the exact amount, and the transfer is confirmed from the bank SMS. The link stays open for 20 minutes.'}</p>
 						</div>
 					) : (
 						<form id="pay-new-link" onSubmit={submit} className="grid gap-4">

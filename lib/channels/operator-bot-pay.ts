@@ -24,6 +24,7 @@ import { toEnglishDigits } from '@/lib/phone'
 import { bankByKey } from '@/lib/payments/card/bins'
 import { payToman } from '@/lib/payments/card/pay-card'
 import { paymentSubject } from '@/lib/payments/card/prepay-service'
+import { PAY_TTL_MINUTES } from '@/lib/payments/card/settings'
 import type { PaymentListFilter, TelegramInlineKeyboardButton, TelegramInlineKeyboardMarkup } from '@/lib/channels/operator-bot'
 import { escapeHtml, type BotScreen } from '@/lib/channels/operator-bot-screens'
 
@@ -377,7 +378,6 @@ export async function payLinkCreatedScreen(workspaceId: string, input: { amount:
     source: 'LINK',
     reference: manualLinkReference(false),
     description: input.description,
-    ttlMinutes: 60,
   })
   if (!created.ok) {
     const reason: Record<string, string> = {
@@ -407,7 +407,7 @@ export async function payLinkCreatedScreen(workspaceId: string, input: { amount:
       `مبلغ دقیق: <code>${view.amount}</code> تومان`,
       'لطفاً دقیقاً همین مبلغ را واریز کنید (بدون رُند کردن)؛ پرداخت خودکار تأیید می‌شود.',
       `🔗 ${url}`,
-      `⏳ مهلت: ۶۰ دقیقه`,
+      `⏳ مهلت: ${PAY_TTL_MINUTES.toLocaleString('fa-IR')} دقیقه`,
     ].join('\n'),
     keyboard: kb([[link('🔗 باز کردن صفحهٔ پرداخت', url)], [btn('🧾 پیگیری این پرداخت', `py:v:${created.payment.id}`), btn('💳 درگاه', 'm:pay')]]),
   }

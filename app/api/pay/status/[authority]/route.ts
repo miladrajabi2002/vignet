@@ -48,7 +48,7 @@ export async function POST(_req: Request, props: Params) {
   const payment = await load(authority)
   if (!payment) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
   if (!readPayGatewaySettings(payment.workspace.payGatewaySettings).manualClaim) return NextResponse.json({ error: 'CLAIM_DISABLED' }, { status: 403 })
-  if (payment.status === 'PENDING') await claimCardPayment(payment.id, { tellCustomer: true })
+  if (payment.status === 'PENDING' || payment.status === 'EXPIRED') await claimCardPayment(payment.id, { tellCustomer: true })
   const fresh = await load(authority)
   return NextResponse.json(fresh ? body(fresh) : { error: 'NOT_FOUND' }, { headers: { ...corsHeaders, 'Cache-Control': 'no-store' } })
 }

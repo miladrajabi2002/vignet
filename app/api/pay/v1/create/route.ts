@@ -68,7 +68,6 @@ export async function POST(req: Request) {
       customerPhone: input.customer_phone ?? null,
       callbackUrl: input.callback_url,
       returnUrl: input.return_url ?? null,
-      ttlMinutes: 30,
     })
     if (!created.ok) {
       const [status, message] = ERRORS[created.error]
