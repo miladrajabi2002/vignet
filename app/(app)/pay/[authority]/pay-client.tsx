@@ -604,7 +604,7 @@ export function PayPageClient({
 	const orderBody = (
 		<>
 			<span className={s.orderL}>
-				<span className={s.orderCode}>سفارش <span dir="ltr" className={s.mono}>{card.code}</span></span>
+				<span className={s.orderCode}>اقلام سفارش</span>
 				<span className={s.orderLine}>{orderLine}</span>
 			</span>
 			<span className={s.orderT}><b>{fa(baseAmount)}</b><small>تومان</small></span>
@@ -688,7 +688,7 @@ export function PayPageClient({
 					</span>
 				</div>
 				<div className={s.topEnd}>
-					{closed ? <span className={s.topCode}>سفارش <span dir="ltr" className={s.mono}>{card.code}</span></span> : null}
+					<span className={s.topCode}>سفارش <span dir="ltr" className={s.mono}>{card.code}</span></span>
 					{(open && !closed) || leaving ? (
 						<button type="button" className={`${s.help} ${leaving ? s.gone : ''}`} onClick={() => setGuide(true)} aria-label="راهنمای پرداخت"><CircleHelp aria-hidden /></button>
 					) : null}
