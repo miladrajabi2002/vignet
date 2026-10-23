@@ -24,7 +24,7 @@ const COPY = {
 			book: { t: 'نوبت می‌دهد، بدون تداخل', b: 'وقت‌های خالی تقویم شما را پیشنهاد می‌دهد و نوبت را همان‌جا در گفتگو ثبت می‌کند؛ هر رزرو و لغو به تیمتان خبر داده می‌شود.', s: 'وقت خالی را پیشنهاد می‌دهد، ثبت می‌کند و به تیم خبر می‌دهد.' },
 			bot: { t: 'ربات مدیریت در تلگرام شما', b: 'گفتگوی حساس، سفارش و رزرو در تلگرام خودتان خبر داده می‌شود؛ از همان‌جا جواب می‌دهید یا گفتگو را می‌بندید و هر صبح گزارش می‌گیرید.', s: 'هشدار، جواب به مشتری و گزارش صبحگاهی در تلگرام خودتان.' },
 			lang: { t: 'به زبان خود مشتری جواب می‌دهد', b: 'فارسی، انگلیسی، عربی یا هر زبان دیگر؛ هر پیام به همان زبانی جواب می‌گیرد که نوشته شده.', s: '' },
-			inbox: { t: 'همهٔ پیام‌ها، یک صندوق', b: 'دایرکت و کامنت اینستاگرام، تلگرام، بله، روبیکا، ویجت سایت و چت لینک برای بیو و QR؛ یک ایجنت همه را جواب می‌دهد و شما همه را یکجا می‌بینید.', s: 'اینستاگرام، تلگرام، بله، روبیکا، سایت و چت لینک؛ یک صندوق.' },
+			inbox: { t: 'همهٔ پیام‌ها، یک صندوق', b: 'دایرکت و کامنت اینستاگرام، تلگرام، بله، روبیکا و ویجت سایت؛ یک ایجنت همه را جواب می‌دهد و شما همه را یکجا می‌بینید.', s: 'اینستاگرام، تلگرام، بله، روبیکا و سایت؛ یک صندوق.' },
 			voice: { t: 'پیام صوتی فارسی را می‌فهمد', b: 'مشتری هرجا راحت‌تر است حرف می‌زند؛ ایجنت صدا را می‌فهمد و در پیام‌رسان‌هایی که پشتیبانی می‌کنند، صوتی جواب می‌دهد.', s: 'صدا را می‌فهمد و هرجا بشود صوتی جواب می‌دهد.' },
 			pre: { t: 'فروش حتی وقتی موجود نیست', badge: 'تازه', b: 'کالای تمام‌شده را همان‌جا پیش‌سفارش می‌گیرد و وقتی رسید، خودش با لینک خرید به مشتری خبر می‌دهد.', s: 'پیش‌سفارش می‌گیرد و وقتی کالا رسید با لینک خرید خبر می‌دهد.' },
 			crm: { t: 'هر مشتری، یک پرونده', b: 'گفتگوهای هر مشتری از همهٔ پیام‌رسان‌ها در یک پرونده جمع می‌شود؛ قصد خرید سنجیده می‌شود و موارد حساس با خلاصه به همکارتان می‌رسد.', s: 'گفتگوهای هر مشتری در یک پرونده؛ موارد حساس با خلاصه به همکار.' },
@@ -48,7 +48,7 @@ const COPY = {
 			book: { t: 'Books slots, never double', b: 'It offers the free slots in your calendar and books right in the chat; every booking and cancellation reaches your team.', s: 'Offers a free slot, books it and tells your team.' },
 			bot: { t: 'A manager bot in your Telegram', b: 'Sensitive chats, orders and bookings reach you in your own Telegram; reply or resolve from there and get a report every morning.', s: 'Alerts, replies to customers and a morning report in your Telegram.' },
 			lang: { t: 'Replies in the customer’s language', b: 'Persian, English, Arabic or any other language: every message is answered in the language it was written in.', s: '' },
-			inbox: { t: 'Every message, one inbox', b: 'Instagram DMs and comments, Telegram, Bale, Rubika, the website widget and a chat link for your bio and QR; one agent answers them all and you see them in one place.', s: 'Instagram, Telegram, Bale, Rubika, website and chat link; one inbox.' },
+			inbox: { t: 'Every message, one inbox', b: 'Instagram DMs and comments, Telegram, Bale, Rubika and the website widget; one agent answers them all and you see them in one place.', s: 'Instagram, Telegram, Bale, Rubika and website; one inbox.' },
 			voice: { t: 'Understands Persian voice notes', b: 'Customers talk however they like; the agent understands and, on channels that support it, replies by voice.', s: 'Understands voice and replies by voice where it can.' },
 			pre: { t: 'Sell even when it’s out of stock', badge: 'New', b: 'It takes the pre-order right in the chat and, when the item is back, messages the customer with a buy link.', s: 'Takes pre-orders and sends a buy link when the item is back.' },
 			crm: { t: 'One record per customer', b: 'Every customer’s chats from every channel land in one record; purchase intent is scored and sensitive cases reach a teammate with a summary.', s: 'Each customer’s chats in one record; sensitive cases go to a teammate.' },
@@ -135,8 +135,7 @@ function BentoCard({ id, icon: Icon, span, tone, locale }: (typeof BENTO)[number
  * evidence-anchored customer memory, sales intelligence, humanizer, action
  * grounding, customer identification, payment-link reminders, campaigns, the
  * improvement center, Vigento, order status updates, the cart hold and
- * colour/size questions). The chat link lives in the inbox card; the
- * restaurant menu on its solution page.
+ * colour/size questions). The restaurant menu lives on its solution page.
  */
 const HIDDEN = {
 	fa: {

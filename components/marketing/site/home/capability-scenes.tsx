@@ -40,13 +40,13 @@ const KEY_FA = {
 		closed: 'گفتگو بسته شد', report: '🌅 گزارش امروز: ۴۲ گفتگو · ۳ سفارش · ۵ نوبت',
 	},
 	inbox: {
-		channels: ['اینستاگرام', 'تلگرام', 'بله', 'روبیکا', 'سایت', 'چت لینک'],
+		channels: ['اینستاگرام', 'تلگرام', 'بله', 'روبیکا', 'سایت'],
 		/** Newest first; the first three land during the scene. [name, text, channel] */
-		rows: [['مینا', 'از QR بیو پیام داد', 5], ['علی', 'ارسال به تبریز دارید؟', 3], ['رضا', 'کامنت: قیمتش چنده؟', 0], ['نگار', 'وقت جمعه هست؟', 4], ['مهدی', 'قرارداد سازمانی', 2], ['امیر', 'سفارشم کی می‌رسه؟', 1], ['سارا', 'کت مشکی موجوده؟', 0]] as [string, string, number][],
+		rows: [['مینا', 'کد تخفیف دارید؟', 4], ['علی', 'ارسال به تبریز دارید؟', 3], ['رضا', 'کامنت: قیمتش چنده؟', 0], ['نگار', 'وقت جمعه هست؟', 1], ['مهدی', 'قرارداد سازمانی', 2], ['امیر', 'سفارشم کی می‌رسه؟', 1], ['سارا', 'کت مشکی موجوده؟', 0]] as [string, string, number][],
 		foot: 'پیام تازه', digits: ['۰', '۱', '۲', '۳'],
 	},
 	voice: { time: '۰:۰۶', caption: 'متن پیام، هم‌زمان با پخش', words: 'سلام، برای فردا ساعت پنج وقت خالی دارید؟', reply: 'پاسخ صوتی ایجنت · ۰:۰۴' },
-	pre: { agent: 'سایز L الان تمام شده؛ رسید خبرتان کنم؟', user: 'آره حتماً', on: 'هشدار موجودی فعال شد', later: 'سه روز بعد', back: 'سایز L رسید! 🎉', buy: 'خرید با یک لمس' },
+	pre: { agent: 'سایز L الان تمام شده؛ رسید خبرتان کنم؟', user: 'آره حتماً', on: 'هشدار موجودی فعال شد', later: 'سه روز بعد', back: 'سایز L رسید! 🎉', buy: 'خرید' },
 	crm: {
 		initial: 'س', name: 'سارا', channels: ['اینستاگرام', 'سایت', 'تلگرام'],
 		intent: 'قصد خرید', intentValue: 'بالا', summaryLabel: 'خلاصه:', summary: 'کت مشکی سایز M، قد ۱۷۰، لینک پرداخت ارسال شد.',
@@ -89,12 +89,12 @@ const KEY_EN: typeof KEY_FA = {
 		closed: 'Conversation resolved', report: '🌅 Today: 42 chats · 3 orders · 5 bookings',
 	},
 	inbox: {
-		channels: ['Instagram', 'Telegram', 'Bale', 'Rubika', 'Website', 'Chat link'],
-		rows: [['Mina', 'messaged from the bio QR', 5], ['Ali', 'do you ship to Tabriz?', 3], ['Reza', 'comment: how much?', 0], ['Negar', 'Friday slot?', 4], ['Mehdi', 'enterprise contract', 2], ['Amir', 'when does my order arrive?', 1], ['Sara', 'black cardigan in stock?', 0]],
+		channels: ['Instagram', 'Telegram', 'Bale', 'Rubika', 'Website'],
+		rows: [['Mina', 'any discount code?', 4], ['Ali', 'do you ship to Tabriz?', 3], ['Reza', 'comment: how much?', 0], ['Negar', 'Friday slot?', 1], ['Mehdi', 'enterprise contract', 2], ['Amir', 'when does my order arrive?', 1], ['Sara', 'black cardigan in stock?', 0]],
 		foot: 'New messages', digits: ['0', '1', '2', '3'],
 	},
 	voice: { time: '0:06', caption: 'Transcript, as it plays', words: 'Hi, any free slot tomorrow at five?', reply: 'Agent voice reply · 0:04' },
-	pre: { agent: 'Size L just sold out — shall I tell you when it’s back?', user: 'Yes please', on: 'Back-in-stock alert is on', later: 'Three days later', back: 'Size L is back! 🎉', buy: 'Buy in one tap' },
+	pre: { agent: 'Size L just sold out — shall I tell you when it’s back?', user: 'Yes please', on: 'Back-in-stock alert is on', later: 'Three days later', back: 'Size L is back! 🎉', buy: 'Buy' },
 	crm: {
 		initial: 'S', name: 'Sara', channels: ['Instagram', 'Website', 'Telegram'],
 		intent: 'Purchase intent', intentValue: 'High', summaryLabel: 'Summary:', summary: 'black cardigan size M, height 170, payment link sent.',
@@ -110,9 +110,9 @@ const KEY_EN: typeof KEY_FA = {
 
 const KEY_SCENES = { fa: KEY_FA, en: KEY_EN } satisfies Record<SiteLocale, typeof KEY_FA>
 
-const CHANNEL_COLORS = ['#be185d', '#0369a1', '#00a37a', '#9333ea', '#5b3de8', '#111111']
+const CHANNEL_COLORS = ['#be185d', '#0369a1', '#00a37a', '#9333ea', '#5b3de8']
 /* Which channel pill lights for each landing message (cap-h1..3). */
-const CHANNEL_LIT: Record<number, string> = { 0: 'cap-h1', 3: 'cap-h2', 5: 'cap-h3' }
+const CHANNEL_LIT: Record<number, string> = { 0: 'cap-h1', 3: 'cap-h2', 4: 'cap-h3' }
 const ROW_LIT = ['cap-h3', 'cap-h2', 'cap-h1']
 const SOURCE_ICONS = [FileText, Globe, Package, CircleHelp]
 
@@ -281,7 +281,7 @@ function InboxScene({ locale, compact }: SceneProps) {
 				{s.channels.map((name, i) => (
 					<span key={name} className="cap-ch">
 						<i style={{ background: CHANNEL_COLORS[i] }} />{name}
-						{CHANNEL_LIT[i] ? <span className={cn('cap-ch-on', CHANNEL_LIT[i])}><i style={{ background: i === 5 ? '#ffffff' : CHANNEL_COLORS[i] }} />{name}</span> : null}
+						{CHANNEL_LIT[i] ? <span className={cn('cap-ch-on', CHANNEL_LIT[i])}><i style={{ background: CHANNEL_COLORS[i] }} />{name}</span> : null}
 					</span>
 				))}
 			</div>
