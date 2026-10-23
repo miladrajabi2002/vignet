@@ -18,6 +18,7 @@ import Link from 'next/link'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Switch } from '@/components/ui/switch'
 import { SatisfactionText } from '@/components/crm/sales-insight'
+import { satisfactionBucket } from '@/lib/ai/turn-signal'
 import { queueUndo } from '@/lib/undo-queue'
 import { cn } from '@/lib/utils'
 
@@ -78,7 +79,7 @@ export function ConversationHeaderActions({
         disabled={busy}
         onClick={() => void setResolved(!resolved)}
         className={cn(
-          'spatial-press inline-flex min-h-10 items-center gap-1.5 rounded-control px-3 text-[13px] font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 disabled:opacity-50',
+          'spatial-press inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-control px-2.5 text-[13px] font-bold sm:px-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 disabled:opacity-50',
           resolved
             ? 'border border-[var(--border-default)] bg-white font-medium text-[var(--text-primary)] hover:border-[var(--border-hover)]'
             : 'bg-[var(--text-primary)] text-white',
@@ -91,7 +92,13 @@ export function ConversationHeaderActions({
         ) : (
           <Check className="h-4 w-4" strokeWidth={2.5} aria-hidden="true" />
         )}
-        {resolved ? (fa ? 'باز کردن دوباره' : 'Reopen') : (fa ? 'حل شد' : 'Resolve')}
+        {resolved ? (
+          <>
+            {/* The long label pushed the customer's name into an ellipsis on phones. */}
+            <span className="sm:hidden">{fa ? 'بازگشایی' : 'Reopen'}</span>
+            <span className="hidden sm:inline">{fa ? 'باز کردن دوباره' : 'Reopen'}</span>
+          </>
+        ) : (fa ? 'حل شد' : 'Resolve')}
       </button>
 
       {fullPageHref && (
@@ -300,9 +307,11 @@ export function ConversationActions({
 
       <div className="flex min-h-11 items-center justify-between gap-2 px-3.5 py-1.5">
         <span className="text-[13px] text-[var(--text-secondary)]">{t('csat')}</span>
-        {typeof satisfaction === 'number'
+        {/* SatisfactionText draws nothing for a neutral read, which left this
+            row with a label and no value. */}
+        {typeof satisfaction === 'number' && satisfactionBucket(satisfaction) !== 'neutral'
           ? <SatisfactionText satisfaction={satisfaction} locale={locale} showScore />
-          : <span className="text-[12px] text-[var(--text-muted)]">{t('csatPending')}</span>}
+          : <span className="text-[12px] text-[var(--text-muted)]">{typeof satisfaction === 'number' ? t('csatNeutral') : t('csatPending')}</span>}
       </div>
     </div>
   )

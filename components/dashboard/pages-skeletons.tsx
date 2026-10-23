@@ -702,7 +702,7 @@ export function HistoryPanelSkeleton({ delay = 0, rows = 3 }: { delay?: number; 
 /** Mirrors the conversation-detail thread card (min-h-[36rem]). */
 export function ThreadCardSkeleton({ delay = 0 }: { delay?: number }) {
   return (
-    <div className="spatial-surface flex min-h-[36rem] min-w-0 flex-1 flex-col overflow-hidden rounded-sheet">
+    <div className="spatial-surface flex min-h-[36rem] min-w-0 flex-1 flex-col overflow-hidden rounded-sheet lg:min-h-0">
       <div className="flex shrink-0 items-center justify-between border-b border-black/[0.06] px-4 py-3">
         <div className="space-y-1">
           <Skeleton delay={delay} className="h-3.5 w-20 rounded-md" />

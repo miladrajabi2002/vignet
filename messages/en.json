@@ -785,6 +785,7 @@
     "noMessages": "No messages in this conversation",
     "csat": "Customer satisfaction",
     "csatPending": "Not clear yet",
+    "csatNeutral": "Neutral",
     "resolve": "Mark resolved",
     "reopen": "Reopen conversation",
     "conversationClosedTitle": "This conversation is closed",

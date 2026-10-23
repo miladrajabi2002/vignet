@@ -61,7 +61,10 @@ export default async function ConversationThreadPage(props: {
         ].filter(Boolean)
 
         return (
-                <div className="mx-auto flex h-full max-w-none flex-col gap-3">
+                // Desktop: the page is exactly one screen tall (header 6.25rem plus
+                // the main padding), so the thread scrolls inside its card and the
+                // reply box never drops below the fold.
+                <div className="mx-auto flex h-full max-w-none flex-col gap-3 lg:h-[calc(100dvh-10rem)] lg:min-h-[36rem]">
                         <BackButton href="/conversations" label={t('title')} className="w-fit self-start shrink-0" />
 
                         <div className="spatial-surface flex shrink-0 items-center gap-3 rounded-card p-3 sm:p-4">
@@ -77,7 +80,7 @@ export default async function ConversationThreadPage(props: {
                                                 {attention && <ConversationStatusBadge status="HANDED_OFF" label={fa ? 'نیاز به اپراتور' : 'Needs operator'} attention />}
                                                 <span className="hidden sm:inline-flex"><SalesInsightBadge insight={insight} locale={locale} compactOnMobile /></span>
                                         </div>
-                                        <p className="mt-0.5 truncate text-[12px] text-[var(--text-muted)]">
+                                        <p className="mt-0.5 line-clamp-2 break-words text-[12px] leading-5 text-[var(--text-muted)] sm:truncate">
                                                 {meta.map((item, index) => (
                                                         <span key={index}>
                                                                 {index > 0 && ' · '}

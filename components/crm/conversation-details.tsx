@@ -80,7 +80,9 @@ export function ConversationDetails({
                                                                 {summaryFields(what).map((field, index) => (
                                                                         <div key={index} className="min-w-0">
                                                                                 {field.label ? <dt className="text-[12px] text-[var(--text-muted)]">{field.label}</dt> : null}
-                                                                                <dd dir="auto" className="min-w-0 break-words text-[var(--text-primary)]">{field.value}</dd>
+                                                                                {/* bdi keeps a phone or Latin value reading the right way while
+                                                                                    it lines up under its label like the rest. */}
+                                                                                <dd className="min-w-0 break-words text-[var(--text-primary)]"><bdi dir="auto">{field.value}</bdi></dd>
                                                                         </div>
                                                                 ))}
                                                         </dl>

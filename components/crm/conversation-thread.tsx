@@ -132,6 +132,14 @@ function readOutboundMedia(metadata: Record<string, unknown> | null): OutboundMe
         return items.length ? items : null
 }
 
+/** lg and up: the thread card has a fixed height and scrolls its own list. */
+const THREAD_SCROLLS_ITSELF = '(min-width: 64rem)'
+
+/** How far the list's end sits below the top of the sticky reply box. */
+function pageOverflowBelow(list: HTMLElement, composer: HTMLElement | null) {
+        return list.getBoundingClientRect().bottom - (window.innerHeight - (composer?.offsetHeight ?? 0))
+}
+
 export function ConversationThread({
         initialMessages,
         conversationId,
@@ -166,6 +174,8 @@ export function ConversationThread({
         const [polledMessages, setPolledMessages] = useState<ThreadMessage[]>([])
         const [hasNewMessages, setHasNewMessages] = useState(false)
         const scrollRef = useRef<HTMLDivElement>(null)
+        const composerRef = useRef<HTMLDivElement>(null)
+        const rootRef = useRef<HTMLDivElement>(null)
         const lastMessageIdRef = useRef<string | null>(
                 initialMessages.length > 0 ? initialMessages[initialMessages.length - 1].id : null,
         )
@@ -187,11 +197,40 @@ export function ConversationThread({
         const scrollToBottom = useCallback((smooth = true) => {
                 const el = scrollRef.current
                 if (!el) return
-                el.scrollTo({
-                        top: el.scrollHeight,
-                        behavior: smooth && !reduceMotion ? 'smooth' : 'auto',
-                })
+                const behavior = smooth && !reduceMotion ? 'smooth' : 'auto'
+                if (window.matchMedia(THREAD_SCROLLS_ITSELF).matches) {
+                        el.scrollTo({ top: el.scrollHeight, behavior })
+                        return
+                }
+                // Below lg the list grows with its messages and the page scrolls,
+                // so bring the list's end up to just above the sticky reply box.
+                // Skipped while the details tab hides the thread.
+                if (el.offsetParent === null) return
+                window.scrollBy({ top: pageOverflowBelow(el, composerRef.current), behavior })
         }, [reduceMotion])
+
+        // The page-scroll twin of handleScroll for phones and tablets.
+        useEffect(() => {
+                function onWindowScroll() {
+                        const el = scrollRef.current
+                        if (!el || el.offsetParent === null || window.matchMedia(THREAD_SCROLLS_ITSELF).matches) return
+                        const atBottom = pageOverflowBelow(el, composerRef.current) < 80
+                        isAtBottomRef.current = atBottom
+                        if (atBottom) setHasNewMessages(false)
+                }
+                window.addEventListener('scroll', onWindowScroll, { passive: true })
+                return () => window.removeEventListener('scroll', onWindowScroll)
+        }, [])
+
+        // The «new messages» pill floats above the sticky reply box on phones.
+        useEffect(() => {
+                const composer = composerRef.current
+                const root = rootRef.current
+                if (!composer || !root || typeof ResizeObserver === 'undefined') return
+                const observer = new ResizeObserver(() => root.style.setProperty('--composer-h', `${composer.offsetHeight}px`))
+                observer.observe(composer)
+                return () => observer.disconnect()
+        }, [])
 
         // ── Polling for new messages ───────────────────────────────────────────
         // Polls GET /api/conversations/[id]/messages?since=<lastId> every 5s.
@@ -311,7 +350,12 @@ export function ConversationThread({
         // the polling effect (which respects the isAtBottom flag so we don't yank
         // the scroll position when the operator is reading history).
         useEffect(() => {
-                if (isAtBottomRef.current) scrollToBottom(false)
+                // A frame later, so the router's own scroll-to-top on navigation
+                // has already run and the thread opens on its latest message.
+                const frame = requestAnimationFrame(() => {
+                        if (isAtBottomRef.current) scrollToBottom(false)
+                })
+                return () => cancelAnimationFrame(frame)
         }, [scrollToBottom])
         // Scroll when the operator sends a message (they expect to see it).
         useEffect(() => {
@@ -338,18 +382,18 @@ export function ConversationThread({
                         layout: { type: 'spring' as const, duration: 0.36, bounce: 0 },
                 }
 
-        // overflow-clip on phones: it rounds the corners like hidden but is not a
+        // overflow-clip below lg: it rounds the corners like hidden but is not a
         // scroll container, so the sticky reply box can stick to the viewport.
         return (
-                <div className={cn('flex min-w-0 flex-1 flex-col overflow-clip md:overflow-hidden', embedded ? 'min-h-0' : 'spatial-surface min-h-[36rem] rounded-sheet')}>
+                <div ref={rootRef} className={cn('flex min-w-0 flex-1 flex-col overflow-clip lg:overflow-hidden', embedded ? 'min-h-0' : 'spatial-surface min-h-[36rem] rounded-sheet lg:min-h-0')}>
                         {!embedded && (
-                                <div className="flex shrink-0 items-center justify-between border-b border-black/[0.06] px-4 py-3"><div><p className="text-xs font-bold text-black/75">{locale === 'fa' ? 'گفتگوی زنده' : 'Live conversation'}</p><p className="mt-0.5 text-[12px] text-[var(--text-muted)]">{locale === 'fa' ? 'پیام‌های تازه خودکار نمایش داده می‌شوند' : 'New messages appear automatically'}</p></div><span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[12px] font-bold text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{locale === 'fa' ? 'آنلاین' : 'Online'}</span></div>
+                                <div className="flex shrink-0 items-center justify-between gap-3 border-b border-black/[0.06] px-4 py-2.5 sm:py-3"><div className="min-w-0"><p className="text-xs font-bold text-black/75">{locale === 'fa' ? 'گفتگوی زنده' : 'Live conversation'}</p><p className="mt-0.5 hidden text-[12px] text-[var(--text-muted)] sm:block">{locale === 'fa' ? 'پیام‌های تازه خودکار نمایش داده می‌شوند' : 'New messages appear automatically'}</p></div><span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[12px] font-bold text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{locale === 'fa' ? 'آنلاین' : 'Online'}</span></div>
                         )}
                         {/* dir="ltr" pins the bubble sides: the CUSTOMER is always on the
                             visual RIGHT and the agent/operator on the LEFT, identically in
                             every locale — the same pin the chat-link page and the web widget
                             use. Bubble text keeps dir="auto" so Persian still reads RTL. */}
-                        <div ref={scrollRef} onScroll={handleScroll} dir="ltr" className="relative min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+                        <div ref={scrollRef} onScroll={handleScroll} dir="ltr" className="relative min-h-0 flex-1 space-y-3 p-4 lg:overflow-y-auto">
                                 <AnimatePresence initial={false}>
                                 {messages.map((m) => {
                                         if (!visibleIds.has(m.id)) return <ConversationSessionDivider key={m.id} locale={locale} />
@@ -592,17 +636,19 @@ export function ConversationThread({
                                                         setHasNewMessages(false)
                                                         scrollToBottom()
                                                 }}
-                                                className="sticky bottom-3 left-1/2 z-10 -translate-x-1/2 rounded-full bg-[var(--bg-base)] px-4 py-1.5 text-xs font-medium text-[var(--text-primary)] shadow-lg ring-1 ring-[var(--border-default)] transition-[transform,box-shadow] duration-200 hover:scale-[1.03] motion-reduce:transform-none"
+                                                className="sticky bottom-[calc(var(--composer-h,0px)+0.75rem)] left-1/2 z-30 -translate-x-1/2 rounded-full lg:bottom-3 lg:z-10 bg-[var(--bg-base)] px-4 py-1.5 text-xs font-medium text-[var(--text-primary)] shadow-lg ring-1 ring-[var(--border-default)] transition-[transform,box-shadow] duration-200 hover:scale-[1.03] motion-reduce:transform-none"
                                         >
                                                 {locale === 'fa' ? 'پیام‌های جدید ↓' : 'New messages ↓'}
                                         </button>
                                 )}
                         </div>
 
-                        {/* On a phone the page itself scrolls, so the reply box sticks to the
+                        {/* Below lg the page itself scrolls, so the reply box sticks to the
                             bottom of the screen (the tab bar is hidden here) instead of
-                            waiting at the end of the thread. */}
-                        <div className="sticky bottom-0 z-20 shrink-0 border-t border-[var(--border-subtle)] bg-white/95 p-3 backdrop-blur [padding-bottom:max(0.75rem,env(safe-area-inset-bottom))] md:static md:bg-transparent md:backdrop-blur-none">
+                            waiting at the end of the thread. Its white runs on down past
+                            the box: Safari's see-through toolbar sits under a sticky
+                            bottom-0, and the thread scrolling there read as a mess. */}
+                        <div ref={composerRef} className="sticky bottom-0 z-20 shrink-0 border-t border-[var(--border-subtle)] bg-white/95 p-3 backdrop-blur [padding-bottom:max(0.75rem,env(safe-area-inset-bottom))] after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-[100dvh] after:bg-white lg:static lg:bg-transparent lg:backdrop-blur-none lg:after:hidden">
                                 <OperatorReply
                                         conversationId={conversationId}
                                         channel={channel}

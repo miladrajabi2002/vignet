@@ -785,6 +785,7 @@
     "noMessages": "پیامی در این گفتگو نیست",
     "csat": "رضایت مشتری",
     "csatPending": "هنوز مشخص نیست",
+    "csatNeutral": "خنثی",
     "resolve": "حل شد؛ بستن گفتگو",
     "reopen": "باز کردن دوبارهٔ گفتگو",
     "conversationClosedTitle": "این گفتگو بسته شده است",

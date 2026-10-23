@@ -16,7 +16,7 @@ import {
  */
 export default function ConversationDetailLoading() {
   return (
-    <div className="mx-auto flex h-full max-w-none flex-col gap-4">
+    <div className="mx-auto flex h-full max-w-none flex-col gap-3 lg:h-[calc(100dvh-10rem)] lg:min-h-[36rem]">
       <BackRowSkeleton delay={-40} className="w-fit self-start shrink-0" />
 
       {/* Contact header card */}
@@ -26,7 +26,7 @@ export default function ConversationDetailLoading() {
       <MobileTabBar2Skeleton delay={-120} />
 
       {/* Thread + details (2 columns at lg, mirrors the real grid) */}
-      <div className="grid min-h-[calc(100dvh-11rem)] gap-4 lg:grid-cols-[minmax(0,1fr)_21rem]">
+      <div className="grid min-h-[calc(100dvh-11rem)] gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_21rem]">
         <ThreadCardSkeleton delay={-160} />
         <AsideCardsSkeleton delay={-220} cards={3} />
       </div>
