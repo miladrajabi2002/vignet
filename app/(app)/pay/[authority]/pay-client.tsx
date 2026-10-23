@@ -192,8 +192,8 @@ function ItemsSheetBody({ items, code, baseAmount, amount, onClose }: { items: P
 			<div className={s.shHead}>
 				<span className={s.shIcon}><ShoppingBag aria-hidden /></span>
 				<div>
-					<h2>اقلام سفارش</h2>
-					<p>{fa(items.length)} قلم · سفارش <span dir="ltr" className={s.mono}>{code}</span></p>
+					<h2>سفارش شما</h2>
+					<p>{fa(items.length)} مورد · سفارش <span dir="ltr" className={s.mono}>{code}</span></p>
 				</div>
 				<button type="button" className={s.shX} onClick={onClose} aria-label="بستن" data-autofocus><X aria-hidden /></button>
 			</div>
@@ -599,12 +599,12 @@ export function PayPageClient({
 	const lateBox = card.claim && !final && (status === 'CLAIMED' || Date.now() < heldUntil)
 
 	const orderLine = first
-		? <><ShoppingBag aria-hidden /><span>{first.name}{first.quantity > 1 ? ` (${fa(first.quantity)} عدد)` : ''}</span>{items.length > 1 ? <span className={s.more}>+{fa(items.length - 1)} قلم</span> : null}</>
+		? <><ShoppingBag aria-hidden /><span>{first.name}{first.quantity > 1 ? ` (${fa(first.quantity)} عدد)` : ''}</span>{items.length > 1 ? <span className={s.more}>+{fa(items.length - 1)} مورد</span> : null}</>
 		: <span>{subject ?? `پرداخت به ${business}`}</span>
 	const orderBody = (
 		<>
 			<span className={s.orderL}>
-				<span className={s.orderCode}>اقلام سفارش</span>
+				<span className={s.orderCode}>سفارش شما</span>
 				<span className={s.orderLine}>{orderLine}</span>
 			</span>
 			<span className={s.orderT}><b>{fa(baseAmount)}</b><small>تومان</small></span>
@@ -741,7 +741,7 @@ export function PayPageClient({
 								<div><dt>کد پیگیری</dt><dd dir="ltr" className={s.mono}>{card.code}</dd></div>
 								<div><dt>زمان تأیید</dt><dd>{time}</dd></div>
 								<div><dt>واریز به</dt><dd>{bank.fa} · <span dir="ltr" className={s.mono}>•••• {card.pan.slice(-4)}</span></dd></div>
-								<div><dt>بابت</dt><dd>{items.length > 1 ? `${fa(items.length)} قلم کالا` : first?.name ?? subject ?? `سفارش ${card.code}`}</dd></div>
+								<div><dt>بابت</dt><dd>{items.length > 1 ? `${fa(items.length)} مورد` : first?.name ?? subject ?? `سفارش ${card.code}`}</dd></div>
 							</dl>
 						</div>
 					</div>
@@ -754,7 +754,7 @@ export function PayPageClient({
 							<div className={s.foldBody}>
 								<div className={`${s.order} ${s.rise}`} style={{ '--i': 2 } as CSSProperties}>
 									{items.length ? (
-										<button type="button" className={s.itemsBtn} onClick={() => setItemsOpen(true)} aria-label="دیدن اقلام سفارش">{orderBody}</button>
+										<button type="button" className={s.itemsBtn} onClick={() => setItemsOpen(true)} aria-label="دیدن جزئیات سفارش">{orderBody}</button>
 									) : <span className={s.itemsBtn} style={{ cursor: 'default' }}>{orderBody}</span>}
 								</div>
 								<div className={`${s.acts} ${s.rise}`} style={{ '--i': 3 } as CSSProperties}>
@@ -845,7 +845,7 @@ export function PayPageClient({
 
 			<p className={s.sec}><ShieldCheck aria-hidden /><span key={secText} className={s.secT}>{secText}</span></p>
 
-			<Sheet open={itemsOpen} onClose={closeItems} label="اقلام سفارش">
+			<Sheet open={itemsOpen} onClose={closeItems} label="سفارش شما">
 				<ItemsSheetBody items={items} code={card.code} baseAmount={baseAmount} amount={card.amount} onClose={closeItems} />
 			</Sheet>
 			<Sheet open={guide && open && !closed} onClose={closeGuide} label="راهنمای پرداخت">
