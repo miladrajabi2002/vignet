@@ -1,16 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Route, Save, ShieldCheck, Volume2, WalletCards } from 'lucide-react'
-import type { PlatformCommercialConfig } from '@/lib/platform/commercial-config'
+import type { PlatformCommercialConfig } from '@/lib/platform/plan-limits'
+import { isUnlimitedPlanLimit, PLAN_LIMIT_UNLIMITED } from '@/lib/platform/plan-limits'
 import { cn } from '@/lib/utils'
 import { SaveButton, useSaveState } from '@/components/ui/save-button'
+import { Switch } from '@/components/ui/switch'
 import { AGENT_MODELS, type ModelAlias } from '@/lib/ai/models'
 import { NumberField } from '@/components/admin/number-field'
 import { ProviderRoutingField } from '@/components/admin/provider-routing-field'
 
 type NumberPath =
-  | ['trialCreditIRR']
   | ['financeUsdToIRR']
   | ['sttPricePerMinuteIRR']
   | ['visionPricePerImageIRR']
@@ -56,7 +57,6 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
     const parsed = empty ? 0 : Math.max(0, Math.round(Number(raw) * scale))
     if (!empty && !Number.isFinite(parsed)) return
     setValue((current) => {
-      if (path[0] === 'trialCreditIRR') return { ...current, trialCreditIRR: parsed }
       if (path[0] === 'financeUsdToIRR') return { ...current, financeUsdToIRR: empty ? null : parsed }
       if (path[0] === 'sttPricePerMinuteIRR') return { ...current, sttPricePerMinuteIRR: parsed }
       if (path[0] === 'visionPricePerImageIRR') return { ...current, visionPricePerImageIRR: parsed }
@@ -72,6 +72,24 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
         },
       }
     })
+    setDirty(true)
+    setMessage(null)
+  }
+
+  /**
+   * Channels accept the unlimited sentinel (PLAN_LIMIT_UNLIMITED). Toggling
+   * the switch off restores the last finite ceiling typed for that plan.
+   */
+  const lastFiniteChannelLimit = useRef<Partial<Record<keyof typeof PLAN_META, number>>>({})
+
+  function setPlanChannelLimit(plan: keyof typeof PLAN_META, next: number) {
+    setValue((current) => ({
+      ...current,
+      plans: {
+        ...current.plans,
+        [plan]: { ...current.plans[plan], maxChannels: next },
+      },
+    }))
     setDirty(true)
     setMessage(null)
   }
@@ -157,11 +175,8 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
           </div>
         </div>
         <div className="spatial-surface rounded-card p-4 sm:p-6">
-          <div className="flex items-center gap-3"><span className="admin-icon-well"><WalletCards className="h-4 w-4" /></span><div><h2 className="ui-h3 !leading-6">اعتبار و نرخ مالی</h2><p className="text-[12px] text-[var(--text-muted)]">برای ثبت‌نام جدید و محاسبه سود تلفیقی</p></div></div>
+          <div className="flex items-center gap-3"><span className="admin-icon-well"><WalletCards className="h-4 w-4" /></span><div><h2 className="ui-h3 !leading-6">اعتبار و نرخ مالی</h2><p className="text-[12px] text-[var(--text-muted)]">برای محاسبه سود تلفیقی</p></div></div>
           <div className="mt-5 space-y-4">
-            <Field label="اعتبار هدیه ماه آزمایشی" hint="به تومان">
-              <MoneyInput value={toToman(value.trialCreditIRR)} onChange={(raw) => setNumber(['trialCreditIRR'], raw, TOMAN_SCALE)} suffix="تومان" />
-            </Field>
             <Field label="نرخ هر دلار آمریکا" hint="برای گزارش سود؛ خالی یعنی نمایش ندادن سود تلفیقی">
               <MoneyInput value={value.financeUsdToIRR == null ? '' : toToman(value.financeUsdToIRR)} onChange={(raw) => setNumber(['financeUsdToIRR'], raw, TOMAN_SCALE)} suffix="تومان" allowEmpty />
             </Field>
@@ -170,7 +185,7 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
       </section>
 
       <section className="spatial-surface rounded-card p-4 sm:p-6">
-        <div><h2 className="ui-h2">پلن‌ها و ظرفیت سرویس</h2><p className="ui-caption">قیمت، اعتبار هدیه و سقف کانال، محصول، سفارش و مشتری از همین تنظیمات خوانده می‌شود. قیمت‌ها به تومان هستند؛ تعرفه هر پاسخ در همه پلن‌ها ثابت و تعداد ایجنت نامحدود است.</p></div>
+        <div><h2 className="ui-h2">پلن‌ها و ظرفیت سرویس</h2><p className="ui-caption">قیمت و سقف کانال، محصول، سفارش و مشتری از همین تنظیمات خوانده می‌شود. قیمت‌ها به تومان هستند؛ تعرفه هر پاسخ در همه پلن‌ها ثابت و تعداد ایجنت نامحدود است.</p></div>
         <div className="mt-5 grid gap-4 lg:grid-cols-2">
           {(Object.keys(PLAN_META) as Array<keyof typeof PLAN_META>).map((plan) => {
             const meta = PLAN_META[plan]
@@ -182,19 +197,27 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
                     <p className="text-sm font-bold text-[var(--text-primary)]">
                       {meta.title}
                     </p>
-                    <p className="mt-1 text-[12px] text-[var(--text-muted)]">{meta.hint}{meta.locked ? ' · قیمت و اعتبار این پلن قفل است' : ''}</p>
+                    <p className="mt-1 text-[12px] text-[var(--text-muted)]">{meta.hint}{meta.locked ? ' · قیمت این پلن قفل است' : ''}</p>
                   </div>
                   <span dir="ltr" className="rounded-full bg-white px-2.5 py-1 text-[12px] font-bold text-[var(--text-secondary)] ring-1 ring-black/[0.06]">{plan}</span>
                 </div>
-                <p className="mt-5 text-[12px] font-bold text-[var(--text-muted)]">قیمت و اعتبار</p>
-                <div className="mt-2 grid gap-3 sm:grid-cols-3">
+                <p className="mt-5 text-[12px] font-bold text-[var(--text-muted)]">قیمت ماهانه</p>
+                <div className="mt-2 grid gap-3 sm:grid-cols-2">
                   <PlanNumber label="قیمت ماهانه" unit="تومان" value={toTomanNum(item.priceIRR)} disabled={meta.locked} onChange={(raw) => setNumber(['plans', plan, 'priceIRR'], raw, TOMAN_SCALE)} />
                   <PlanNumber label="قیمت دلاری" unit="$" value={item.priceUSD} disabled={meta.locked} onChange={(raw) => setNumber(['plans', plan, 'priceUSD'], raw)} />
-                  <PlanNumber label="اعتبار هدیه" unit="تومان" value={toTomanNum(item.includedCreditIRR)} disabled={meta.locked} onChange={(raw) => setNumber(['plans', plan, 'includedCreditIRR'], raw, TOMAN_SCALE)} />
                 </div>
                 <p className="mt-5 text-[12px] font-bold text-[var(--text-muted)]">سقف ظرفیت</p>
                 <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  <PlanNumber label="کانال" value={item.maxChannels} onChange={(raw) => setNumber(['plans', plan, 'maxChannels'], raw)} />
+                  <ChannelLimitNumber
+                    label="کانال"
+                    value={item.maxChannels}
+                    onInput={(raw) => {
+                      const parsed = Number(raw)
+                      if (raw !== '' && Number.isFinite(parsed) && parsed > 0) lastFiniteChannelLimit.current[plan] = Math.round(parsed)
+                      setNumber(['plans', plan, 'maxChannels'], raw)
+                    }}
+                    onToggleUnlimited={(unlimited) => setPlanChannelLimit(plan, unlimited ? PLAN_LIMIT_UNLIMITED : (lastFiniteChannelLimit.current[plan] ?? 20))}
+                  />
                   <PlanNumber label="محصول" value={item.maxProducts} onChange={(raw) => setNumber(['plans', plan, 'maxProducts'], raw)} />
                   <PlanNumber label="سفارش" value={item.maxOrders} onChange={(raw) => setNumber(['plans', plan, 'maxOrders'], raw)} />
                   <PlanNumber label="مشتری" value={item.maxCustomers} onChange={(raw) => setNumber(['plans', plan, 'maxCustomers'], raw)} />
@@ -235,4 +258,23 @@ function MoneyInput({ value, onChange, suffix, allowEmpty }: { value: number | '
 
 function PlanNumber({ label, value, unit, onChange, disabled, decimals }: { label: string; value: number; unit?: string; onChange: (value: string) => void; disabled?: boolean; decimals?: boolean }) {
   return <label className="block"><span className="mb-1.5 block text-[12px] font-medium text-[var(--text-secondary)]">{label}</span><NumberField value={value} onChange={onChange} unit={unit} disabled={disabled} decimals={decimals} /></label>
+}
+
+/**
+ * The channel ceiling carries an «اتصال نامحدود» switch, stored as the -1
+ * sentinel. While the switch is on the numeric input is disabled and shows
+ * the label; switching off restores the last finite ceiling for that plan.
+ */
+function ChannelLimitNumber({ label, value, onInput, onToggleUnlimited }: { label: string; value: number; onInput: (raw: string) => void; onToggleUnlimited: (unlimited: boolean) => void }) {
+  const unlimited = isUnlimitedPlanLimit(value)
+  return (
+    <div>
+      <span className="mb-1.5 block text-[12px] font-medium text-[var(--text-secondary)]">{label}</span>
+      <NumberField value={unlimited ? '' : value} onChange={onInput} disabled={unlimited} placeholder="نامحدود" />
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <span className="text-[11px] leading-4 text-[var(--text-muted)]">اتصال نامحدود</span>
+        <Switch checked={unlimited} onChange={onToggleUnlimited} aria-label={`اتصال نامحدود — ${label}`} />
+      </div>
+    </div>
+  )
 }

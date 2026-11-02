@@ -1,13 +1,12 @@
 import { prisma, type Tx } from '@/lib/prisma'
 import { getRedis } from '@/lib/redis'
-import { getEffectivePlanDefs, PERIOD_DAYS, type PaidPlan } from '@/lib/billing/plans'
+import { getEffectivePlanDefs, isUnlimitedPlanLimit, PERIOD_DAYS, type PaidPlan } from '@/lib/billing/plans'
 import {
   enqueueAdminCommercialSms,
   processAdminCommercialSmsPayment,
 } from '@/lib/billing/admin-commercial-outbox'
 import { sendSubscriptionPurchasedSms } from '@/lib/sms/ippanel'
 import { captureError } from '@/lib/errors/capture'
-import { grantIncludedPlanCredit } from '@/lib/billing/plan-credit'
 import { CUSTOMER_WHERE } from '@/lib/crm/customer'
 import type { ChannelType, Plan, Prisma } from '@prisma/client'
 
@@ -231,7 +230,10 @@ export async function checkChannelConnectAllowed(
     getEffectivePlanDefs(),
     getActiveChannelConnectionCount(workspaceId),
   ])
-  return count < defs[access.plan].maxChannels
+  const ceiling = defs[access.plan].maxChannels
+  // -1 marks the unlimited-connection plans (flagship tier): the gate never
+  // closes, only the workspace-active check above can refuse.
+  return isUnlimitedPlanLimit(ceiling) || count < ceiling
     ? access
     : { allowed: false, reason: 'CHANNEL_LIMIT' }
 }
@@ -340,7 +342,6 @@ export async function activateSubscriptionPayment(params: SubscriptionActivation
   paymentId: string
   paymentUpdate: Prisma.PaymentUpdateManyMutationInput
 }): Promise<boolean> {
-  const includedCreditIRR = (await getEffectivePlanDefs())[params.plan].includedCreditIRR
   const activation = await prisma.$transaction(async (tx) => {
     const claimed = await tx.payment.updateMany({
       where: {
@@ -354,12 +355,6 @@ export async function activateSubscriptionPayment(params: SubscriptionActivation
     })
     if (claimed.count !== 1) return null
     const subscription = await persistSubscription(tx, params)
-    await grantIncludedPlanCredit(tx, {
-      paymentId: params.paymentId,
-      workspaceId: params.workspaceId,
-      plan: params.plan,
-      amountIRR: includedCreditIRR,
-    })
     await enqueueAdminCommercialSms(tx, {
       kind: subscription.renewed ? 'SUBSCRIPTION_RENEWED' : 'SUBSCRIPTION_PURCHASED',
       paymentId: params.paymentId,

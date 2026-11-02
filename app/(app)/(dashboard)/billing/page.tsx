@@ -8,7 +8,7 @@ import { PlanCheckout } from '@/components/dashboard/plan-checkout'
 import { CreditTopup } from '@/components/dashboard/credit-topup'
 import { formatDateTime } from '@/lib/format'
 import { formatLocalizedDate } from '@/lib/localized-date'
-import { getEffectivePlanDefs, getEffectivePlanReplyPricesIRR, isPaidPlan, PAID_PLANS, PERIOD_DAYS } from '@/lib/billing/plans'
+import { getEffectivePlanDefs, getEffectivePlanReplyPricesIRR, isPaidPlan, isUnlimitedPlanLimit, PAID_PLANS, PERIOD_DAYS, unlimitedPlanLabel } from '@/lib/billing/plans'
 import { estimateRemainingReplies } from '@/lib/billing/credit-estimates'
 import { AGENT_MODELS } from '@/lib/ai/models'
 import { cn } from '@/lib/utils'
@@ -90,6 +90,8 @@ export default async function BillingPage(
     ? searchParams.plan
     : null
   // A page too big for the asked (or smallest) plan gets the plan that serves it.
+  // سازمانی has no follower cap, so every page — however big — always has a
+  // self-serve plan; no support detour is ever offered.
   const fittingPlan = smallestPlanForAudience(audience)
   const requestedPlan = askedPlan && planFitsAudience(askedPlan, audience)
     ? askedPlan
@@ -117,9 +119,10 @@ export default async function BillingPage(
 
   const currentDef = defs[plan]
   // `full` is what reaching the cap does; a connection cap is a plain ceiling
-  // (nothing is lost), the others stop new records from being saved.
-  const capacity = [
-    { label: locale === 'fa' ? 'اتصال فعال' : 'Active channel connections', used: channelsUsed, limit: currentDef.maxChannels, blocking: false, full: locale === 'fa' ? 'برای اتصال بیشتر، پلن را ارتقا دهید.' : 'Upgrade to connect more apps.' },
+  // (nothing is lost), the others stop new records from being saved. The
+  // unlimited ceiling (-1, flagship plan) never fills, so it shows no meter.
+  const capacity: Array<{ label: string; used: number; limit: number; blocking: boolean; full: string; unlimited?: boolean }> = [
+    { label: locale === 'fa' ? 'اتصال فعال' : 'Active channel connections', used: channelsUsed, limit: currentDef.maxChannels, blocking: false, full: locale === 'fa' ? 'برای اتصال بیشتر، پلن را ارتقا دهید.' : 'Upgrade to connect more apps.', unlimited: isUnlimitedPlanLimit(currentDef.maxChannels) },
     { label: locale === 'fa' ? 'محصول' : 'Products', used: productsUsed, limit: currentDef.maxProducts, blocking: true, full: locale === 'fa' ? 'محصول تازه ساخته یا همگام نمی‌شود.' : 'New products are not created or synced.' },
     { label: locale === 'fa' ? 'سفارش' : 'Orders', used: ordersUsed, limit: currentDef.maxOrders, blocking: true, full: locale === 'fa' ? 'سفارش تازهٔ فروشگاه ثبت نمی‌شود.' : 'New store orders are not recorded.' },
     { label: locale === 'fa' ? 'مشتری' : 'Customers', used: customersUsed, limit: currentDef.maxCustomers, blocking: true, full: locale === 'fa' ? 'مشتری تازه به فهرست مشتریان اضافه نمی‌شود.' : 'New customers are not added to the customer list.' },
@@ -230,16 +233,20 @@ export default async function BillingPage(
 
           <div className="mt-4 grid gap-3 border-t border-[var(--border-subtle)] pt-4">
             {capacity.map((item) => {
-              const ratio = item.limit > 0 ? item.used / item.limit : 1
+              const ratio = item.unlimited ? 0 : item.limit > 0 ? item.used / item.limit : 1
               return (
                 <div key={item.label}>
                   <div className="flex items-center justify-between gap-3 text-xs">
                     <span className="text-[var(--text-secondary)]">{item.label}</span>
                     <span className={cn('tabular-nums', item.blocking && ratio >= 1 ? 'font-bold text-red-600' : 'text-[var(--text-muted)]')}>
                       {item.blocking && ratio >= 1 ? (locale === 'fa' ? 'پر شد · ' : 'Full · ') : ''}
-                      {locale === 'fa'
-                        ? `${nf.format(item.used)} از ${nf.format(item.limit)}`
-                        : `${nf.format(item.used)} of ${nf.format(item.limit)}`}
+                      {item.unlimited
+                        ? (locale === 'fa'
+                          ? `${nf.format(item.used)} از ${unlimitedPlanLabel('fa')}`
+                          : `${nf.format(item.used)} of ${unlimitedPlanLabel('en')}`)
+                        : (locale === 'fa'
+                          ? `${nf.format(item.used)} از ${nf.format(item.limit)}`
+                          : `${nf.format(item.used)} of ${nf.format(item.limit)}`)}
                     </span>
                   </div>
                   <Meter className="mt-1.5" ratio={ratio} warnWhenFull={item.blocking} critical={item.blocking && ratio >= 1} />
@@ -317,6 +324,26 @@ export default async function BillingPage(
             {locale === 'fa' ? `هر پرداخت ${nf.format(PERIOD_DAYS)} روز اشتراک` : `Each payment covers ${nf.format(PERIOD_DAYS)} days`}
           </span>
         </div>
+        {audience && subscriptionLive && isPaidPlan(plan) && !planFitsAudience(plan, audience) && (
+          <div className="mb-4 rounded-card border border-amber-300/70 bg-amber-50 p-4 text-amber-950">
+            <p className="text-sm font-bold">
+              {locale === 'fa'
+                ? `پیج ${audience.username ? `@${audience.username}` : 'شما'} ${formatFollowers(audience.followers, 'fa')} فالوور دارد`
+                : `${audience.username ? `@${audience.username}` : 'Your page'} has ${formatFollowers(audience.followers, 'en')} followers`}
+            </p>
+            <p className="mt-1 text-[13px] leading-6">
+              {locale === 'fa'
+                ? `از سقف پلن فعلی شما (تا ${formatFollowers(PLAN_MAX_IG_FOLLOWERS[plan] ?? 0, 'fa')} فالوور) عبور کرده است. سرویس شما بدون وقفه ادامه دارد؛ پیج‌های بزرگ‌تر با پلن سازمانی و بدون سقف فالوور پوشش داده می‌شوند.`
+                : `That is above your current plan's cap of ${formatFollowers(PLAN_MAX_IG_FOLLOWERS[plan] ?? 0, 'en')} followers. Your service keeps running; larger pages are covered by سازمانی (Business), which has no follower cap.`}
+            </p>
+            <a
+              href="#plan-BUSINESS"
+              className="mt-3 inline-flex min-h-10 items-center rounded-xl bg-black px-4 text-[13px] font-semibold text-white"
+            >
+              {locale === 'fa' ? 'دیدن پلن سازمانی' : 'See the سازمانی plan'}
+            </a>
+          </div>
+        )}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {PAID_PLANS.map((p) => {
             const def = defs[p]
@@ -331,11 +358,10 @@ export default async function BillingPage(
                   ? (locale === 'fa' ? `بیش از ${formatFollowers(PLAN_MAX_IG_FOLLOWERS.PRO ?? 0, 'fa')}` : `Over ${formatFollowers(PLAN_MAX_IG_FOLLOWERS.PRO ?? 0, 'en')}`)
                   : (locale === 'fa' ? `تا ${formatFollowers(followerCap, 'fa')}` : `Up to ${formatFollowers(followerCap, 'en')}`),
               },
-              { label: locale === 'fa' ? 'اتصال فعال' : 'Active channel connections', value: nf.format(def.maxChannels) },
+              { label: locale === 'fa' ? 'اتصال فعال' : 'Active channel connections', value: isUnlimitedPlanLimit(def.maxChannels) ? unlimitedPlanLabel(locale) : nf.format(def.maxChannels) },
               { label: locale === 'fa' ? 'محصول' : 'Products', value: nf.format(def.maxProducts) },
               { label: locale === 'fa' ? 'سفارش' : 'Orders', value: nf.format(def.maxOrders) },
               { label: locale === 'fa' ? 'مشتری' : 'Customers', value: nf.format(def.maxCustomers) },
-              { label: locale === 'fa' ? 'اعتبار هدیهٔ اولین خرید' : 'Gift credit on first purchase', value: `${nf.format(def.includedCreditIRR / 10)} ${toman}` },
             ]
             return (
               <section

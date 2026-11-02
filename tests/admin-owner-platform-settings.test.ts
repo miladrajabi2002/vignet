@@ -103,7 +103,7 @@ describe('platform settings migration coverage', () => {
       path.join(process.cwd(), 'prisma/migrations/20260713223000_platform_commercial_settings_admin_audit/migration.sql'),
       'utf8',
     )
-    for (const field of ['sttModel', 'ttsModel', 'providerSort', 'zeroDataRetention', 'replyPricesIRR', 'trialCreditIRR', 'planConfig', 'financeUsdToIRR']) {
+    for (const field of ['sttModel', 'ttsModel', 'providerSort', 'zeroDataRetention', 'replyPricesIRR', 'planConfig', 'financeUsdToIRR']) {
       expect(schema).toContain(field)
       expect(migration).toContain(`"${field}"`)
     }

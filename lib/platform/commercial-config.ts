@@ -1,119 +1,41 @@
-import type { Plan } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { MODEL_ALIASES, type ModelAlias } from '@/lib/ai/models'
-import { DEFAULT_PROVIDER_ROUTING, parseProviderRouting, serializeProviderRouting, type ProviderRouting } from '@/lib/ai/provider-routing'
+import { parseProviderRouting, serializeProviderRouting } from '@/lib/ai/provider-routing'
+import {
+  DEFAULT_COMMERCIAL_CONFIG,
+  PLATFORM_STT_MODEL,
+  PLATFORM_VISION_MODEL,
+  PLAN_NAMES,
+  safeChannelLimit,
+  safePositive,
+  type ManagedPlanConfig,
+  type PlanName,
+  type PlatformCommercialConfig,
+} from '@/lib/platform/plan-limits'
 
-export const PLATFORM_STT_MODEL = 'openai/gpt-transcribe'
-
-/** Pinned vision model for inbound photo understanding (A15 admin surface). */
-export const PLATFORM_VISION_MODEL = 'deepseek/deepseek-v4.1-flash'
-
-export type ManagedPlanConfig = {
-  priceIRR: number
-  priceUSD: number
-  maxChannels: number
-  maxProducts: number
-  maxOrders: number
-  maxCustomers: number
-  replyDiscountBps: number
-  includedCreditIRR: number
-}
-
-export type PlatformCommercialConfig = {
-  sttModel: string
-  sttPricePerMinuteIRR: number
-  visionModel: string
-  visionPricePerImageIRR: number
-  providerRouting: ProviderRouting
-  replyPricesIRR: Record<ModelAlias, number>
-  trialCreditIRR: number
-  financeUsdToIRR: number | null
-  plans: Record<Plan, ManagedPlanConfig>
-}
-
-/**
- * Built-in defaults, used only until the owner saves the admin panel (the
- * panel's values in PlatformAiSettings always win). These are deliberately
- * not read from env: the admin panel is the single place to change them.
- */
-export const DEFAULT_COMMERCIAL_CONFIG: PlatformCommercialConfig = {
-  sttModel: PLATFORM_STT_MODEL,
-  sttPricePerMinuteIRR: 100,
-  visionModel: PLATFORM_VISION_MODEL,
-  visionPricePerImageIRR: 800,
-  providerRouting: DEFAULT_PROVIDER_ROUTING,
-  replyPricesIRR: {
-    fast: 4_000,
-    smart: 6_500,
-  },
-  trialCreditIRR: 1_000_000,
-  financeUsdToIRR: null,
-  plans: {
-    TRIAL: {
-      priceIRR: 0,
-      priceUSD: 0,
-      maxChannels: 1,
-      maxProducts: 50,
-      maxOrders: 100,
-      maxCustomers: 100,
-      replyDiscountBps: 0,
-      includedCreditIRR: 0,
-    },
-    STARTER: {
-      priceIRR: 8_900_000,
-      priceUSD: 6,
-      maxChannels: 2,
-      maxProducts: 500,
-      maxOrders: 2_000,
-      maxCustomers: 2_000,
-      replyDiscountBps: 0,
-      includedCreditIRR: 2_000_000,
-    },
-    PRO: {
-      priceIRR: 24_900_000,
-      priceUSD: 15,
-      maxChannels: 5,
-      maxProducts: 2_500,
-      maxOrders: 10_000,
-      maxCustomers: 10_000,
-      replyDiscountBps: 0,
-      includedCreditIRR: 6_000_000,
-    },
-    BUSINESS: {
-      priceIRR: 59_000_000,
-      priceUSD: 35,
-      maxChannels: 20,
-      maxProducts: 10_000,
-      maxOrders: 50_000,
-      maxCustomers: 50_000,
-      replyDiscountBps: 0,
-      includedCreditIRR: 15_000_000,
-    },
-  },
-}
+// Pure surface (types, defaults, unlimited-channel sentinel and helpers)
+// lives in plan-limits.ts so client components can import it without dragging
+// the Prisma runtime into the browser bundle ("Extensions.defineExtension is
+// unable to run in this browser environment"). Everything is re-exported here
+// so every existing server import keeps working unchanged.
+export {
+  DEFAULT_COMMERCIAL_CONFIG,
+  PLAN_LIMIT_UNLIMITED,
+  PLATFORM_STT_MODEL,
+  PLATFORM_VISION_MODEL,
+  isUnlimitedPlanLimit,
+} from '@/lib/platform/plan-limits'
+export type {
+  ManagedPlanConfig,
+  PlanName,
+  PlatformCommercialConfig,
+} from '@/lib/platform/plan-limits'
 
 function fallbackConfig(): PlatformCommercialConfig {
   return structuredClone(DEFAULT_COMMERCIAL_CONFIG)
 }
 
-const PLANS: Plan[] = ['TRIAL', 'STARTER', 'PRO', 'BUSINESS']
 let cache: { value: PlatformCommercialConfig; expiresAt: number } | null = null
-
-function objectValue(value: unknown): Record<string, unknown> {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : {}
-}
-
-function safePositive(value: unknown, fallback: number): number {
-  const number = Number(value)
-  return Number.isFinite(number) && number > 0 ? Math.round(number) : fallback
-}
-
-function safeNonNegative(value: unknown, fallback: number): number {
-  const number = Number(value)
-  return Number.isFinite(number) && number >= 0 ? Math.round(number) : fallback
-}
 
 export async function getPlatformCommercialConfig(): Promise<PlatformCommercialConfig> {
   if (cache && cache.expiresAt > Date.now()) return cache.value
@@ -126,7 +48,7 @@ export async function getPlatformCommercialConfig(): Promise<PlatformCommercialC
     if (!row) return fallback
     const storedPrices = objectValue(row.replyPricesIRR)
     const storedPlans = objectValue(row.planConfig)
-    const plans = Object.fromEntries(PLANS.map((plan) => {
+    const plans = Object.fromEntries(PLAN_NAMES.map((plan) => {
       const base = fallback.plans[plan]
       const stored = objectValue(storedPlans[plan])
       return [plan, {
@@ -134,16 +56,16 @@ export async function getPlatformCommercialConfig(): Promise<PlatformCommercialC
         priceUSD: plan === 'TRIAL' ? 0 : safePositive(stored.priceUSD, base.priceUSD),
         // Read the former maxAgents key during rollout so existing DB-backed
         // admin settings keep their value until the next save writes maxChannels.
-        maxChannels: safePositive(stored.maxChannels ?? stored.maxAgents, base.maxChannels),
+        // -1 means unlimited channel connections (flagship plan).
+        maxChannels: safeChannelLimit(stored.maxChannels ?? stored.maxAgents, base.maxChannels),
         maxProducts: safePositive(stored.maxProducts, base.maxProducts),
         maxOrders: safePositive(stored.maxOrders, base.maxOrders),
         maxCustomers: safePositive(stored.maxCustomers, base.maxCustomers),
         // Reply pricing is global and identical across plans. Keep the legacy
         // field in persisted JSON for a safe rollout, but never apply it.
         replyDiscountBps: 0,
-        includedCreditIRR: plan === 'TRIAL' ? 0 : safeNonNegative(stored.includedCreditIRR, base.includedCreditIRR),
       }]
-    })) as Record<Plan, ManagedPlanConfig>
+    })) as Record<PlanName, ManagedPlanConfig>
     const value: PlatformCommercialConfig = {
       // STT is intentionally pinned to one multilingual, economical model.
       sttModel: PLATFORM_STT_MODEL,
@@ -155,7 +77,6 @@ export async function getPlatformCommercialConfig(): Promise<PlatformCommercialC
         alias,
         safePositive(storedPrices[alias], fallback.replyPricesIRR[alias]),
       ])) as Record<ModelAlias, number>,
-      trialCreditIRR: safePositive(row.trialCreditIRR, fallback.trialCreditIRR),
       financeUsdToIRR: row.financeUsdToIRR && row.financeUsdToIRR > 0 ? row.financeUsdToIRR : null,
       plans,
     }
@@ -179,7 +100,6 @@ export async function updatePlatformCommercialConfig(
       visionPricePerImageIRR: input.visionPricePerImageIRR,
       providerSort: serializeProviderRouting(input.providerRouting),
       replyPricesIRR: input.replyPricesIRR,
-      trialCreditIRR: input.trialCreditIRR,
       planConfig: input.plans,
       financeUsdToIRR: input.financeUsdToIRR,
     },
@@ -189,11 +109,16 @@ export async function updatePlatformCommercialConfig(
       visionPricePerImageIRR: input.visionPricePerImageIRR,
       providerSort: serializeProviderRouting(input.providerRouting),
       replyPricesIRR: input.replyPricesIRR,
-      trialCreditIRR: input.trialCreditIRR,
       planConfig: input.plans,
       financeUsdToIRR: input.financeUsdToIRR,
     },
   })
   cache = null
   return getPlatformCommercialConfig()
+}
+
+function objectValue(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {}
 }

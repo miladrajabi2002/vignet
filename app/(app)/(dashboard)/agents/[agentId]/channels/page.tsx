@@ -21,7 +21,7 @@ import {
   normalizeSlug,
   chatLinkUrl,
 } from '@/lib/chat-link/config'
-import { getEffectivePlanDefs, planResourceLimit, recommendedUpgradePlan } from '@/lib/billing/plans'
+import { getEffectivePlanDefs, isUnlimitedPlanLimit, planResourceLimit, recommendedUpgradePlan } from '@/lib/billing/plans'
 import { getActiveChannelConnectionCount } from '@/lib/billing/entitlements'
 import { ChannelBoard, type ChannelBoardItem } from '@/components/channels/channel-board'
 import { ChannelMark } from '@/components/ui/channel-mark'
@@ -88,7 +88,10 @@ export default async function AgentChannelsPage(
 
   const currentPlan = workspace?.plan ?? 'TRIAL'
   const maxChannels = planDefs[currentPlan].maxChannels
-  const channelUsagePercent = Math.min(100, Math.round((usedChannels / maxChannels) * 100))
+  // -1 marks the unlimited-connection plan: the meter never fills and the
+  // upgrade notice never shows.
+  const unlimitedChannels = isUnlimitedPlanLimit(maxChannels)
+  const channelUsagePercent = unlimitedChannels ? 0 : Math.min(100, Math.round((usedChannels / maxChannels) * 100))
   const recommendedPlan = recommendedUpgradePlan(planDefs, currentPlan, 'channels', usedChannels)
   const channelLimit: PlanLimitInfo = {
     resource: 'channels',
@@ -237,13 +240,13 @@ export default async function AgentChannelsPage(
   return (
     <div className="space-y-4">
       {/* A full quota is one message with one action, not a meter plus a warning. */}
-      {usedChannels >= maxChannels ? (
+      {!unlimitedChannels && usedChannels >= maxChannels ? (
         <PlanLimitNotice limit={channelLimit} locale={locale} />
       ) : (
       channelUsagePercent < 80 ? (
         <p className="flex flex-wrap items-center justify-between gap-2 px-1 text-[13px] text-[var(--text-secondary)]" aria-label={t('quotaTitle')}>
           <span className="font-bold text-[var(--text-primary)]">{t('quotaTitle')}</span>
-          <span className="tabular-nums text-[var(--text-muted)]">{t('quotaUsage', { used: nf.format(usedChannels), limit: nf.format(maxChannels) })}</span>
+          <span className="tabular-nums text-[var(--text-muted)]">{unlimitedChannels ? t('quotaUsageUnlimited', { used: nf.format(usedChannels) }) : t('quotaUsage', { used: nf.format(usedChannels), limit: nf.format(maxChannels) })}</span>
         </p>
       ) : (
       <section className="spatial-surface rounded-card p-5 sm:p-6" aria-labelledby="channel-quota-title">

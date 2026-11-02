@@ -14,15 +14,16 @@ export const dynamic = 'force-dynamic'
 
 const positiveInt = z.number().int().positive().max(2_000_000_000)
 const nonNegativeInt = z.number().int().nonnegative().max(2_000_000_000)
+// -1 = unlimited channel connections (flagship plan); otherwise a real ceiling.
+const channelLimitInt = z.union([z.literal(-1), positiveInt.max(10_000)])
 const planSchema = z.object({
   priceIRR: nonNegativeInt,
   priceUSD: nonNegativeInt.max(100_000),
-  maxChannels: positiveInt.max(10_000),
+  maxChannels: channelLimitInt,
   maxProducts: positiveInt.max(1_000_000),
   maxOrders: positiveInt.max(10_000_000),
   maxCustomers: positiveInt.max(10_000_000),
   replyDiscountBps: nonNegativeInt.max(9_000),
-  includedCreditIRR: nonNegativeInt,
 })
 
 const schema = z.object({
@@ -42,7 +43,6 @@ const schema = z.object({
     fast: positiveInt,
     smart: positiveInt,
   }),
-  trialCreditIRR: positiveInt,
   financeUsdToIRR: positiveInt.nullable(),
   plans: z.object({
     TRIAL: planSchema,

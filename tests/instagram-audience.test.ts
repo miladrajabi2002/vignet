@@ -22,23 +22,28 @@ describe('plans by Instagram audience', () => {
     expect(smallestPlanForAudience(null)).toBe('STARTER')
   })
 
-  it('caps Starter at 20K and Pro at 50K, inclusive', () => {
+  it('caps Starter at 20K and Pro at 100K, inclusive; Business is unlimited', () => {
     expect(planFitsAudience('STARTER', page(20_000))).toBe(true)
     expect(planFitsAudience('STARTER', page(20_001))).toBe(false)
-    expect(planFitsAudience('PRO', page(50_000))).toBe(true)
-    expect(planFitsAudience('PRO', page(50_001))).toBe(false)
+    expect(planFitsAudience('PRO', page(100_000))).toBe(true)
+    expect(planFitsAudience('PRO', page(100_001))).toBe(false)
+    expect(planFitsAudience('BUSINESS', page(100_001))).toBe(true)
     expect(planFitsAudience('BUSINESS', page(5_000_000))).toBe(true)
   })
 
   it('points a page at the smallest plan that serves it', () => {
     expect(smallestPlanForAudience(page(8_000))).toBe('STARTER')
     expect(smallestPlanForAudience(page(35_000))).toBe('PRO')
+    expect(smallestPlanForAudience(page(75_000))).toBe('PRO')
+    expect(smallestPlanForAudience(page(100_001))).toBe('BUSINESS')
+    // However big the page, سازمانی (no cap) always has it covered.
     expect(smallestPlanForAudience(page(200_000))).toBe('BUSINESS')
+    expect(smallestPlanForAudience(page(2_000_000))).toBe('BUSINESS')
   })
 
   it('explains the block in Persian', () => {
     expect(formatFollowers(200_000, 'fa')).toBe('۲۰۰ هزار')
-    expect(audienceBlockMessage('PRO', page(200_000), 'fa')).toBe('@shop ۲۰۰ هزار فالوور دارد؛ این پلن برای پیج‌های تا ۵۰ هزار فالوور است.')
+    expect(audienceBlockMessage('PRO', page(200_000), 'fa')).toBe('@shop ۲۰۰ هزار فالوور دارد؛ این پلن برای پیج‌های تا ۱۰۰ هزار فالوور است.')
   })
 })
 
@@ -52,7 +57,8 @@ describe('connecting a page', () => {
     expect(await connectAudienceBlock('w', 35_000)).toEqual({ plan: 'STARTER', cap: 20_000 })
     db.workspace = { plan: 'PRO' }
     expect(await connectAudienceBlock('w', 35_000)).toBeNull()
-    expect(await connectAudienceBlock('w', 200_000)).toEqual({ plan: 'PRO', cap: 50_000 })
+    expect(await connectAudienceBlock('w', 100_000)).toBeNull()
+    expect(await connectAudienceBlock('w', 200_000)).toEqual({ plan: 'PRO', cap: 100_000 })
     db.workspace = { plan: 'BUSINESS' }
     expect(await connectAudienceBlock('w', 5_000_000)).toBeNull()
   })

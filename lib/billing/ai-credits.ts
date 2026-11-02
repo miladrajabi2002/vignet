@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import type { LogType } from '@prisma/client'
 import { getEffectivePlanDefs } from '@/lib/billing/plans'
-import { getEffectiveReplyPriceIRR, resolveModelAlias, type ModelAlias } from '@/lib/ai/models'
+import { resolveModelAlias, type ModelAlias } from '@/lib/ai/models'
 import type { ChatUsage } from '@/lib/ai/openrouter'
 import { discountedReplyPriceIRR } from '@/lib/billing/credit-estimates'
 import { processLowCreditAlert } from '@/lib/billing/low-credit-alert'
@@ -16,6 +16,18 @@ export type CreditReservation = {
 export type ReserveCreditResult =
   | { ok: true; reservation: CreditReservation }
   | { ok: false; reason: 'NO_CREDIT' | 'WORKSPACE_NOT_FOUND' }
+
+/**
+ * Runtime reply price selected in the owner panel, with the built-in catalog
+ * as fallback. Lives here (its only consumer) instead of lib/ai/models so the
+ * shared model catalog keeps a Prisma-free static graph — client components
+ * import models.ts and must never bundle the config/Prisma runtime.
+ */
+async function getEffectiveReplyPriceIRR(value: string | null | undefined): Promise<number> {
+  const { getPlatformCommercialConfig } = await import('@/lib/platform/commercial-config')
+  const alias = resolveModelAlias(value)
+  return (await getPlatformCommercialConfig()).replyPricesIRR[alias]
+}
 
 /**
  * Atomically reserve the fixed price of one AI request.

@@ -1,8 +1,10 @@
 /**
  * Plans by Instagram audience: a big page brings a big stream of comments and
- * DMs, so each paid plan serves pages up to a follower count and anything
- * larger can only buy «سازمانی». Owners connect their page first and buy a
- * plan after, so the gate sits at checkout (billing page + checkout API).
+ * DMs, so each paid plan serves pages up to a follower count — استارتر تا
+ * ۲۰ هزار، حرفه‌ای تا ۱۰۰ هزار و سازمانی بدون سقف، برای پیج‌های بزرگ‌تر.
+ * However big the page, a self-serve plan (سازمانی) always covers it; there is
+ * no support detour. Owners connect their page first and buy a plan after, so
+ * the gate sits at checkout (billing page + checkout API).
  */
 import { prisma } from '@/lib/prisma'
 import { readIgUserId, readPageToken } from '@/lib/instagram/config'
@@ -12,7 +14,7 @@ import { PAID_PLANS, type PaidPlan } from '@/lib/billing/plans'
 /** Largest page (followers, inclusive) each plan may serve; null = no cap. */
 export const PLAN_MAX_IG_FOLLOWERS: Record<PaidPlan, number | null> = {
   STARTER: 20_000,
-  PRO: 50_000,
+  PRO: 100_000,
   BUSINESS: null,
 }
 
@@ -75,7 +77,7 @@ export function planFitsAudience(plan: PaidPlan, audience: InstagramAudience | n
   return cap == null || !audience || audience.followers <= cap
 }
 
-/** The smallest plan that serves this page. */
+/** The smallest plan that serves this page; سازمانی (no cap) always fits. */
 export function smallestPlanForAudience(audience: InstagramAudience | null): PaidPlan {
   return PAID_PLANS.find((plan) => planFitsAudience(plan, audience)) ?? 'BUSINESS'
 }

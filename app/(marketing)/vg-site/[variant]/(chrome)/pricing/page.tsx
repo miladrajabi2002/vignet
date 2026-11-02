@@ -5,7 +5,7 @@ import { CreditFlowMotion } from '@/components/motion/explainers'
 import { getLocale } from 'next-intl/server'
 import { PricingSection } from '@/components/marketing/pricing-section'
 import { MarketingHeroPill, MarketingSectionPill } from '@/components/marketing/animated-pill'
-import { getEffectivePlanDefs, PAID_PLANS, type PaidPlan } from '@/lib/billing/plans'
+import { getEffectivePlanDefs, isUnlimitedPlanLimit, PAID_PLANS, type PaidPlan } from '@/lib/billing/plans'
 import { jsonLdScript } from '@/lib/seo/json-ld'
 import { enterSite, type SiteParams } from '@/lib/marketing/enter-site'
 
@@ -44,8 +44,9 @@ const COPY = {
                 planNames: { STARTER: 'استارتر', PRO: 'حرفه‌ای', BUSINESS: 'سازمانی' } as Record<PaidPlan, string>,
                 appDescription: 'ایجنت هوشمند فروش و پشتیبانی فارسی برای اینستاگرام، تلگرام، بله، روبیکا و وب‌سایت — با شروع رایگان.',
                 offerName: (plan: string) => `پلن ${plan}`,
-                offerDescription: (plan: string, priceToman: string, creditToman: string, channels: string) =>
-                        `اشتراک ماهانه پلن ${plan} ویجنت (${priceToman} تومان در ماه) با ${creditToman} تومان اعتبار پاسخ هدیه در اولین خرید و تا ${channels} اتصال فعال.`,
+                // channelsPhrase arrives pre-built: «تا ۱۰ اتصال فعال» or «اتصال فعال نامحدود».
+                offerDescription: (plan: string, priceToman: string, channelsPhrase: string) =>
+                        `اشتراک ماهانه پلن ${plan} ویجنت (${priceToman} تومان در ماه) با ${channelsPhrase}؛ اعتبار پاسخ جداگانه شارژ می‌شود.`,
                 breadcrumbHome: 'ویجنت',
                 breadcrumbCurrent: 'قیمت و پلن‌ها',
         },
@@ -77,8 +78,10 @@ const COPY = {
                 planNames: { STARTER: 'Starter', PRO: 'Pro', BUSINESS: 'Business' } as Record<PaidPlan, string>,
                 appDescription: 'Persian AI sales and support agent for Instagram, Telegram, Bale, Rubika and the web — free to start.',
                 offerName: (plan: string) => `${plan} plan`,
-                offerDescription: (plan: string, priceToman: string, creditToman: string, channels: string) =>
-                        `Vigent ${plan} monthly subscription (${priceToman} toman/month) with ${creditToman} toman of gift reply credit on the first purchase and up to ${channels} active channel connections.`,
+                // channelsPhrase arrives pre-built: "up to 10 active channel connections"
+                // or "unlimited active channel connections".
+                offerDescription: (plan: string, priceToman: string, channelsPhrase: string) =>
+                        `Vigent ${plan} monthly subscription (${priceToman} toman/month) with ${channelsPhrase}; reply credit is topped up separately.`,
                 breadcrumbHome: 'Vigent',
                 breadcrumbCurrent: 'Pricing',
         },
@@ -237,8 +240,9 @@ export default async function PricingPage({ params }: { params: SiteParams }) {
                                                 description: copy.offerDescription(
                                                         planName,
                                                         number.format(def.priceIRR / 10),
-                                                        number.format(def.includedCreditIRR / 10),
-                                                        number.format(def.maxChannels),
+                                                        isUnlimitedPlanLimit(def.maxChannels)
+                                                                ? (locale === 'en' ? 'unlimited active channel connections' : 'اتصال فعال نامحدود')
+                                                                : (locale === 'en' ? `up to ${number.format(def.maxChannels)} active channel connections` : `تا ${number.format(def.maxChannels)} اتصال فعال`),
                                                 ),
                                         }
                                 }),

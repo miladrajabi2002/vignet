@@ -1,6 +1,17 @@
 import type { Plan } from '@prisma/client'
 import { MODEL_ALIASES, type ModelAlias } from '@/lib/ai/models'
-import { DEFAULT_COMMERCIAL_CONFIG, getPlatformCommercialConfig } from '@/lib/platform/commercial-config'
+// Pure pieces come from plan-limits so this module stays importable from
+// client components (no Prisma in the browser bundle).
+import { DEFAULT_COMMERCIAL_CONFIG, PLAN_LIMIT_UNLIMITED, isUnlimitedPlanLimit } from '@/lib/platform/plan-limits'
+
+// Unlimited channel ceilings are expressed with the -1 sentinel; re-exported
+// here so display and enforcement sites can import everything from one module.
+export { PLAN_LIMIT_UNLIMITED, isUnlimitedPlanLimit }
+
+/** Localized wording for a plan limit with no ceiling. */
+export function unlimitedPlanLabel(locale: 'fa' | 'en'): string {
+  return locale === 'fa' ? 'نامحدود' : 'Unlimited'
+}
 
 /**
  * Plan catalog — the subscription pays for platform/service capacity while AI
@@ -8,10 +19,17 @@ import { DEFAULT_COMMERCIAL_CONFIG, getPlatformCommercialConfig } from '@/lib/pl
  * plan-level message quota; availability is governed by subscription state and
  * the workspace's reply-credit balance.
  *
- * Prices, limits and included credit are edited in the admin panel
+ * Prices and limits are edited in the admin panel
  * (PlatformAiSettings.planConfig); DEFAULT_COMMERCIAL_CONFIG is the fallback
  * until the panel is saved.
  */
+
+/**
+ * Fixed starter reply credit granted once to every newly registered trial
+ * workspace (100,000 Toman). Deliberately hardcoded: there is no admin-panel
+ * setting for gift credit anymore.
+ */
+export const TRIAL_SIGNUP_CREDIT_IRR = 1_000_000
 
 export interface PlanDef {
   plan: Plan
@@ -27,8 +45,6 @@ export interface PlanDef {
   maxCustomers: number
   /** Legacy compatibility field. Reply prices are global across every plan. */
   replyDiscountBps: number
-  /** Wallet credit granted once for each successful subscription payment. */
-  includedCreditIRR: number
 }
 
 /** Built-in plan catalog (no DB). Runtime code should use getEffectivePlanDefs. */
@@ -40,6 +56,8 @@ export function getPlanDefs(): Record<Plan, PlanDef> {
 
 /** DB-backed runtime catalog, edited in the admin panel. */
 export async function getEffectivePlanDefs(): Promise<Record<Plan, PlanDef>> {
+  // Lazy server-only dependency (keeps the static graph Prisma-free).
+  const { getPlatformCommercialConfig } = await import('@/lib/platform/commercial-config')
   const config = await getPlatformCommercialConfig()
   return Object.fromEntries(
     (Object.keys(config.plans) as Plan[]).map((plan) => [plan, { plan, ...config.plans[plan] }]),
@@ -67,7 +85,8 @@ export function planResourceLimit(def: PlanDef, resource: LimitedPlanResource): 
 /**
  * Pick the smallest real upgrade that can hold the workspace's next item.
  * Plans at or below the current tier are intentionally excluded, even when
- * their runtime limits were customized to unusual values by an admin.
+ * their runtime limits were customized to unusual values by an admin. An
+ * unlimited ceiling (-1) always fits.
  */
 export function recommendedUpgradePlan(
   defs: Record<Plan, PlanDef>,
@@ -79,7 +98,11 @@ export function recommendedUpgradePlan(
     ? -1
     : PAID_PLANS.indexOf(currentPlan as PaidPlan)
   const field = PLAN_RESOURCE_LIMIT_FIELD[resource]
-  return PAID_PLANS.find((plan, index) => index > currentIndex && defs[plan][field] > used) ?? null
+  return PAID_PLANS.find((plan, index) => {
+    if (index <= currentIndex) return false
+    const limit = defs[plan][field]
+    return isUnlimitedPlanLimit(limit) || limit > used
+  }) ?? null
 }
 
 export function isPaidPlan(p: string): p is PaidPlan {
@@ -88,6 +111,8 @@ export function isPaidPlan(p: string): p is PaidPlan {
 
 export async function getEffectivePlanReplyPricesIRR(plan: Plan): Promise<Record<ModelAlias, number>> {
   void plan // Kept in the public signature for backwards-compatible callers.
+  // Lazy server-only dependency (keeps the static graph Prisma-free).
+  const { getPlatformCommercialConfig } = await import('@/lib/platform/commercial-config')
   const commercial = await getPlatformCommercialConfig()
   return Object.fromEntries(
     MODEL_ALIASES.map((alias) => [

@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { sendWelcomeSms, verifyOTP } from '@/lib/sms/ippanel'
 import { normalizePhone } from '@/lib/phone'
 import { generateSlug } from '@/lib/utils'
-import { getPlatformCommercialConfig } from '@/lib/platform/commercial-config'
+import { TRIAL_SIGNUP_CREDIT_IRR } from '@/lib/billing/plans'
 import { isPlatformOwnerPhone } from '@/lib/admin/owner'
 import { allowOtpVerificationAttempt } from '@/lib/security/otp-attempts'
 import { captureError, captureWarning, persistLog } from '@/lib/errors/capture'
@@ -130,7 +130,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             })
             return null
           }
-          const commercialConfig = await getPlatformCommercialConfig()
           const platformRole = isPlatformOwnerPhone(phone) ? 'ADMIN' : 'USER'
           // One transaction: a failed user.create must not leave an ownerless
           // workspace row holding trial credit.
@@ -142,7 +141,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 // One full month to experience the platform. The starter reply
                 // credit remains unchanged; only successful AI replies consume it.
                 trialEndsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-                aiCreditBalanceIRR: commercialConfig.trialCreditIRR,
+                aiCreditBalanceIRR: TRIAL_SIGNUP_CREDIT_IRR,
                 excludeFromAdminReports: platformRole === 'ADMIN',
               },
             })

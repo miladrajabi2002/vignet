@@ -2,9 +2,8 @@ import type { CSSProperties } from 'react'
 import Link from 'next/link'
 import { getLocale, getTranslations } from 'next-intl/server'
 import { Check, ChevronDown, MessageSquareText } from 'lucide-react'
-import { getEffectivePlanDefs, PAID_PLANS, type PaidPlan } from '@/lib/billing/plans'
+import { getEffectivePlanDefs, isUnlimitedPlanLimit, PAID_PLANS, type PaidPlan } from '@/lib/billing/plans'
 import { getPlatformCommercialConfig } from '@/lib/platform/commercial-config'
-import { estimateRemainingReplies } from '@/lib/billing/credit-estimates'
 import { InstagramGlyph } from '@/components/marketing/social-links'
 import { MarketingSectionPill } from '@/components/marketing/animated-pill'
 
@@ -28,7 +27,6 @@ export async function PricingSection() {
                 const key = PLAN_TRANSLATION_KEY[plan]
                 const replyPriceIRR = commercialConfig.replyPricesIRR.fast
                 const replyPriceToman = replyPriceIRR / 10
-                const includedReplies = estimateRemainingReplies(def.includedCreditIRR, replyPriceIRR)
                 return {
                         plan,
                         name: t(`plans.${key}.name`),
@@ -37,9 +35,9 @@ export async function PricingSection() {
                         features: [
                                 locale === 'fa' ? `از ${number.format(replyPriceToman)} تومان برای هر پاسخ موفق` : `From ${number.format(replyPriceToman)} toman per successful reply`,
                                 locale === 'fa'
-                                        ? `${number.format(def.includedCreditIRR / 10)} تومان اعتبار هدیه در اولین خرید؛ حدود ${number.format(includedReplies)} پاسخ سریع`
-                                        : `${number.format(def.includedCreditIRR / 10)} toman gift credit on your first purchase; about ${number.format(includedReplies)} fast replies`,
-                                t('channelLimit', { count: number.format(def.maxChannels) }),
+                                        ? 'اعتبار پاسخ جداگانه شارژ می‌شود و منقضی نمی‌شود'
+                                        : 'Reply credit is topped up separately and never expires',
+                                t(isUnlimitedPlanLimit(def.maxChannels) ? 'channelLimitUnlimited' : 'channelLimit', { count: number.format(def.maxChannels) }),
                                 locale === 'fa' ? `تا ${number.format(def.maxProducts)} محصول` : `Up to ${number.format(def.maxProducts)} products`,
                                 locale === 'fa' ? `تا ${number.format(def.maxOrders)} سفارش` : `Up to ${number.format(def.maxOrders)} orders`,
                                 locale === 'fa' ? `تا ${number.format(def.maxCustomers)} مشتری` : `Up to ${number.format(def.maxCustomers)} customers`,
@@ -82,7 +80,7 @@ export async function PricingSection() {
                                                 </span>
                                                 <div>
                                                                 <p className="text-sm font-medium text-white">{t('trialTitle')}</p>
-                                                                <p className="mt-1 text-xs leading-5 text-white/45">{t('trialNote', { count: number.format(commercialConfig.trialCreditIRR / 10) })}</p>
+                                                                <p className="mt-1 text-xs leading-5 text-white/45">{t('trialNote')}</p>
                                                 </div>
                                         </div>
                                                 <Link href="/login?next=/onboarding" className="marketing-pressable inline-flex min-h-11 w-full shrink-0 items-center justify-center rounded-full bg-white px-5 text-sm font-medium text-black sm:w-auto">
@@ -116,8 +114,7 @@ export async function PricingSection() {
                                                 const key = PLAN_TRANSLATION_KEY[plan]
                                                 const replyPriceIRR = commercialConfig.replyPricesIRR.fast
                                                 const replyPriceToman = replyPriceIRR / 10
-                                                const includedReplies = estimateRemainingReplies(def.includedCreditIRR, replyPriceIRR)
-                                                const recommended = plan === 'PRO'
+                                                                                const recommended = plan === 'PRO'
                                                 return (
                                                         <article
                                                                 key={plan}
@@ -142,10 +139,10 @@ export async function PricingSection() {
                                                                         <Feature>{locale === 'fa' ? `از ${number.format(replyPriceToman)} تومان برای هر پاسخ موفق` : `From ${number.format(replyPriceToman)} toman per successful reply`}</Feature>
                                                                         <Feature>
                                                                                 {locale === 'fa'
-                                                                                        ? `${number.format(def.includedCreditIRR / 10)} تومان اعتبار هدیه در اولین خرید؛ حدود ${number.format(includedReplies)} پاسخ سریع`
-                                                                                        : `${number.format(def.includedCreditIRR / 10)} toman gift credit on your first purchase; about ${number.format(includedReplies)} fast replies`}
+                                                                                        ? 'اعتبار پاسخ جداگانه شارژ می‌شود و منقضی نمی‌شود'
+                                                                                        : 'Reply credit is topped up separately and never expires'}
                                                                         </Feature>
-                                                                        <Feature>{t('channelLimit', { count: number.format(def.maxChannels) })}</Feature>
+                                                                        <Feature>{isUnlimitedPlanLimit(def.maxChannels) ? t('channelLimitUnlimited') : t('channelLimit', { count: number.format(def.maxChannels) })}</Feature>
                                                                         <Feature>{locale === 'fa' ? `تا ${number.format(def.maxProducts)} محصول` : `Up to ${number.format(def.maxProducts)} products`}</Feature>
                                                                         <Feature>{locale === 'fa' ? `تا ${number.format(def.maxOrders)} سفارش` : `Up to ${number.format(def.maxOrders)} orders`}</Feature>
                                                                         <Feature>{locale === 'fa' ? `تا ${number.format(def.maxCustomers)} مشتری` : `Up to ${number.format(def.maxCustomers)} customers`}</Feature>

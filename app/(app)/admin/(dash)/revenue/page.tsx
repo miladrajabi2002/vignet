@@ -92,7 +92,7 @@ export default async function AdminRevenuePage() {
             نرخ محاسبه: هر دلار = {fa(Math.round(finance.usdToIRR / 10))} تومان
           </p>
         )}
-        <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3">
           <StatCard
             label="درآمد پلن‌ها"
             value={fmtIRR(finance.planRevenueIRR)}
@@ -105,7 +105,7 @@ export default async function AdminRevenuePage() {
             value={fmtIRR(finance.creditTopupIRR)}
             icon={<Wallet className="h-5 w-5" />}
             tone="info"
-            sub={finance.creditTopupUSD > 0 ? `به‌علاوه ${fmtUSD(finance.creditTopupUSD)}` : 'فقط پرداخت نقدی؛ هدیه جداست'}
+            sub={finance.creditTopupUSD > 0 ? `به‌علاوه ${fmtUSD(finance.creditTopupUSD)}` : 'فقط پرداخت نقدی'}
           />
           <StatCard
             label="هزینه OpenRouter"
@@ -118,20 +118,7 @@ export default async function AdminRevenuePage() {
             value={finance.operatingProfitIRR == null ? '—' : fmtIRR(finance.operatingProfitIRR)}
             icon={<Percent className="h-5 w-5" />}
             tone={finance.operatingProfitIRR == null ? 'warning' : finance.operatingProfitIRR >= 0 ? 'success' : 'danger'}
-            sub={finance.operatingProfitIRR == null ? 'نرخ دلار تنظیم نشده · قبل از کسر اعتبار هدیه' : 'قبل از کسر اعتبار هدیه'}
-          />
-          <StatCard
-            label="اعتبار هدیه صادرشده"
-            value={fmtIRR(finance.giftedCreditIRR)}
-            icon={<Wallet className="h-5 w-5" />}
-            sub="تعهد/یارانه با ارزش اسمی"
-          />
-          <StatCard
-            label="سود تعدیل‌شده محافظه‌کارانه"
-            value={finance.adjustedProfitIRR == null ? '—' : fmtIRR(finance.adjustedProfitIRR)}
-            icon={<TrendingUp className="h-5 w-5" />}
-            tone={finance.adjustedProfitIRR == null ? 'warning' : finance.adjustedProfitIRR >= 0 ? 'success' : 'danger'}
-            sub={finance.adjustedProfitIRR == null ? 'نرخ دلار تنظیم نشده · منهای کل اعتبار هدیه' : 'سود عملیاتی منهای کل اعتبار هدیه'}
+            sub={finance.operatingProfitIRR == null ? 'نرخ دلار تنظیم نشده · پلن‌ها + شارژ − OpenRouter' : 'پلن‌ها + شارژ − OpenRouter'}
           />
         </div>
       </Panel>

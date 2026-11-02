@@ -10,7 +10,7 @@ import { getPlatformCommercialConfig } from '@/lib/platform/commercial-config'
 
 /** Consolidated cash/profit report with explicit USD -> IRR conversion. */
 export async function getFinanceSummary(): Promise<FinanceSummary> {
-  const [paymentRows, providerCost, giftedCredit, commercialConfig] = await Promise.all([
+  const [paymentRows, providerCost, commercialConfig] = await Promise.all([
     prisma.payment.groupBy({
       by: ['kind', 'currency'],
       where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'PAID' },
@@ -19,10 +19,6 @@ export async function getFinanceSummary(): Promise<FinanceSummary> {
     prisma.usageLog.aggregate({
       where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'CAPTURED' },
       _sum: { cost: true },
-    }),
-    prisma.walletLedger.aggregate({
-      where: { ...ADMIN_VISIBLE_RELATED_WHERE, type: 'PLAN_CREDIT_GRANT' },
-      _sum: { amountIRR: true },
     }),
     getPlatformCommercialConfig(),
   ])
@@ -36,7 +32,6 @@ export async function getFinanceSummary(): Promise<FinanceSummary> {
     creditTopupIRR: paid('AI_CREDIT', 'IRR'),
     creditTopupUSD: paid('AI_CREDIT', 'USD'),
     openRouterCostUSD: providerCost._sum.cost ?? 0,
-    giftedCreditIRR: giftedCredit._sum.amountIRR ?? 0,
     usdToIRR: parseUsdToIrrRate(commercialConfig.financeUsdToIRR?.toString()),
   })
 }

@@ -34,6 +34,7 @@ vi.mock('@/lib/prisma', () => ({
 vi.mock('@/lib/billing/plans', () => ({
   PERIOD_DAYS: 30,
   getEffectivePlanDefs: mocks.getEffectivePlanDefs,
+  isUnlimitedPlanLimit: (value: number) => value < 0,
 }))
 
 vi.mock('@/lib/redis', () => ({
@@ -46,10 +47,6 @@ vi.mock('@/lib/sms/ippanel', () => ({
 
 vi.mock('@/lib/errors/capture', () => ({
   captureError: vi.fn(),
-}))
-
-vi.mock('@/lib/billing/plan-credit', () => ({
-  grantIncludedPlanCredit: vi.fn(),
 }))
 
 import {
@@ -147,6 +144,19 @@ describe('channel-based plan entitlements', () => {
         agent: { workspaceId: 'ws-1' },
       },
     })
+  })
+
+  it('never blocks connections on an unlimited-channel plan (-1 ceiling)', async () => {
+    mocks.getEffectivePlanDefs.mockResolvedValue({
+      TRIAL: { maxChannels: -1, maxProducts: 50, maxOrders: 100, maxCustomers: 100 },
+    })
+    mocks.agentChannelCount.mockResolvedValue(999)
+
+    await expect(checkChannelConnectAllowed('ws-1', {
+      kind: 'AGENT_CHANNEL',
+      agentId: 'agent-1',
+      type: 'TELEGRAM',
+    })).resolves.toEqual({ allowed: true, plan: 'TRIAL' })
   })
 
   it('requires active workspace access for Instagram chat and connection', async () => {

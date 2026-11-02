@@ -9,7 +9,6 @@ const mocks = vi.hoisted(() => ({
   walletLedgerCreate: vi.fn(),
   userFindFirst: vi.fn(),
   getEffectivePlanDefs: vi.fn(),
-  grantIncludedPlanCredit: vi.fn(),
   sendSubscriptionPurchasedSms: vi.fn(),
   enqueueAdminCommercialSms: vi.fn(),
   processAdminCommercialSmsPayment: vi.fn(),
@@ -37,9 +36,6 @@ vi.mock('@/lib/billing/plans', () => ({
   PERIOD_DAYS: 30,
   getEffectivePlanDefs: mocks.getEffectivePlanDefs,
 }))
-vi.mock('@/lib/billing/plan-credit', () => ({
-  grantIncludedPlanCredit: mocks.grantIncludedPlanCredit,
-}))
 vi.mock('@/lib/sms/ippanel', () => ({
   sendSubscriptionPurchasedSms: mocks.sendSubscriptionPurchasedSms,
 }))
@@ -61,11 +57,10 @@ beforeEach(() => {
   mocks.walletLedgerCreate.mockResolvedValue({})
   mocks.userFindFirst.mockResolvedValue({ phone: '+989121112233' })
   mocks.getEffectivePlanDefs.mockResolvedValue({
-    STARTER: { includedCreditIRR: 200_000 },
-    PRO: { includedCreditIRR: 600_000 },
-    BUSINESS: { includedCreditIRR: 1_500_000 },
+    STARTER: { maxChannels: 2 },
+    PRO: { maxChannels: 5 },
+    BUSINESS: { maxChannels: 20 },
   })
-  mocks.grantIncludedPlanCredit.mockResolvedValue(undefined)
   mocks.sendSubscriptionPurchasedSms.mockResolvedValue(true)
   mocks.enqueueAdminCommercialSms.mockResolvedValue(undefined)
   mocks.processAdminCommercialSmsPayment.mockResolvedValue(true)
@@ -90,7 +85,6 @@ describe('commercial payment success hooks', () => {
     await expect(activateSubscriptionPayment(params)).resolves.toBe(false)
 
     expect(mocks.subscriptionUpsert).toHaveBeenCalledTimes(1)
-    expect(mocks.grantIncludedPlanCredit).toHaveBeenCalledTimes(1)
     expect(mocks.enqueueAdminCommercialSms).toHaveBeenCalledTimes(1)
     expect(mocks.enqueueAdminCommercialSms).toHaveBeenCalledWith(
       tx,

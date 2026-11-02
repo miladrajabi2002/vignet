@@ -27,7 +27,7 @@ import { prisma } from '@/lib/prisma'
 import { CUSTOMER_WHERE } from '@/lib/crm/customer'
 import { ADMIN_VISIBLE_USER_WHERE } from '@/lib/admin/reporting-scope'
 import { cn } from '@/lib/utils'
-import { getEffectivePlanDefs } from '@/lib/billing/plans'
+import { getEffectivePlanDefs, isUnlimitedPlanLimit } from '@/lib/billing/plans'
 import { getActiveChannelConnectionCount } from '@/lib/billing/entitlements'
 import { displayPhone } from '@/lib/phone'
 import { readBusinessProfile } from '@/lib/verticals/profile'
@@ -504,6 +504,8 @@ export default async function AdminUserDetailPage(
 
   const plan = PLAN_LABEL[ws.plan] ?? { label: ws.plan, tone: 'muted' as BadgeTone }
   const planDef = (await getEffectivePlanDefs())[ws.plan]
+  // -1 marks the unlimited-connection plan (flagship): show the label, never a raw -1.
+  const channelCeilingLabel = isUnlimitedPlanLimit(planDef.maxChannels) ? 'نامحدود' : fa(planDef.maxChannels)
   const businessProfile = readBusinessProfile(ws.businessProfile)
   const vertical = getVerticalPack(ws.businessType)
   const hasProfile = Boolean(businessProfile)
@@ -843,7 +845,7 @@ export default async function AdminUserDetailPage(
                   />
                   <StatCard
                     label="اتصال کانال فعال"
-                    value={`${fa(activeChannelCount)} / ${fa(planDef.maxChannels)}`}
+                    value={`${fa(activeChannelCount)} / ${channelCeilingLabel}`}
                     icon={<Cable className="h-4 w-4" />}
                   />
                 </div>
@@ -1162,7 +1164,7 @@ export default async function AdminUserDetailPage(
                   <KV label="قیمت ماهانه (دلار)">
                     {planDef.priceUSD > 0 ? fmtUSD(planDef.priceUSD) : 'رایگان'}
                   </KV>
-                  <KV label="اتصال کانال فعال">{fa(activeChannelCount)} از {fa(planDef.maxChannels)}</KV>
+                  <KV label="اتصال کانال فعال">{fa(activeChannelCount)} از {channelCeilingLabel}</KV>
                   <KV label="محدودیت ایجنت">ندارد</KV>
                 </div>
               </Panel>
@@ -1212,7 +1214,7 @@ export default async function AdminUserDetailPage(
             <StatCard label="کل اتصال‌ها" value={channelsTab.total} icon={<Cable className="h-4 w-4" />} />
             <StatCard label="فعال" value={channelsTab.activeCount} tone="success" icon={<Check className="h-4 w-4" />} />
             <StatCard label="ورودی در ۷ روز اخیر" value={channelsTab.recentInbound} tone="info" icon={<Activity className="h-4 w-4" />} sub="کانال‌هایی که پیام دریافت کرده‌اند" />
-            <StatCard label="سقف پلن" value={`${fa(activeChannelCount)} / ${fa(planDef.maxChannels)}`} tone="info" icon={<Settings className="h-4 w-4" />} />
+            <StatCard label="سقف پلن" value={`${fa(activeChannelCount)} / ${channelCeilingLabel}`} tone="info" icon={<Settings className="h-4 w-4" />} />
           </div>
 
           {channelsTab.rows.length === 0 ? (
