@@ -2464,3 +2464,13 @@ body:has([data-sticky-actions]) .back-to-top { display: none; }
 @media (prefers-reduced-motion: reduce) {
         .nav-status-live::after { animation: none; opacity: 0.35; transform: none; }
 }
+
+/* Operator reply box: the tools inside the field show their names beside the
+   icons only when the field itself has the room (a wide desktop thread). A
+   narrow pane or a phone keeps the icons alone. */
+.op-composer { container-type: inline-size; }
+.op-tool-label { display: none; }
+@container (min-width: 640px) {
+  .op-tools .op-tool { width: auto; padding-inline: 0.625rem 0.75rem; }
+  .op-tools .op-tool-label { display: inline; }
+}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronDown, ClipboardList, Plus, ShoppingBag, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -8,6 +8,7 @@ import { SideSheet } from '@/components/ui/side-sheet'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { LocalizedDatePicker } from '@/components/ui/localized-date-picker'
 import { PurchaseCard, type PurchaseView } from '@/components/payments/purchase-card'
+import { displayOrderCode } from '@/lib/commerce/order-ref'
 import { AmountField, formatAmountInput, ItemsEditor, itemsTotal, toPayItems, type EditorItem } from '@/components/payments/payment-request-fields'
 import type { PayItem } from '@/lib/payments/card/items'
 import { relativeTime } from '@/lib/format'
@@ -31,7 +32,8 @@ type Entry =
  * A customer's purchases in one place: orders paid in Vigent and orders the
  * owner recorded by hand (phone, in-store), newest first. Each row opens to
  * its full receipt; «ثبت سفارش دستی» opens a sheet (side on desktop, bottom on
- * phones) that picks items like a new payment does.
+ * phones) that picks items like a new payment does. `?order=new` in the
+ * address (the phone sheet's link) opens that sheet straight away.
  */
 export function ContactPurchases({
   contactId,
@@ -48,6 +50,13 @@ export function ContactPurchases({
   const nf = new Intl.NumberFormat(fa ? 'fa-IR' : 'en-US')
   const dateFmt = new Intl.DateTimeFormat(fa ? 'fa-IR-u-ca-persian' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' })
   const [adding, setAdding] = useState(false)
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    if (url.searchParams.get('order') !== 'new') return
+    setAdding(true)
+    url.searchParams.delete('order')
+    window.history.replaceState(window.history.state, '', url)
+  }, [])
 
   const entries = useMemo<Entry[]>(() => [
     ...purchases.map((purchase): Entry => ({ kind: 'paid', id: purchase.id, at: new Date(purchase.paidAt), total: purchase.total, purchase })),
@@ -107,22 +116,22 @@ export function ContactPurchases({
         <ul className="mt-4 grid gap-2">
           {entries.map((entry) => (
             <li key={`${entry.kind}:${entry.id}`}>
-              <details className="group overflow-hidden rounded-2xl border border-[var(--border-default)] bg-white open:shadow-[var(--shadow-xs)]">
-                <summary className="flex cursor-pointer list-none items-center gap-3 p-3 hover:bg-black/[0.02] [&::-webkit-details-marker]:hidden">
+              <details className="group overflow-hidden rounded-2xl border border-[var(--border-default)] bg-white transition-shadow open:border-[var(--border-hover)] open:shadow-[0_12px_32px_-20px_rgba(17,17,17,.35)]">
+                <summary className="flex cursor-pointer list-none items-center gap-3 p-3 hover:bg-black/[0.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] sm:p-3.5 [&::-webkit-details-marker]:hidden">
                   <span className={cn('grid size-9 shrink-0 place-items-center rounded-xl', entry.kind === 'paid' ? 'bg-emerald-50 text-emerald-700' : 'bg-[var(--bg-muted)] text-[var(--text-secondary)]')}>
                     {entry.kind === 'paid' ? <ShoppingBag className="size-[18px]" aria-hidden /> : <ClipboardList className="size-[18px]" aria-hidden />}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="line-clamp-2 text-[13.5px] font-medium leading-6 text-[var(--text-primary)]">
                       {entry.kind === 'paid'
-                        ? entry.purchase.lines.map((line) => (line.quantity > 1 ? `${nf.format(line.quantity)}× ${line.name}` : line.name)).join('، ') || (fa ? `سفارش #${entry.purchase.code}` : `Order #${entry.purchase.code}`)
+                        ? entry.purchase.lines.map((line) => (line.quantity > 1 ? `${nf.format(line.quantity)}× ${line.name}` : line.name)).join('، ') || (fa ? `سفارش #${displayOrderCode(entry.purchase.code)}` : `Order #${displayOrderCode(entry.purchase.code)}`)
                         : entry.order.title}
                     </span>
                     <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-[var(--text-muted)]">
                       <span>{dateFmt.format(entry.at)}</span>
                       {entry.kind === 'paid' ? (
                         <>
-                          <span dir="ltr" className="font-mono">#{entry.purchase.code}</span>
+                          <span dir="ltr" className="font-mono" title={entry.purchase.code}>#{displayOrderCode(entry.purchase.code)}</span>
                           {entry.purchase.paymentId && !entry.purchase.handledAt
                             ? <span className="rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-800">{fa ? 'منتظر رسیدگی' : 'To handle'}</span>
                             : <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-semibold text-emerald-800">{fa ? 'پرداخت‌شده' : 'Paid'}</span>}
@@ -138,11 +147,13 @@ export function ContactPurchases({
                       <span className="block text-[11px] font-normal text-[var(--text-muted)]">{fa ? 'تومان' : 'Toman'}</span>
                     </span>
                   )}
-                  <ChevronDown className="size-4 shrink-0 text-[var(--text-muted)] transition-transform group-open:rotate-180" aria-hidden />
+                  <span className="grid size-7 shrink-0 place-items-center rounded-full bg-[var(--bg-muted)] text-[var(--text-muted)] transition-colors group-open:bg-[var(--text-primary)] group-open:text-[var(--bg-base)]">
+                    <ChevronDown className="size-4 transition-transform group-open:rotate-180 motion-reduce:transition-none" aria-hidden />
+                  </span>
                 </summary>
-                <div className="border-t border-[var(--border-subtle)] p-3">
+                <div className="border-t border-[var(--border-subtle)] p-3.5 sm:p-4">
                   {entry.kind === 'paid'
-                    ? <PurchaseCard purchase={entry.purchase} locale={locale} />
+                    ? <PurchaseCard purchase={entry.purchase} locale={locale} variant="plain" />
                     : <ManualOrderDetail contactId={contactId} order={entry.order} locale={locale} />}
                 </div>
               </details>

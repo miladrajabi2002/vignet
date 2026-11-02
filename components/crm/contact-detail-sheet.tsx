@@ -38,6 +38,7 @@ import { relativeTime } from '@/lib/format'
 import { displayPhone } from '@/lib/phone'
 import { formatContactAddress, type ContactAddress } from '@/lib/crm/contact-address'
 import { PurchaseCard, type PurchaseView } from '@/components/payments/purchase-card'
+import { displayOrderCode } from '@/lib/commerce/order-ref'
 import { cn } from '@/lib/utils'
 
 type DetailTab = 'overview' | 'conversations' | 'edit'
@@ -669,8 +670,8 @@ export function ContactDetailSheet({
 
 /**
  * The profile's purchases, cut down for a phone sheet: the total, the last
- * few orders (each opening to its receipt) and a way on to the full list,
- * where manual orders are recorded.
+ * few orders (each opening to its receipt), a way on to the full list and
+ * «+ ثبت سفارش دستی», which opens the profile with its order sheet up.
  */
 function PurchasesSummary({ contactId, entries, locale }: { contactId: string; entries: PurchaseEntry[]; locale: 'fa' | 'en' }) {
   const fa = locale !== 'en'
@@ -680,12 +681,15 @@ function PurchasesSummary({ contactId, entries, locale }: { contactId: string; e
   if (entries.length === 0) {
     return (
       <Link
-        href={`/contacts/${contactId}`}
+        href={`/contacts/${contactId}?order=new`}
         className="spatial-press flex min-h-14 items-center gap-3 rounded-2xl border border-dashed border-[var(--border-default)] bg-white px-4 py-3 text-[13px] text-[var(--text-muted)]"
       >
         <ShoppingBag className="h-4 w-4 shrink-0" aria-hidden="true" />
         <span className="min-w-0 flex-1">{fa ? 'هنوز خریدی ثبت نشده است' : 'No purchases yet'}</span>
-        <span className="shrink-0 font-semibold text-[var(--text-secondary)]">{fa ? 'ثبت سفارش دستی' : 'Add an order'}</span>
+        <span className="inline-flex shrink-0 items-center gap-1.5 font-semibold text-[var(--text-primary)]">
+          <span aria-hidden className="grid size-6 place-items-center rounded-full bg-[var(--text-primary)] text-[var(--bg-base)]"><Plus className="size-3.5" strokeWidth={2.6} /></span>
+          {fa ? 'ثبت سفارش دستی' : 'Add an order'}
+        </span>
       </Link>
     )
   }
@@ -732,7 +736,7 @@ function PurchasesSummary({ contactId, entries, locale }: { contactId: string; e
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[13px] font-medium text-[var(--text-primary)]">
                     {entry.kind === 'paid'
-                      ? entry.purchase.lines.map((line) => (line.quantity > 1 ? `${nf.format(line.quantity)}× ${line.name}` : line.name)).join('، ') || (fa ? `سفارش #${entry.purchase.code}` : `Order #${entry.purchase.code}`)
+                      ? entry.purchase.lines.map((line) => (line.quantity > 1 ? `${nf.format(line.quantity)}× ${line.name}` : line.name)).join('، ') || (fa ? `سفارش #${displayOrderCode(entry.purchase.code)}` : `Order #${displayOrderCode(entry.purchase.code)}`)
                       : entry.order.title}
                   </span>
                   <span className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[11.5px] text-[var(--text-muted)]">
@@ -751,9 +755,9 @@ function PurchasesSummary({ contactId, entries, locale }: { contactId: string; e
                 )}
                 <ChevronDown className="size-4 shrink-0 text-[var(--text-muted)] transition-transform group-open:rotate-180 motion-reduce:transition-none" aria-hidden />
               </summary>
-              <div className="px-3 pb-3">
+              <div className="px-4 pb-4 pt-1">
                 {entry.kind === 'paid' ? (
-                  <PurchaseCard purchase={entry.purchase} locale={locale} />
+                  <PurchaseCard purchase={entry.purchase} locale={locale} variant="plain" />
                 ) : (
                   <ul className="divide-y divide-[var(--border-subtle)] rounded-xl border border-[var(--border-subtle)] px-3">
                     {(entry.order.items.length ? entry.order.items : [{ name: entry.order.title, quantity: 1, unitPrice: null }]).map((line, index) => (
@@ -772,14 +776,23 @@ function PurchasesSummary({ contactId, entries, locale }: { contactId: string; e
         ))}
       </ul>
 
-      <Link
-        href={`/contacts/${contactId}`}
-        className="flex min-h-11 items-center justify-center gap-1.5 border-t border-[var(--border-subtle)] text-xs font-semibold text-[var(--text-secondary)] hover:bg-black/[0.02]"
-      >
-        {entries.length > PURCHASES_SHOWN
-          ? (fa ? `همهٔ ${nf.format(entries.length)} سفارش` : `All ${entries.length} orders`)
-          : (fa ? 'ثبت سفارش دستی' : 'Add an order')}
-      </Link>
+      <div className="flex divide-x divide-[var(--border-subtle)] border-t border-[var(--border-subtle)] rtl:divide-x-reverse">
+        {entries.length > PURCHASES_SHOWN && (
+          <Link
+            href={`/contacts/${contactId}`}
+            className="flex min-h-12 flex-1 items-center justify-center gap-1.5 text-[13px] font-semibold text-[var(--text-secondary)] hover:bg-black/[0.02]"
+          >
+            {fa ? `همهٔ ${nf.format(entries.length)} سفارش` : `All ${entries.length} orders`}
+          </Link>
+        )}
+        <Link
+          href={`/contacts/${contactId}?order=new`}
+          className="flex min-h-12 flex-1 items-center justify-center gap-2 text-[13px] font-semibold text-[var(--text-primary)] hover:bg-black/[0.02]"
+        >
+          <span aria-hidden className="grid size-6 place-items-center rounded-full bg-[var(--text-primary)] text-[var(--bg-base)]"><Plus className="size-3.5" strokeWidth={2.6} /></span>
+          {fa ? 'ثبت سفارش دستی' : 'Add an order'}
+        </Link>
+      </div>
     </section>
   )
 }

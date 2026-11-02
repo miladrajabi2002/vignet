@@ -7,11 +7,13 @@ import type { ChannelType } from '@prisma/client'
 import Link from 'next/link'
 import { Check, CircleCheck, CreditCard, Loader2, Lock, Package, Plus, Search, StickyNote, TriangleAlert, X } from 'lucide-react'
 import { ChatComposer, type ChatComposerHandle } from '@/components/chat/chat-composer'
+import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
 import { cn } from '@/lib/utils'
 import { deliveryReasonDetail } from '@/lib/channels/delivery-errors'
 import type { ThreadMessage } from './conversation-thread'
 import { ProductImage } from '@/components/products/product-image'
 import { AmountField, formatAmountInput, ItemsEditor, itemsTotal, toPayItems, type EditorItem } from '@/components/payments/payment-request-fields'
+import { MIN_PAY_AMOUNT_TOMAN, paymentCreateErrorText } from '@/lib/payments/card/create-errors'
 
 type DeliveryFeedback = {
   status: 'sent' | 'stored' | 'unavailable' | 'failed'
@@ -32,7 +34,7 @@ const MAX_PRODUCTS = 10
 
 /** The tools inside the field: one 36px square each, 32px wide on a phone. */
 const TOOL =
-  'relative grid h-9 w-8 shrink-0 place-items-center rounded-xl transition-colors sm:w-9 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-35'
+  'op-tool relative inline-flex h-9 w-8 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl text-[12.5px] font-medium transition-colors sm:w-9 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-35'
 const TOOL_IDLE = 'text-[var(--text-muted)] hover:enabled:bg-[var(--bg-hover)] hover:enabled:text-[var(--text-primary)]'
 const TOOL_LOCKED = 'text-[var(--text-hint)] hover:text-[var(--text-muted)]'
 const TOOL_ON = {
@@ -44,6 +46,19 @@ const TOOL_ON = {
 /** The little count on «ارسال محصول» once products are picked. */
 function ToolCount({ value }: { value: string }) {
   return <span className="absolute -top-1 -end-1 grid h-4 min-w-4 place-items-center rounded-full bg-[var(--accent-strong)] px-1 text-[10px] font-bold leading-none text-white tabular-nums ring-2 ring-white">{value}</span>
+}
+
+/** Below md the product and payment panels open as bottom sheets (MobileBottomSheet's own breakpoint). */
+function usePhoneViewport() {
+  const [phone, setPhone] = useState(false)
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 767px)')
+    const update = () => setPhone(media.matches)
+    update()
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
+  return phone
 }
 
 /** Marks a tool that needs setting up first; a tap says what. */
@@ -134,6 +149,7 @@ export function OperatorReply({
   const [payFor, setPayFor] = useState('')
   const [lockShown, setLockShown] = useState<Exclude<ComposerToolLock, null> | null>(null)
   const [toolsOpen, setToolsOpen] = useState(false)
+  const phone = usePhoneViewport()
   const nf = new Intl.NumberFormat(fa ? 'fa-IR' : 'en-US')
   const sendsProducts = !noteMode && !payMode && attached.length > 0
   const payValue = Number(payAmount.replace(/\D/g, ''))
@@ -168,6 +184,7 @@ export function OperatorReply({
       if (!payValue) setError(fa ? 'مبلغ پرداخت را وارد کنید.' : 'Enter the amount.')
       return
     }
+    if (payValue < MIN_PAY_AMOUNT_TOMAN) { setError(paymentCreateErrorText('AMOUNT_TOO_LOW', fa)); return }
     setBusy(true)
     setError(null)
     setDelivery(null)
@@ -179,10 +196,7 @@ export function OperatorReply({
       })
       const data = await res.json().catch(() => null)
       if (!res.ok) {
-        const copy: Record<string, string> = fa
-          ? { WINDOW_CLOSED: 'اینستاگرام فقط تا ۲۴ ساعت بعد از آخرین پیام مشتری اجازهٔ پیام می‌دهد.', DISABLED: 'درگاه پرداخت خاموش است.', NO_CARD: 'کارت فعالی در درگاه نیست.', AMOUNT_TOO_LOW: 'حداقل مبلغ ۱٬۰۰۰ تومان است.', AMOUNT_TOO_HIGH: 'این مبلغ از سقف کارت‌به‌کارت بیشتر است.', CAP_REACHED: 'سقف پرداخت‌های این ماه پر شده است.', NO_SLOT: 'چند دقیقهٔ دیگر دوباره تلاش کنید.' }
-          : { WINDOW_CLOSED: 'Instagram allows messages only within 24 hours of the customer’s last one.', DISABLED: 'The gateway is off.', NO_CARD: 'There is no active card.', AMOUNT_TOO_LOW: 'The minimum is 1,000 Toman.', AMOUNT_TOO_HIGH: 'This amount is above the card-to-card limit.', CAP_REACHED: 'This month’s limit is reached.', NO_SLOT: 'Try again in a few minutes.' }
-        setError(copy[data?.error] ?? (fa ? 'درخواست پرداخت فرستاده نشد. دوباره تلاش کنید.' : 'The payment request was not sent. Try again.'))
+        setError(paymentCreateErrorText(data?.error, fa, data?.limit) ?? (fa ? 'درخواست پرداخت فرستاده نشد. دوباره تلاش کنید.' : 'The payment request was not sent. Try again.'))
         return
       }
       if (onSent && data?.message) {
@@ -200,6 +214,11 @@ export function OperatorReply({
     } finally {
       setBusy(false)
     }
+  }
+
+  function closePicker() {
+    setPickerOpen(false)
+    if (!phone) composerRef.current?.focus()
   }
 
   function toggleProduct(product: PickerProduct) {
@@ -323,6 +342,30 @@ export function OperatorReply({
     </p>
   ) : null
 
+  const payTitle = fa ? 'درخواست پرداخت کارت‌به‌کارت' : 'Card-to-card payment request'
+  const payFields = (
+    <>
+      <div className="grid gap-3 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] md:items-start">
+        <div className="grid gap-1.5">
+          <span className="text-[12px] font-medium text-[var(--text-muted)]">{fa ? 'اقلام (اختیاری)' : 'Items (optional)'}</span>
+          <ItemsEditor items={payItems} onChange={changePayItems} fa={fa} disabled={busy} />
+        </div>
+        <div className="grid gap-2">
+          <AmountField
+            id={`pay-request-amount-${conversationId}`}
+            value={payAmount}
+            onChange={(next) => { setPayAmount(next); setPayAmountTouched(Boolean(next)) }}
+            fa={fa}
+            disabled={busy}
+            hint={payTotal ? (payAmountTouched && payValue !== payTotal ? (fa ? `جمع اقلام ${nf.format(payTotal)}` : `Items: ${nf.format(payTotal)}`) : (fa ? 'از جمع اقلام' : 'From the items')) : null}
+          />
+          <input value={payFor} onChange={(event) => setPayFor(event.target.value)} maxLength={200} disabled={busy} placeholder={fa ? 'بابت (اختیاری)، مثلاً: کفش سایز ۴۰' : 'For (optional), e.g. Sneakers size 40'} aria-label={fa ? 'بابت' : 'For'} className="input min-h-10 text-base sm:text-[13px]" />
+        </div>
+      </div>
+      <p className="text-[12px] leading-5 text-[var(--text-muted)]">{fa ? 'کارت بانکی و مبلغ دقیق در همین گفتگو می‌رود؛ با رسیدن پیامک واریز، خودکار تأیید و به مشتری خبر داده می‌شود.' : 'The bank card and the exact amount go into this conversation; the transfer is confirmed from the bank SMS and the customer is told.'}</p>
+    </>
+  )
+
   return (
     <div className="space-y-2">
       {sendsProducts && (
@@ -367,36 +410,20 @@ export function OperatorReply({
         </div>
       )}
 
-      {payMode && (
+      {payMode && !phone && (
         <div className="grid gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3">
           <div className="flex items-center gap-2">
             <CreditCard className="h-4 w-4 shrink-0 text-[var(--text-secondary)]" aria-hidden="true" />
-            <p className="min-w-0 flex-1 text-[13px] font-bold text-[var(--text-primary)]">{fa ? 'درخواست پرداخت کارت‌به‌کارت' : 'Card-to-card payment request'}</p>
+            <p className="min-w-0 flex-1 text-[13px] font-bold text-[var(--text-primary)]">{payTitle}</p>
             <button type="button" onClick={() => setPayMode(false)} disabled={busy} aria-label={fa ? 'بستن' : 'Close'} className="grid h-8 w-8 place-items-center rounded-full text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"><X className="h-4 w-4" aria-hidden="true" /></button>
           </div>
-          <div className="grid gap-3 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] md:items-start">
-            <div className="grid gap-1.5">
-              <span className="text-[12px] font-medium text-[var(--text-muted)]">{fa ? 'اقلام (اختیاری)' : 'Items (optional)'}</span>
-              <ItemsEditor items={payItems} onChange={changePayItems} fa={fa} disabled={busy} />
-            </div>
-            <div className="grid gap-2">
-              <AmountField
-                id={`pay-request-amount-${conversationId}`}
-                value={payAmount}
-                onChange={(next) => { setPayAmount(next); setPayAmountTouched(Boolean(next)) }}
-                fa={fa}
-                disabled={busy}
-                hint={payTotal ? (payAmountTouched && payValue !== payTotal ? (fa ? `جمع اقلام ${nf.format(payTotal)}` : `Items: ${nf.format(payTotal)}`) : (fa ? 'از جمع اقلام' : 'From the items')) : null}
-              />
-              <input value={payFor} onChange={(event) => setPayFor(event.target.value)} maxLength={200} disabled={busy} placeholder={fa ? 'بابت (اختیاری)، مثلاً: کفش سایز ۴۰' : 'For (optional), e.g. Sneakers size 40'} aria-label={fa ? 'بابت' : 'For'} className="input min-h-10 text-[13px]" />
-            </div>
-          </div>
-          <p className="text-[12px] leading-5 text-[var(--text-muted)]">{fa ? 'کارت بانکی و مبلغ دقیق در همین گفتگو می‌رود؛ با رسیدن پیامک واریز، خودکار تأیید و به مشتری خبر داده می‌شود.' : 'The bank card and the exact amount go into this conversation; the transfer is confirmed from the bank SMS and the customer is told.'}</p>
+          {payFields}
         </div>
       )}
 
-      {/* The picker hangs off this wrapper, above the whole field. */}
-      <div className="relative">
+      {/* The picker hangs off this wrapper, above the whole field; the wrapper
+          is also the container whose width decides whether the tools show names. */}
+      <div className="op-composer relative">
         <ChatComposer
           ref={composerRef}
           value={text}
@@ -422,7 +449,10 @@ export function OperatorReply({
             // Inside the field, opposite the send button. On a phone, once there
             // is text, the three fold into one button so the text keeps the width;
             // a tap opens them again. Nothing here ever scrolls sideways.
-            <div dir={fa ? 'rtl' : 'ltr'} className="mb-0.5 flex shrink-0 items-center self-end">
+            // The thin rule keeps them apart from the text; names show beside the
+            // icons only when the field is wide enough (see .op-composer).
+            <div className="mb-0.5 flex shrink-0 items-center gap-1.5 self-end">
+            <div dir={fa ? 'rtl' : 'ltr'} className="flex items-center">
               {folded && (
                 <button
                   type="button"
@@ -438,7 +468,7 @@ export function OperatorReply({
                   {attached.length > 0 && <ToolCount value={nf.format(attached.length)} />}
                 </button>
               )}
-              <div className={cn('flex items-center', folded && 'hidden sm:flex')}>
+              <div className={cn('op-tools flex items-center gap-0.5', folded && 'hidden sm:flex')}>
                 <button
                   type="button"
                   onClick={() => {
@@ -457,6 +487,7 @@ export function OperatorReply({
                   className={cn(TOOL, tools.products ? TOOL_LOCKED : attached.length > 0 ? TOOL_ON.products : pickerOpen ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]' : TOOL_IDLE)}
                 >
                   <Package className="h-[18px] w-[18px]" aria-hidden="true" />
+                  <span className="op-tool-label" aria-hidden="true">{fa ? 'ارسال محصول' : 'Products'}</span>
                   {tools.products && <ToolLock />}
                   {attached.length > 0 && <ToolCount value={nf.format(attached.length)} />}
                 </button>
@@ -472,6 +503,7 @@ export function OperatorReply({
                     className={cn(TOOL, tools.payment ? TOOL_LOCKED : payMode ? TOOL_ON.pay : TOOL_IDLE)}
                   >
                     <CreditCard className="h-[18px] w-[18px]" aria-hidden="true" />
+                    <span className="op-tool-label" aria-hidden="true">{fa ? 'درخواست پرداخت' : 'Payment'}</span>
                     {tools.payment && <ToolLock />}
                   </button>
                 )}
@@ -490,24 +522,77 @@ export function OperatorReply({
                   className={cn(TOOL, noteMode ? TOOL_ON.note : TOOL_IDLE)}
                 >
                   <StickyNote className="h-[18px] w-[18px]" aria-hidden="true" />
+                  <span className="op-tool-label" aria-hidden="true">{fa ? 'یادداشت' : 'Note'}</span>
                 </button>
               </div>
+            </div>
+            <span className="h-6 w-px shrink-0 bg-[var(--border-default)]" aria-hidden="true" />
             </div>
           }
         />
 
-        {pickerOpen && (
+        {pickerOpen && !phone && (
           <ProductPicker
             fa={fa}
             selectedIds={attached.map((product) => product.id)}
             onToggle={toggleProduct}
-            onClose={() => {
-              setPickerOpen(false)
-              composerRef.current?.focus()
-            }}
+            onClose={closePicker}
           />
         )}
       </div>
+
+      {/* Phones: products and payment rise from the bottom as sheets. */}
+      <MobileBottomSheet
+        open={pickerOpen && phone}
+        title={fa ? 'ارسال محصول' : 'Send products'}
+        description={productDeliveryHint(channel, fa)}
+        closeLabel={fa ? 'بستن' : 'Close'}
+        size="large"
+        contentClassName="px-2 pt-0"
+        onClose={closePicker}
+        footer={<PickerFooter fa={fa} count={attached.length} onDone={closePicker} />}
+      >
+        <ProductPicker fa={fa} sheet selectedIds={attached.map((product) => product.id)} onToggle={toggleProduct} onClose={closePicker} />
+      </MobileBottomSheet>
+      <MobileBottomSheet
+        open={payMode && phone}
+        title={payTitle}
+        closeLabel={fa ? 'بستن' : 'Close'}
+        onClose={() => { if (!busy) setPayMode(false) }}
+        footer={
+          <div className="grid gap-2">
+            {error && <p className="text-xs text-[var(--red)]" role="alert">{error}</p>}
+            <button
+              type="button"
+              onClick={() => void sendPayment()}
+              disabled={busy || !payValue}
+              className="spatial-press inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-control bg-[var(--text-primary)] px-4 text-[14px] font-bold text-white disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
+            >
+              {busy ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <CreditCard className="h-4 w-4" aria-hidden="true" />}
+              {payValue
+                ? (fa ? `فرستادن کارت پرداخت · ${nf.format(payValue)} تومان` : `Send the payment card · ${nf.format(payValue)} Toman`)
+                : (fa ? 'فرستادن کارت پرداخت' : 'Send the payment card')}
+            </button>
+          </div>
+        }
+      >
+        <div className="grid gap-3">
+          {payFields}
+          <label className="grid gap-1.5">
+            <span className="text-[12px] font-medium text-[var(--text-muted)]">{fa ? 'متن همراه (اختیاری)' : 'A line to go with it (optional)'}</span>
+            <textarea
+              value={text}
+              onChange={(event) => setText(event.target.value)}
+              rows={2}
+              maxLength={4000}
+              disabled={busy}
+              dir={fa ? 'rtl' : 'ltr'}
+              placeholder={fa ? 'مثلاً: مبلغ سفارش‌تون رو اینجا پرداخت کنید' : 'e.g. Here is the payment for your order'}
+              className="input min-h-[4.5rem] resize-none py-2 text-base"
+            />
+          </label>
+        </div>
+      </MobileBottomSheet>
 
       {lockShown && (
         <div id={`composer-lock-${conversationId}`} role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 py-2.5 text-[12.5px] leading-6 text-[var(--text-secondary)]">
@@ -550,11 +635,14 @@ function ProductPicker({
   selectedIds,
   onToggle,
   onClose,
+  sheet = false,
 }: {
   fa: boolean
   selectedIds: string[]
   onToggle: (product: PickerProduct) => void
   onClose: () => void
+  /** Inside a bottom sheet: the sheet owns the frame, Escape, close and the footer. */
+  sheet?: boolean
 }) {
   const [query, setQuery] = useState('')
   const [items, setItems] = useState<PickerProduct[] | null>(null)
@@ -565,13 +653,15 @@ function ProductPicker({
   const full = selectedIds.length >= MAX_PRODUCTS
 
   useEffect(() => {
+    // On a phone the keyboard would cover half the list before anything is picked.
+    if (sheet) return
     inputRef.current?.focus()
     function onKey(event: KeyboardEvent) {
       if (event.key === 'Escape') onClose()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [onClose, sheet])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -597,11 +687,13 @@ function ProductPicker({
 
   return (
     <div
-      role="dialog"
-      aria-label={fa ? 'انتخاب محصول' : 'Pick products'}
-      className="absolute bottom-full end-0 z-30 mb-2 flex max-h-[min(28rem,70dvh)] w-full max-w-md flex-col rounded-card border border-[var(--border-default)] bg-white p-2 shadow-[var(--elev-2)]"
+      role={sheet ? undefined : 'dialog'}
+      aria-label={sheet ? undefined : fa ? 'انتخاب محصول' : 'Pick products'}
+      className={sheet
+        ? 'flex flex-col'
+        : 'absolute bottom-full end-0 z-30 mb-2 flex max-h-[min(28rem,70dvh)] w-full max-w-md flex-col rounded-card border border-[var(--border-default)] bg-white p-2 shadow-[var(--elev-2)]'}
     >
-      <div className="flex items-center gap-1.5">
+      <div className={cn('flex items-center gap-1.5', sheet && 'sticky top-0 z-10 bg-white px-2 pb-2 pt-3')}>
         <div className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" aria-hidden="true" />
           <input
@@ -614,17 +706,19 @@ function ProductPicker({
             className="input min-h-10 w-full ps-9 text-base sm:text-sm"
           />
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label={fa ? 'بستن' : 'Close'}
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-control text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
-        >
-          <X className="h-4 w-4" aria-hidden="true" />
-        </button>
+        {!sheet && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={fa ? 'بستن' : 'Close'}
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-control text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        )}
       </div>
 
-      <div className="mt-1.5 min-h-0 flex-1 overflow-y-auto">
+      <div className={cn('min-h-0 flex-1', !sheet && 'mt-1.5 overflow-y-auto')}>
         {failed ? (
           <p className="px-2 py-4 text-center text-[12px] text-[var(--red)]">{fa ? 'فهرست محصولات باز نشد.' : 'The product list could not be loaded.'}</p>
         ) : items === null ? (
@@ -679,20 +773,30 @@ function ProductPicker({
           </ul>
         )}
       </div>
-      <div className="mt-1.5 flex items-center gap-2 border-t border-[var(--border-subtle)] px-1 pt-2">
-        <p className="min-w-0 flex-1 text-[12px] text-[var(--text-muted)]">
-          {fa
-            ? `${nf.format(selectedIds.length)} از ${nf.format(MAX_PRODUCTS)} محصول انتخاب شده`
-            : `${selectedIds.length} of ${MAX_PRODUCTS} products picked`}
-        </p>
-        <button
-          type="button"
-          onClick={onClose}
-          className="spatial-press inline-flex min-h-9 shrink-0 items-center rounded-control bg-[var(--text-primary)] px-3.5 text-[13px] font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
-        >
-          {fa ? 'تأیید' : 'Done'}
-        </button>
-      </div>
+      {!sheet && (
+        <div className="mt-1.5 border-t border-[var(--border-subtle)] px-1 pt-2">
+          <PickerFooter fa={fa} count={selectedIds.length} onDone={onClose} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** How many are picked, and the button that closes the picker. */
+function PickerFooter({ fa, count, onDone }: { fa: boolean; count: number; onDone: () => void }) {
+  const nf = new Intl.NumberFormat(fa ? 'fa-IR' : 'en-US')
+  return (
+    <div className="flex items-center gap-2">
+      <p className="min-w-0 flex-1 text-[12px] text-[var(--text-muted)]">
+        {fa ? `${nf.format(count)} از ${nf.format(MAX_PRODUCTS)} محصول انتخاب شده` : `${count} of ${MAX_PRODUCTS} products picked`}
+      </p>
+      <button
+        type="button"
+        onClick={onDone}
+        className="spatial-press inline-flex min-h-10 shrink-0 items-center rounded-control bg-[var(--text-primary)] px-4 text-[13px] font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
+      >
+        {fa ? 'تأیید' : 'Done'}
+      </button>
     </div>
   )
 }
