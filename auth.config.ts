@@ -1,4 +1,5 @@
 import type { NextAuthConfig } from 'next-auth'
+import { sessionCookieDomain, sessionCookieName } from '@/lib/auth/panel-host'
 
 /**
  * Top-level page route prefixes that require an authenticated session.
@@ -33,6 +34,23 @@ export const authConfig = {
   pages: { signIn: '/login' },
   session: { strategy: 'jwt' },
   trustHost: true,
+  // One session for vigent.ir and panel.vigent.ir (see lib/auth/panel-host).
+  ...(sessionCookieDomain()
+    ? {
+        cookies: {
+          sessionToken: {
+            name: sessionCookieName(),
+            options: {
+              httpOnly: true,
+              sameSite: 'lax' as const,
+              path: '/',
+              secure: process.env.NODE_ENV === 'production',
+              domain: sessionCookieDomain(),
+            },
+          },
+        },
+      }
+    : {}),
   providers: [],
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {

@@ -3,6 +3,7 @@ import NextAuth from 'next-auth'
 import { authConfig, PROTECTED_PREFIXES } from '@/auth.config'
 import { LOCALE_COOKIE } from '@/lib/locale'
 import { isMarketingPath, SITE_ROUTE_PREFIX } from '@/lib/marketing/site-variant'
+import { redirectToPanel } from '@/lib/auth/panel-host'
 
 const { auth } = NextAuth(authConfig)
 
@@ -98,8 +99,11 @@ const authMiddleware = auth((req) => {
   return NextResponse.next({ request: { headers: requestHeaders } })
 }) as unknown as NextMiddleware
 
+const isDashboardPath = (path: string) =>
+  PROTECTED_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))
+
 export default function middleware(req: NextRequest, event: NextFetchEvent) {
-  return routePublicSite(req) ?? authMiddleware(req, event)
+  return routePublicSite(req) ?? redirectToPanel(req, isDashboardPath) ?? authMiddleware(req, event)
 }
 
 export const config = {
