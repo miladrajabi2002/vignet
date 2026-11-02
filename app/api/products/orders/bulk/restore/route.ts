@@ -5,7 +5,7 @@ import { restoreIdsSchema, restoreSoftDeleted } from '@/lib/soft-delete'
 export const dynamic = 'force-dynamic'
 
 /**
- * Undo endpoint for bulk-deleted store orders.
+ * Undo endpoint for bulk-deleted orders: store orders and gateway orders.
  */
 export async function POST(request: Request) {
   const user = await getCurrentUser()
@@ -16,6 +16,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'INVALID_INPUT' }, { status: 400 })
   }
 
-  const result = await restoreSoftDeleted('storeOrder', user.workspaceId, parsed.data.ids)
-  return NextResponse.json(result)
+  // The orders list also carries orders paid through the gateway (payments).
+  const [stores, gateway] = await Promise.all([
+    restoreSoftDeleted('storeOrder', user.workspaceId, parsed.data.ids),
+    restoreSoftDeleted('cardPayment', user.workspaceId, parsed.data.ids),
+  ])
+  const restored = stores.restored + gateway.restored
+  return NextResponse.json({ ok: true, restored, skipped: parsed.data.ids.length - restored })
 }

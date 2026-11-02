@@ -142,6 +142,45 @@ export function appointmentBulkWhere(scope: AppointmentBulkScope, now = new Date
  * the old single «حذف همه» button sent); an unknown one is null so the route
  * can answer 400 instead of silently widening the delete to everything.
  */
+/**
+ * Gateway payments. Open ones (waiting for the transfer or for the owner's
+ * review) are never deleted: a late deposit SMS must still find them. The
+ * first scope is the default, so a bare DELETE removes only failed ones.
+ */
+export const PAYMENT_BULK_SCOPES = ['closed', 'older_90d', 'all'] as const
+export type PaymentBulkScope = (typeof PAYMENT_BULK_SCOPES)[number]
+
+export function paymentBulkWhere(scope: PaymentBulkScope, now = new Date()): Prisma.CardPaymentWhereInput {
+  switch (scope) {
+    case 'closed':
+      return { status: { in: ['EXPIRED', 'CANCELLED', 'FAILED'] } }
+    case 'older_90d':
+      return { createdAt: { lt: daysAgo(now, 90) } }
+    default:
+      return {}
+  }
+}
+
+/**
+ * Chat pre-orders on «درخواست‌ها». Only closed ones are ever deleted (see
+ * lib/commerce/request-states); the first scope is the default.
+ */
+export const REQUEST_BULK_SCOPES = ['closed', 'done', 'older_90d', 'all'] as const
+export type RequestBulkScope = (typeof REQUEST_BULK_SCOPES)[number]
+
+export function requestBulkWhere(scope: RequestBulkScope, now = new Date()): Prisma.OrderDraftWhereInput {
+  switch (scope) {
+    case 'closed':
+      return { status: { in: ['CANCELLED', 'EXPIRED', 'PAYMENT_FAILED', 'REFUNDED'] } }
+    case 'done':
+      return { status: 'CONFIRMED' }
+    case 'older_90d':
+      return { submittedAt: { lt: daysAgo(now, 90) } }
+    default:
+      return {}
+  }
+}
+
 export function parseBulkScope<T extends string>(request: Request, scopes: readonly T[]): T | null {
   const raw = new URL(request.url).searchParams.get('scope')
   if (raw === null || raw === '') return scopes[0]

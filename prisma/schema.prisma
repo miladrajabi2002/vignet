@@ -1704,6 +1704,8 @@ model OrderDraft {
   //   RELEASED (the worker sweep owns the last two steps).
   heldUntil           DateTime?
   holdState           String?
+  // Trashed by the owner (undo for 5 minutes, purged after 7 days); see lib/prisma.ts.
+  deletedAt           DateTime?
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
 
@@ -1718,6 +1720,7 @@ model OrderDraft {
   @@index([integrationId])
   @@index([holdState, heldUntil])
   @@index([storeSyncAt])
+  @@index([deletedAt])
 }
 
 /// A conversation that asked about a store order and should hear about its
@@ -2642,7 +2645,10 @@ model CardPayment {
   resolvedAt     DateTime?
   // A paid order waits for the owner (send the goods, start the service)
   // until they mark it handled; the inbox flags its conversation until then.
+  // A connected site's order is handled when the site verifies it.
   handledAt      DateTime?
+  // Trashed by the owner (undo for 5 minutes, purged after 7 days); see lib/prisma.ts.
+  deletedAt      DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -2661,6 +2667,7 @@ model CardPayment {
   @@index([enrollmentId])
   @@index([conversationId])
   @@index([callbackNextAt])
+  @@index([deletedAt])
 }
 
 /// A forwarded bank SMS from a registered phone. The account balance is

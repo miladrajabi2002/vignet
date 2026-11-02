@@ -1,4 +1,4 @@
-import { prismaRaw } from '@/lib/prisma'
+import { prismaRaw, type SoftModelKey } from '@/lib/prisma'
 import { dispatchProductEmbed } from '@/lib/queue/jobs'
 import { cleanupProductMarkersFromMessages } from '@/lib/products/marker-cleanup'
 import { cleanupProductIdsFromAutomations } from '@/lib/instagram/automation-cleanup'
@@ -24,6 +24,8 @@ export interface SoftDeletePurgeResult {
   conversations: number
   products: number
   orders: number
+  payments: number
+  requests: number
 }
 
 interface SoftPurgeDelegate {
@@ -32,7 +34,7 @@ interface SoftPurgeDelegate {
 }
 
 async function purgeModel(
-  model: 'contact' | 'conversation' | 'product' | 'storeOrder',
+  model: SoftModelKey,
   cutoff: Date,
   onBatch?: (ids: string[]) => Promise<void>,
 ): Promise<number> {
@@ -60,7 +62,7 @@ async function purgeModel(
 export async function purgeSoftDeleted(now = new Date()): Promise<SoftDeletePurgeResult> {
   const cutoff = new Date(now.getTime() - SOFT_DELETE_RETENTION_DAYS * 24 * 60 * 60 * 1_000)
 
-  const [contacts, conversations, products, orders] = await Promise.all([
+  const [contacts, conversations, products, orders, payments, requests] = await Promise.all([
     purgeModel('contact', cutoff),
     purgeModel('conversation', cutoff),
     purgeModel('product', cutoff, async (ids) => {
@@ -103,13 +105,15 @@ export async function purgeSoftDeleted(now = new Date()): Promise<SoftDeletePurg
       }
     }),
     purgeModel('storeOrder', cutoff),
+    purgeModel('cardPayment', cutoff),
+    purgeModel('orderDraft', cutoff),
   ])
 
-  const total = contacts + conversations + products + orders
+  const total = contacts + conversations + products + orders + payments + requests
   if (total > 0) {
     console.log(
-      `[soft-delete-purge] removed ${total} trashed row(s): ${contacts} contacts, ${conversations} conversations, ${products} products, ${orders} orders`,
+      `[soft-delete-purge] removed ${total} trashed row(s): ${contacts} contacts, ${conversations} conversations, ${products} products, ${orders} orders, ${payments} payments, ${requests} pre-orders`,
     )
   }
-  return { contacts, conversations, products, orders }
+  return { contacts, conversations, products, orders, payments, requests }
 }

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { prisma } from '@/lib/prisma'
+import { prisma, type SoftModelKey } from '@/lib/prisma'
 import { dispatchProductEmbed } from '@/lib/queue/jobs'
 
 /**
@@ -39,7 +39,7 @@ interface SoftUpdateDelegate {
  * whole restore.
  */
 export async function restoreSoftDeleted(
-  model: 'contact' | 'conversation' | 'product' | 'storeOrder',
+  model: SoftModelKey,
   workspaceId: string,
   ids: string[],
 ): Promise<SoftDeleteRestoreResult> {

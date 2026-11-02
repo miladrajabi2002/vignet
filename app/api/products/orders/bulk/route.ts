@@ -4,6 +4,7 @@ import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { checkWorkspaceActive } from '@/lib/billing/entitlements'
 import { ORDER_BULK_SCOPES, countBulkScopes, orderBulkWhere, parseBulkScope } from '@/lib/bulk-delete/scopes'
+import { gatewayOrderIdsForScope } from '@/lib/payments/card/fulfilment'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,7 +14,8 @@ export const dynamic = 'force-dynamic'
  * GET  → returns { count, counts } — the per-preset counts feed the
  *        «حذف گروهی» menu (لغوشده، تکمیل‌شده، قدیمی‌تر از سه ماه، …).
  *
- * DELETE → soft-deletes the StoreOrder rows matching `?scope=` (default: all;
+ * DELETE → soft-deletes the StoreOrder rows (and the gateway orders, which
+ * are paid CardPayments) matching `?scope=` (default: all;
  * see lib/bulk-delete/scopes.ts) in the workspace and returns the
  * trashed ids for the undo snackbar («بازگردانی»). Rows are physically
  * removed by the worker's purge sweeper after 7 days.
@@ -29,9 +31,14 @@ export async function GET() {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
   const now = new Date()
-  const counts = await countBulkScopes(ORDER_BULK_SCOPES, (scope) =>
-    prisma.storeOrder.count({ where: { workspaceId: user.workspaceId, ...orderBulkWhere(scope, now) } }),
-  )
+  // The list also carries orders paid through Vigent's gateway; they count too.
+  const counts = await countBulkScopes(ORDER_BULK_SCOPES, async (scope) => {
+    const [stores, gateway] = await Promise.all([
+      prisma.storeOrder.count({ where: { workspaceId: user.workspaceId, ...orderBulkWhere(scope, now) } }),
+      gatewayOrderIdsForScope(user.workspaceId, scope, now),
+    ])
+    return stores + gateway.length
+  })
   return NextResponse.json({ count: counts.all, counts })
 }
 
@@ -81,6 +88,16 @@ export async function DELETE(request: Request) {
     ids.push(...batchIds)
     batch = rows.length
   } while (batch === BATCH_SIZE)
+
+  // Gateway orders are the payments behind them: trashed the same way, and
+  // the same undo (…/orders/bulk/restore) brings both kinds back.
+  const gatewayIds = scopedIds
+    ? (await prisma.cardPayment.findMany({ where: { workspaceId: user.workspaceId, id: { in: scopedIds }, status: 'PAID' }, select: { id: true } })).map((row) => row.id)
+    : await gatewayOrderIdsForScope(user.workspaceId, scope)
+  if (gatewayIds.length) {
+    await prisma.cardPayment.deleteMany({ where: { workspaceId: user.workspaceId, id: { in: gatewayIds } } })
+    ids.push(...gatewayIds)
+  }
 
   // Reset order tracking for agents that never had it configured — only when
   // no live orders remain (mirrors the products bulk route).

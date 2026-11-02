@@ -11,7 +11,7 @@
  * detail page navigates back to the list, and the undo bar is already there.
  */
 
-export type UndoKind = 'contact' | 'conversation' | 'product' | 'order'
+export type UndoKind = 'contact' | 'conversation' | 'product' | 'order' | 'payment' | 'request'
 
 export interface UndoRequest {
   kind: UndoKind
@@ -79,4 +79,6 @@ export const UNDO_RESTORE_ENDPOINTS: Record<UndoKind, string> = {
   conversation: '/api/conversations/bulk/restore',
   product: '/api/products/bulk/restore',
   order: '/api/products/orders/bulk/restore',
+  payment: '/api/payments/bulk/restore',
+  request: '/api/products/requests/bulk/restore',
 }

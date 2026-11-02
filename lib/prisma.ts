@@ -3,7 +3,7 @@ import { Prisma, PrismaClient } from '@prisma/client'
 /**
  * ── Soft-delete (undo) extension ────────────────────────────────────────────
  *
- * Contact / Conversation / Product / StoreOrder are soft-deleted: instead of
+ * Contact / Conversation / Product / StoreOrder / CardPayment / OrderDraft are soft-deleted: instead of
  * removing the row we stamp `deletedAt`. This powers the "بازگردانی" (undo)
  * snackbar shown after every bulk delete, and keeps a 7-day safety net before
  * the worker purges trashed rows for good (lib/maintenance/soft-delete-purge).
@@ -44,7 +44,7 @@ import { Prisma, PrismaClient } from '@prisma/client'
  * `prisma` so the soft-delete rules apply.
  */
 
-const SOFT_DELETE_MODELS = new Set(['Contact', 'Conversation', 'Product', 'StoreOrder'])
+const SOFT_DELETE_MODELS = new Set(['Contact', 'Conversation', 'Product', 'StoreOrder', 'CardPayment', 'OrderDraft'])
 const SOFT_READ_OPERATIONS = new Set([
   'findUnique',
   'findUniqueOrThrow',
@@ -56,13 +56,12 @@ const SOFT_READ_OPERATIONS = new Set([
   'groupBy',
 ])
 
-type SoftModelKey = 'contact' | 'conversation' | 'product' | 'storeOrder'
+export type SoftModelKey = 'contact' | 'conversation' | 'product' | 'storeOrder' | 'cardPayment' | 'orderDraft'
+const SOFT_MODEL_KEYS: ReadonlySet<string> = new Set<SoftModelKey>(['contact', 'conversation', 'product', 'storeOrder', 'cardPayment', 'orderDraft'])
 
 function softModelKey(model: string): SoftModelKey | null {
   const key = model.charAt(0).toLowerCase() + model.slice(1)
-  return (key === 'contact' || key === 'conversation' || key === 'product' || key === 'storeOrder')
-    ? (key as SoftModelKey)
-    : null
+  return SOFT_MODEL_KEYS.has(key) ? (key as SoftModelKey) : null
 }
 
 // Set right after the extended client is created below. The extension hooks

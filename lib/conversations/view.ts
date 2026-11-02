@@ -65,6 +65,7 @@ export async function loadConversationView(params: {
                         salesInsight: true,
                         workingState: { select: { state: true, sessionStartId: true } },
                         orderDrafts: {
+                                where: { deletedAt: null },
                                 orderBy: { updatedAt: 'desc' },
                                 take: 1,
                                 select: { code: true, number: true, status: true, expecting: true, items: true, customerName: true, city: true },
