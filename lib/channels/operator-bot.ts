@@ -13,8 +13,8 @@ export type TelegramInlineKeyboardMarkup = {
 export type OperatorBotScreenName =
   | 'home' | 'queue' | 'today' | 'orders' | 'book' | 'agents' | 'credit' | 'alerts' | 'health' | 'help' | 'pay'
 
-/** Payment lists in the bot: all · waiting for a transfer · owner review · paid. */
-export type PaymentListFilter = 'a' | 'o' | 'r' | 'p'
+/** Payment lists in the bot: all · waiting for a transfer · owner review · paid · paid orders still to deliver. */
+export type PaymentListFilter = 'a' | 'o' | 'r' | 'p' | 'd'
 
 export type OperatorBotCallback =
   | { type: 'screen'; screen: OperatorBotScreenName }
@@ -26,7 +26,7 @@ export type OperatorBotCallback =
   | { type: 'pref'; key: string }
   | { type: 'cancel' }
   | { type: 'payList'; filter: PaymentListFilter; page: number }
-  | { type: 'payment'; action: 'view' | 'askConfirm' | 'confirm' | 'askReject' | 'reject' | 'askCancel' | 'cancel'; paymentId: string }
+  | { type: 'payment'; action: 'view' | 'askConfirm' | 'confirm' | 'askReject' | 'reject' | 'askCancel' | 'cancel' | 'handled' | 'unhandled'; paymentId: string }
   | { type: 'smsList' }
   | { type: 'sms'; action: 'view' | 'ignore'; smsId: string }
   | { type: 'smsAttach'; smsId: string; paymentId: string }
@@ -91,7 +91,7 @@ export function buildOperatorAlertKeyboard(params: {
 }
 
 const SCREENS: readonly OperatorBotScreenName[] = ['home', 'queue', 'today', 'orders', 'book', 'agents', 'credit', 'alerts', 'health', 'help', 'pay']
-const PAYMENT_ACTIONS = { v: 'view', y: 'askConfirm', Y: 'confirm', n: 'askReject', N: 'reject', x: 'askCancel', X: 'cancel' } as const
+const PAYMENT_ACTIONS = { v: 'view', y: 'askConfirm', Y: 'confirm', n: 'askReject', N: 'reject', x: 'askCancel', X: 'cancel', h: 'handled', u: 'unhandled' } as const
 const LEGACY_MENU: Record<string, OperatorBotScreenName> = { home: 'home', open: 'queue', health: 'health', help: 'help' }
 const ALERT_ACTIONS = { v: 'view', c: 'claim', r: 'resolve', t: 'status', q: 'quick', w: 'write' } as const
 const ID = '([A-Za-z0-9_-]{8,50})'
@@ -112,9 +112,9 @@ export function parseOperatorBotCallback(value: string): OperatorBotCallback | n
   const agent = new RegExp(`^g:([ty]):${ID}$`).exec(value)
   if (agent) return { type: 'agent', action: agent[1] === 't' ? 'ask' : 'confirm', agentId: agent[2] }
 
-  const payList = /^py:l:([aorp]):(\d{1,2})$/.exec(value)
+  const payList = /^py:l:([aorpd]):(\d{1,2})$/.exec(value)
   if (payList) return { type: 'payList', filter: payList[1] as PaymentListFilter, page: Number(payList[2]) }
-  const payment = new RegExp(`^py:([vyYnNxX]):${ID}$`).exec(value)
+  const payment = new RegExp(`^py:([vyYnNxXhu]):${ID}$`).exec(value)
   if (payment) return { type: 'payment', action: PAYMENT_ACTIONS[payment[1] as keyof typeof PAYMENT_ACTIONS], paymentId: payment[2] }
   if (value === 'ps:l') return { type: 'smsList' }
   const sms = new RegExp(`^ps:([vi]):${ID}$`).exec(value)

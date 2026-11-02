@@ -246,6 +246,14 @@ async function handlePaymentCallback(params: {
     await show(screen ?? PAY_GONE)
     return
   }
+  if (callback.action === 'handled' || callback.action === 'unhandled') {
+    const { setPaymentHandled } = await import('@/lib/payments/card/fulfilment')
+    const done = await setPaymentHandled(workspaceId, owned.id, callback.action === 'handled')
+    await answerCallback(botToken, params.query.id, !done ? 'این پرداخت هنوز پرداخت‌شده نیست' : callback.action === 'handled' ? 'رسیدگی شد ✅' : 'به منتظر رسیدگی برگشت')
+    const notice = !done ? 'ℹ️ فقط سفارش پرداخت‌شده را می‌شود رسیدگی‌شده زد.' : callback.action === 'handled' ? '✅ سفارش رسیدگی شد و از «منتظر رسیدگی» بیرون رفت.' : '↩️ سفارش به «منتظر رسیدگی» برگشت.'
+    await show((await paymentScreen(workspaceId, owned.id, notice)) ?? PAY_GONE)
+    return
+  }
   const service = await import('@/lib/payments/card/service')
   let notice: string
   if (callback.action === 'confirm') {

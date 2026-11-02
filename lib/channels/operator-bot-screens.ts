@@ -254,12 +254,14 @@ export async function homeScreen(op: OperatorContext): Promise<BotScreen> {
   lines.push(DIVIDER, `💳 اعتبار: <b>${toman(basics.balance)}</b> · پلن ${PLAN_FA[basics.plan] ?? basics.plan}`)
   if (waiting > 0) lines.push('', `⚠️ ${fa(waiting)} گفتگو منتظر پاسخ شماست.`)
   if (gateway?.attention.review) lines.push(`🔴 ${fa(gateway.attention.review)} پرداخت منتظر بررسی شماست.`)
+  if (gateway?.attention.toHandle) lines.push(`📦 ${fa(gateway.attention.toHandle)} سفارش پرداخت‌شده منتظر رسیدگی است.`)
 
   const rows: Row[] = [
     [btn(waiting > 0 ? `📥 صف اپراتور · ${fa(waiting)}` : '📥 صف اپراتور', 'm:queue'), btn('💬 گفتگوهای امروز', 'm:today')],
   ]
   const business: Row = []
-  if (basics.hasStore) business.push(btn('🛒 سفارش‌ها', 'm:orders'))
+  // Orders paid through the gateway are orders too, with or without a store.
+  if (basics.hasStore || gateway) business.push(btn(gateway?.attention.toHandle ? `🛒 سفارش‌ها · ${fa(gateway.attention.toHandle)} 📦` : '🛒 سفارش‌ها', 'm:orders'))
   if (basics.hasBookings) business.push(btn('📅 نوبت‌ها', 'm:book'))
   if (business.length) rows.push(business)
   if (gateway) {
@@ -420,7 +422,8 @@ export async function todayScreen(workspaceId: string): Promise<BotScreen> {
 // ─── Orders ─────────────────────────────────────────────────────────────
 
 export async function ordersScreen(workspaceId: string): Promise<BotScreen> {
-  const [orders, drafts, today] = await Promise.all([
+  const { awaitingHandlingWhere } = await import('@/lib/payments/card/fulfilment')
+  const [orders, drafts, today, toHandle, toHandleCount] = await Promise.all([
     prisma.storeOrder.findMany({
       where: { workspaceId, deletedAt: null },
       orderBy: { createdAt: 'desc' },
@@ -434,11 +437,29 @@ export async function ordersScreen(workspaceId: string): Promise<BotScreen> {
       select: { code: true, number: true, customerName: true, total: true, submittedAt: true },
     }),
     periodStats(workspaceId, tehranDayStart()),
+    // Paid in Vigent (card-to-card) and not delivered yet.
+    prisma.cardPayment.findMany({
+      where: awaitingHandlingWhere(workspaceId),
+      orderBy: { paidAt: 'desc' },
+      take: 5,
+      select: { id: true, baseAmount: true, customerName: true, description: true, paidAt: true },
+    }),
+    prisma.cardPayment.count({ where: awaitingHandlingWhere(workspaceId) }),
   ])
   const lines = [
     '🛒 <b>سفارش‌ها</b>',
     `امروز: <b>${fa(today.orders)}</b> سفارش`,
   ]
+  const rows: Row[] = []
+  if (toHandle.length) {
+    lines.push(DIVIDER, `📦 <b>پرداخت‌شده، منتظر رسیدگی</b> · ${fa(toHandleCount)}`, 'بعد از ارسال (یا شروع خدمت) روی سفارش بزنید و «رسیدگی شد» را بزنید.')
+    for (const payment of toHandle) {
+      const who = payment.customerName || payment.description || 'مشتری'
+      lines.push(`• <b>${fa(payment.baseAmount)} تومان</b> · ${escapeHtml(clip(who, 28))}${payment.paidAt ? ` · ${ago(payment.paidAt)}` : ''}`)
+      rows.push([btn(`📦 ${fa(payment.baseAmount)} · ${clip(who, 22)}`, `py:v:${payment.id}`)])
+    }
+    if (toHandleCount > toHandle.length) rows.push([btn(`📦 همهٔ ${fa(toHandleCount)} سفارش منتظر رسیدگی`, 'py:l:d:0')])
+  }
   if (drafts.length) {
     lines.push(DIVIDER, '📝 <b>پیش‌سفارش‌های منتظر تأیید</b> (ثبت‌شده در گفتگو)')
     for (const draft of drafts) {
@@ -451,11 +472,9 @@ export async function ordersScreen(workspaceId: string): Promise<BotScreen> {
       lines.push(`• #${escapeHtml(order.externalOrderId)} · ${escapeHtml(order.customerName || 'مشتری')} · ${storeMoney(order.total, order.currency)} · ${ORDER_STATUS_FA[order.status] ?? order.status}`)
     }
   }
-  if (!drafts.length && !orders.length) lines.push('', 'هنوز سفارشی ثبت نشده است.')
-  return {
-    text: lines.join('\n'),
-    keyboard: kb([[link('📦 همهٔ سفارش‌ها در پنل', '/products/orders')], homeRow(btn('🔄 به‌روزرسانی', 'm:orders'))]),
-  }
+  if (!drafts.length && !orders.length && !toHandle.length) lines.push('', 'هنوز سفارشی ثبت نشده است.')
+  rows.push([link('📦 همهٔ سفارش‌ها در پنل', '/products/orders')], homeRow(btn('🔄 به‌روزرسانی', 'm:orders')))
+  return { text: lines.join('\n'), keyboard: kb(rows) }
 }
 
 // ─── Bookings ───────────────────────────────────────────────────────────
@@ -650,6 +669,10 @@ export async function dailyReportScreen(op: OperatorContext): Promise<BotScreen>
   if (gateway && gateway.attention.review + gateway.attention.unmatched > 0) {
     lines.push(`🔴 درگاه: ${fa(gateway.attention.review)} منتظر بررسی · ${fa(gateway.attention.unmatched)} واریز بی‌سفارش`)
     rows.push([btn('💰 رسیدگی به پرداخت‌ها', 'm:pay')])
+  }
+  if (gateway?.attention.toHandle) {
+    lines.push(`📦 ${fa(gateway.attention.toHandle)} سفارش پرداخت‌شده منتظر ارسال یا رسیدگی است.`)
+    rows.push([btn('📦 سفارش‌های منتظر رسیدگی', 'py:l:d:0')])
   }
   rows.push([btn('🏠 مرکز مدیریت', 'm:home')])
   return { text: lines.join('\n'), keyboard: kb(rows) }

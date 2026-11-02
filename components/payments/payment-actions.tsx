@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
-import { Ban, Check, CreditCard, Loader2, Trash2, X } from 'lucide-react'
+import { Ban, Check, ChevronDown, CreditCard, Loader2, RotateCcw, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
@@ -30,16 +30,30 @@ export function PaymentActions({ paymentId, mode, compact = false }: { paymentId
 		}
 	}
 
+	if (mode === 'review') {
+		// Two equal buttons side by side, wide enough to hit on a phone.
+		return (
+			<div className="grid gap-2">
+				<div className="grid grid-cols-2 gap-2 sm:flex sm:justify-start">
+					<Button size="md" variant="primary" loading={busy === 'confirm'} disabled={busy !== null} onClick={() => act('confirm')} className="text-[14px] sm:min-w-44">
+						{busy === 'confirm' ? null : <Check className="size-4" strokeWidth={2.6} aria-hidden />}
+						{fa ? 'واریز رسیده، تأیید' : 'It arrived, confirm'}
+					</Button>
+					<Button size="md" variant="outline" loading={busy === 'reject'} disabled={busy !== null} onClick={() => act('reject')} className="border-red-200 text-[14px] text-red-700 hover:border-red-300 hover:bg-red-50 hover:text-red-800 sm:min-w-36 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/40">
+						{busy === 'reject' ? null : <X className="size-4" strokeWidth={2.6} aria-hidden />}
+						{fa ? 'نیامده، رد' : 'Not there, reject'}
+					</Button>
+				</div>
+				{error ? <span role="alert" className="text-xs text-red-600">{error}</span> : null}
+			</div>
+		)
+	}
 	return (
 		<div className="flex flex-wrap items-center gap-2">
-			<Button size="sm" variant={mode === 'review' ? 'primary' : 'outline'} loading={busy === 'confirm'} disabled={busy !== null} onClick={() => act('confirm')}>
-				{mode === 'review' ? (fa ? 'واریز رسیده، تأیید' : 'Money arrived, confirm') : (fa ? 'تأیید دستی' : 'Confirm by hand')}
+			<Button size="sm" variant="outline" loading={busy === 'confirm'} disabled={busy !== null} onClick={() => act('confirm')}>
+				{fa ? 'تأیید دستی' : 'Confirm by hand'}
 			</Button>
-			{mode === 'review' ? (
-				<Button size="sm" variant="danger" loading={busy === 'reject'} disabled={busy !== null} onClick={() => act('reject')}>
-					{fa ? 'واریزی نیامده، رد' : 'Nothing arrived, reject'}
-				</Button>
-			) : !compact ? (
+			{!compact ? (
 				<Button size="sm" variant="ghost" loading={busy === 'cancel'} disabled={busy !== null} onClick={() => act('cancel')}>
 					{fa ? 'لغو' : 'Withdraw'}
 				</Button>
@@ -111,15 +125,25 @@ export function CustomerCardPaySwitch({ paymentId, blocked, variant = 'row' }: {
 
 /**
  * Attach a deposit no order asked for to one of the payments it is close to,
- * or dismiss it for good. `hint` says how the amounts differ and what attaching does.
+ * or dismiss it for good (asked once more first). `hint` says how the amounts
+ * differ and what attaching does; `short` marks a deposit below what is due.
  */
-export function UnmatchedSmsActions({ smsId, suggestions }: { smsId: string; suggestions: Array<{ id: string; label: string; name?: string | null; amount: string; hint?: string | null }> }) {
+export function UnmatchedSmsActions({ smsId, smsText, suggestions }: { smsId: string; smsText?: string | null; suggestions: Array<{ id: string; label: string; name?: string | null; amount: string; hint?: string | null; short?: boolean }> }) {
 	const fa = useLocale() !== 'en'
 	const router = useRouter()
 	const [busy, setBusy] = useState<string | null>(null)
 	const [failed, setFailed] = useState(false)
+	const [armed, setArmed] = useState(false)
+	const [showSms, setShowSms] = useState(false)
+	useEffect(() => {
+		if (!armed) return
+		const timer = window.setTimeout(() => setArmed(false), 4000)
+		return () => window.clearTimeout(timer)
+	}, [armed])
 
 	async function resolve(paymentId: string | null) {
+		if (paymentId === null && !armed) { setArmed(true); return }
+		setArmed(false)
 		setBusy(paymentId ?? 'none')
 		setFailed(false)
 		try {
@@ -132,36 +156,52 @@ export function UnmatchedSmsActions({ smsId, suggestions }: { smsId: string; sug
 	}
 
 	return (
-		<div className="grid gap-2">
+		<div className="grid gap-2.5">
 			{suggestions.map((suggestion) => (
 				<button
 					key={suggestion.id}
 					type="button"
 					disabled={busy !== null}
 					onClick={() => resolve(suggestion.id)}
-					className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-[var(--border-default)] px-3 py-2 text-start transition-colors hover:border-[var(--border-hover)] disabled:opacity-60"
+					className="spatial-press group grid w-full gap-3 rounded-2xl border border-[var(--border-default)] bg-white p-3 text-start shadow-[var(--shadow-xs)] transition-colors hover:border-[var(--border-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-60 sm:flex sm:items-center dark:bg-neutral-900"
 				>
-					<span className="min-w-0 flex-1">
-						<span className="flex flex-wrap items-baseline gap-x-2">
-							<b dir="ltr" className="font-mono text-[13px] text-[var(--text-primary)]">{suggestion.label}</b>
-							{suggestion.name ? <span className="truncate text-[12.5px] text-[var(--text-secondary)]">{suggestion.name}</span> : null}
-							<span className="ms-auto text-[13px] font-bold tabular-nums text-[var(--text-primary)]">{suggestion.amount}</span>
+					<span className="grid min-w-0 flex-1 gap-1">
+						<span className="flex items-baseline justify-between gap-3">
+							<span className="flex min-w-0 items-baseline gap-2">
+								<b dir="ltr" className="shrink-0 font-mono text-[13px] text-[var(--text-primary)]">{suggestion.label}</b>
+								{suggestion.name ? <span className="truncate text-[12.5px] text-[var(--text-secondary)]">{suggestion.name}</span> : null}
+							</span>
+							<span className="shrink-0 text-[14px] font-bold tabular-nums text-[var(--text-primary)]">{suggestion.amount}</span>
 						</span>
-						{suggestion.hint ? <span className="mt-0.5 block text-[12px] leading-5 text-[var(--text-muted)]">{suggestion.hint}</span> : null}
+						{suggestion.hint ? (
+							<span className={cn('flex items-start gap-1.5 text-[12px] leading-5', suggestion.short ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300')}>
+								<span aria-hidden className={cn('mt-[7px] size-1.5 shrink-0 rounded-full', suggestion.short ? 'bg-amber-500' : 'bg-emerald-500')} />
+								{suggestion.hint}
+							</span>
+						) : null}
 					</span>
-					<span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[var(--text-primary)] px-2.5 py-1 text-[12px] font-medium text-[var(--bg-base)]">
-						{busy === suggestion.id ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Check className="size-3.5" aria-hidden />}
-						{fa ? 'برای این است' : 'It is this'}
+					<span className="inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 rounded-control bg-[#111] px-3.5 text-[13px] font-medium text-white shadow-[var(--shadow-control)] transition-colors group-hover:bg-[#2a2a2e]">
+						{busy === suggestion.id ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Check className="size-4" strokeWidth={2.6} aria-hidden />}
+						{fa ? 'برای همین است، وصل کن' : 'It is this one'}
 					</span>
 				</button>
 			))}
-			<div className="flex flex-wrap items-center gap-2">
-				<Button size="sm" variant="ghost" loading={busy === 'none'} disabled={busy !== null} onClick={() => resolve(null)}>
-					<Trash2 className="size-4" aria-hidden />
-					{fa ? 'هیچ‌کدام؛ نادیده بگیر و حذف کن' : 'None of these; dismiss it'}
+			<div className="flex flex-wrap items-center justify-between gap-2">
+				{smsText ? (
+					<button type="button" aria-expanded={showSms} onClick={() => setShowSms((open) => !open)} className="inline-flex min-h-9 items-center gap-1 rounded-control px-1 text-[12.5px] font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+						<ChevronDown className={cn('size-4 transition-transform motion-reduce:transition-none', showSms && 'rotate-180')} aria-hidden />
+						{fa ? 'متن پیامک بانک' : 'Bank SMS'}
+					</button>
+				) : <span />}
+				<Button size="sm" variant="ghost" loading={busy === 'none'} disabled={busy !== null} onClick={() => resolve(null)} className={cn(armed ? 'bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800 dark:bg-red-950/40 dark:text-red-300' : 'text-[var(--text-muted)] hover:text-red-700')}>
+					{busy === 'none' ? null : <Trash2 className="size-4" aria-hidden />}
+					{armed ? (fa ? 'بله، نادیده بگیر' : 'Yes, dismiss it') : (fa ? 'هیچ‌کدام؛ نادیده بگیر' : 'None of these; dismiss')}
 				</Button>
-				{failed ? <span className="text-[12px] text-red-700 dark:text-red-300">{fa ? 'انجام نشد؛ شاید قبلاً رسیدگی شده.' : 'It did not go through; it may be settled already.'}</span> : null}
 			</div>
+			{showSms && smsText ? (
+				<p dir="auto" className="whitespace-pre-line break-words rounded-xl bg-[var(--bg-muted)] p-3 text-[12.5px] leading-6 text-[var(--text-secondary)]">{smsText}</p>
+			) : null}
+			{failed ? <span role="alert" className="text-[12px] text-red-700 dark:text-red-300">{fa ? 'انجام نشد؛ شاید قبلاً رسیدگی شده.' : 'It did not go through; it may be settled already.'}</span> : null}
 		</div>
 	)
 }
@@ -249,9 +289,10 @@ export function CardPayOwnerActions({ authority, status, onStatus }: { authority
 
 /**
  * A paid order the owner delivered (sent the goods, started the service).
- * Marking it takes the «خرید موفق» flag off the conversation; it can be undone.
+ * Marking it takes the «خرید موفق» flag off the conversation; «لغو رسیدگی»
+ * puts it back in «منتظر رسیدگی».
  */
-export function PaymentHandledButton({ paymentId, handled, size = 'sm' }: { paymentId: string; handled: boolean; size?: 'sm' | 'md' }) {
+export function PaymentHandledButton({ paymentId, handled, size = 'sm', className }: { paymentId: string; handled: boolean; size?: 'sm' | 'md'; className?: string }) {
 	const fa = useLocale() !== 'en'
 	const router = useRouter()
 	const [busy, setBusy] = useState(false)
@@ -272,11 +313,17 @@ export function PaymentHandledButton({ paymentId, handled, size = 'sm' }: { paym
 	}
 
 	return (
-		<span className="inline-flex flex-wrap items-center gap-2">
+		<span className={cn('inline-grid gap-1', className)}>
 			{handled ? (
-				<Button size={size} variant="ghost" loading={busy} onClick={toggle}>{fa ? 'برگرداندن به «منتظر رسیدگی»' : 'Mark as not handled'}</Button>
+				<Button size={size} variant="outline" loading={busy} onClick={toggle} title={fa ? 'برگرداندن به «منتظر رسیدگی»' : 'Back to «to handle»'} className="bg-white dark:bg-transparent">
+					{busy ? null : <RotateCcw className="size-4" aria-hidden />}
+					{fa ? 'لغو رسیدگی' : 'Not handled yet'}
+				</Button>
 			) : (
-				<Button size={size} variant="primary" loading={busy} onClick={toggle}><Check className="size-4" aria-hidden />{fa ? 'رسیدگی شد' : 'Mark handled'}</Button>
+				<Button size={size} variant="primary" loading={busy} onClick={toggle}>
+					{busy ? null : <Check className="size-4" strokeWidth={2.6} aria-hidden />}
+					{fa ? 'رسیدگی شد' : 'Mark handled'}
+				</Button>
 			)}
 			{error ? <span role="alert" className="text-xs text-red-600">{error}</span> : null}
 		</span>

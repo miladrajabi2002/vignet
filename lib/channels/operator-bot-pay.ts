@@ -7,13 +7,14 @@
  *
  *   💳 gateway home   today's money, what waits for the owner, phone health
  *   🧾 transactions   filtered, paged list → one payment → confirm / reject / cancel
+ *   📦 to handle      paid orders not yet delivered → items and address → «رسیدگی شد»
  *   📩 deposits       a deposit SMS that matched nothing → attach it to the
  *                     closest open payment with one tap (ZarinPay-style)
  *   ➕ payment link   the owner types an amount, the bot answers with a card
  *                     and a link to forward to the customer
  *   ⏸ pause           stop offering the card (phone off, card blocked …)
  *
- * Callback data: py:l:<filter>:<page> · py:<v|y|Y|n|N|x|X>:<paymentId> ·
+ * Callback data: py:l:<filter>:<page> · py:<v|y|Y|n|N|x|X|h|u>:<paymentId> ·
  * ps:l · ps:<v|i>:<smsId> · ps:a:<smsId>:<paymentId> · pn:new · pg:<t|p|r>
  */
 
@@ -25,6 +26,8 @@ import { bankByKey } from '@/lib/payments/card/bins'
 import { payToman } from '@/lib/payments/card/pay-card'
 import { paymentSubject } from '@/lib/payments/card/prepay-service'
 import { PAY_TTL_MINUTES } from '@/lib/payments/card/settings'
+import { awaitingHandlingWhere, loadPaymentPurchase } from '@/lib/payments/card/fulfilment'
+import { displayOrderCode } from '@/lib/commerce/order-ref'
 import type { PaymentListFilter, TelegramInlineKeyboardButton, TelegramInlineKeyboardMarkup } from '@/lib/channels/operator-bot'
 import { escapeHtml, type BotScreen } from '@/lib/channels/operator-bot-screens'
 
@@ -35,6 +38,8 @@ const DAY_MS = 24 * 60 * 60 * 1000
 const TEHRAN_OFFSET_MS = 210 * 60 * 1000
 const DIVIDER = '┈┈┈┈┈┈┈┈┈┈┈┈'
 const PAGE_SIZE = 8
+/** The setup's own test transfers are never listed or counted, as in the panel. */
+const NOT_TEST = { NOT: { reference: { startsWith: 'TEST-' } } }
 
 const fa = (n: number) => n.toLocaleString('fa-IR')
 const money = (n: number) => payToman(n, 'fa')
@@ -90,18 +95,24 @@ export async function gatewayEnabled(workspaceId: string): Promise<boolean> {
   return row?.payGatewayEnabled === true
 }
 
-/** Owner-facing counts for the home screen badge and the morning report. */
-export async function gatewayAttention(workspaceId: string): Promise<{ review: number; unmatched: number }> {
-  const [review, unmatched] = await Promise.all([
-    prisma.cardPayment.count({ where: { workspaceId, status: 'CLAIMED' } }),
-    prisma.bankSms.count({ where: { workspaceId, status: 'UNMATCHED' } }),
+/**
+ * Owner-facing counts for the home screen badge and the morning report:
+ * claims to check, deposits that wait for a payment (only those near one, as
+ * the panel lists them) and paid orders still to deliver.
+ */
+export async function gatewayAttention(workspaceId: string): Promise<{ review: number; unmatched: number; toHandle: number }> {
+  const { pendingDeposits } = await import('@/lib/payments/card/ingest')
+  const [review, unmatched, toHandle] = await Promise.all([
+    prisma.cardPayment.count({ where: { workspaceId, status: 'CLAIMED', ...NOT_TEST } }),
+    pendingDeposits(workspaceId, 20).then((rows) => rows.length),
+    prisma.cardPayment.count({ where: awaitingHandlingWhere(workspaceId) }),
   ])
-  return { review, unmatched }
+  return { review, unmatched, toHandle }
 }
 
 export async function gatewayDayTotals(workspaceId: string, from: Date, to?: Date): Promise<{ count: number; sum: number }> {
   const row = await prisma.cardPayment.aggregate({
-    where: { workspaceId, status: 'PAID', paidAt: { gte: from, ...(to ? { lt: to } : {}) } },
+    where: { workspaceId, status: 'PAID', paidAt: { gte: from, ...(to ? { lt: to } : {}) }, ...NOT_TEST },
     _sum: { baseAmount: true },
     _count: { _all: true },
   })
@@ -114,13 +125,13 @@ export async function payHomeScreen(workspaceId: string, notice?: string): Promi
     prisma.workspace.findUnique({ where: { id: workspaceId }, select: { payGatewayEnabled: true, payGatewaySuspendedAt: true } }),
     gatewayDayTotals(workspaceId, since),
     gatewayAttention(workspaceId),
-    prisma.cardPayment.count({ where: { workspaceId, status: 'PENDING' } }),
+    prisma.cardPayment.count({ where: { workspaceId, status: 'PENDING', ...NOT_TEST } }),
     prisma.payCard.findMany({ where: { workspaceId, deletedAt: null }, orderBy: { sortOrder: 'asc' }, select: { id: true, bankKey: true, last4: true, active: true } }),
     prisma.payDevice.findMany({ where: { workspaceId, active: true }, select: { name: true, connectedAt: true, lastSmsAt: true, phone: true } }),
-    prisma.cardPayment.count({ where: { workspaceId, status: 'PAID', paidAt: { gte: since }, confirmedBy: 'AUTO' } }),
+    prisma.cardPayment.count({ where: { workspaceId, status: 'PAID', paidAt: { gte: since }, confirmedBy: 'AUTO', ...NOT_TEST } }),
   ])
   const received = cards.length
-    ? await prisma.cardPayment.groupBy({ by: ['cardId'], where: { workspaceId, status: 'PAID', paidAt: { gte: since } }, _sum: { baseAmount: true } })
+    ? await prisma.cardPayment.groupBy({ by: ['cardId'], where: { workspaceId, status: 'PAID', paidAt: { gte: since }, ...NOT_TEST }, _sum: { baseAmount: true } })
     : []
   const byCard = new Map(received.map((row) => [row.cardId, row._sum.baseAmount ?? 0]))
 
@@ -136,6 +147,7 @@ export async function payHomeScreen(workspaceId: string, notice?: string): Promi
     `✅ دریافتی: <b>${money(today.sum)}</b> · ${fa(today.count)} پرداخت${today.count ? ` (${fa(autoToday)} خودکار)` : ''}`,
     `⏳ منتظر واریز: <b>${fa(pending)}</b>`,
     `🔴 منتظر بررسی شما: <b>${fa(attention.review)}</b>    📩 واریز بی‌سفارش: <b>${fa(attention.unmatched)}</b>`,
+    `📦 پرداخت‌شده، منتظر رسیدگی: <b>${fa(attention.toHandle)}</b>`,
   ].filter(Boolean)
   if (cards.length) {
     lines.push(DIVIDER, '<b>کارت‌ها</b>')
@@ -151,12 +163,14 @@ export async function payHomeScreen(workspaceId: string, notice?: string): Promi
     }
   }
   if (attention.review) lines.push('', `⚠️ ${fa(attention.review)} مشتری گفته پرداخت کرده و پیامکش نرسیده؛ حساب را نگاه کنید.`)
+  if (attention.toHandle) lines.push(...(attention.review ? [] : ['']), `📦 ${fa(attention.toHandle)} سفارش پرداخت شده و منتظر ارسال یا رسیدگی شماست.`)
 
   const rows: Row[] = []
   const attentionRow: Row = []
   if (attention.review) attentionRow.push(btn(`🔴 بررسی · ${fa(attention.review)}`, 'py:l:r:0'))
   if (attention.unmatched) attentionRow.push(btn(`📩 واریز بی‌سفارش · ${fa(attention.unmatched)}`, 'ps:l'))
   if (attentionRow.length) rows.push(attentionRow)
+  if (attention.toHandle) rows.push([btn(`📦 منتظر رسیدگی · ${fa(attention.toHandle)}`, 'py:l:d:0')])
   rows.push(
     [btn('🧾 تراکنش‌ها', 'py:l:a:0'), btn(pending ? `⏳ منتظر واریز · ${fa(pending)}` : '⏳ منتظر واریز', 'py:l:o:0')],
     [btn('➕ لینک پرداخت', 'pn:new'), btn(on ? '⏸ توقف موقت' : '▶️ روشن کردن', 'pg:t')],
@@ -172,33 +186,35 @@ const FILTERS: Record<PaymentListFilter, { title: string; status?: string[] }> =
   o: { title: 'منتظر واریز', status: ['PENDING'] },
   r: { title: 'منتظر بررسی شما', status: ['CLAIMED'] },
   p: { title: 'پرداخت‌شده', status: ['PAID'] },
+  d: { title: 'سفارش‌های پرداخت‌شدهٔ منتظر رسیدگی' },
 }
 
 export async function paymentListScreen(workspaceId: string, filter: PaymentListFilter, page: number): Promise<BotScreen> {
   const spec = FILTERS[filter]
-  const where = { workspaceId, ...(spec.status ? { status: { in: spec.status } } : {}) }
+  const where = filter === 'd' ? awaitingHandlingWhere(workspaceId) : { workspaceId, ...NOT_TEST, ...(spec.status ? { status: { in: spec.status } } : {}) }
   const [total, rows] = await Promise.all([
     prisma.cardPayment.count({ where }),
     prisma.cardPayment.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: filter === 'd' ? { paidAt: 'desc' } : { createdAt: 'desc' },
       skip: page * PAGE_SIZE,
       take: PAGE_SIZE,
-      select: { id: true, status: true, baseAmount: true, reference: true, customerName: true, createdAt: true, purpose: true, description: true },
+      select: { id: true, status: true, baseAmount: true, reference: true, customerName: true, createdAt: true, paidAt: true, purpose: true, description: true },
     }),
   ])
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const lines = [`🧾 <b>${spec.title}</b> · ${fa(total)} مورد${pages > 1 ? ` · صفحهٔ ${fa(page + 1)} از ${fa(pages)}` : ''}`, DIVIDER]
-  if (!rows.length) lines.push('موردی نیست.')
+  if (filter === 'd') lines.splice(1, 0, 'سفارش را آماده و ارسال کنید (یا خدمت را شروع کنید)، بعد روی آن بزنید و «رسیدگی شد» را بزنید.')
+  if (!rows.length) lines.push(filter === 'd' ? 'سفارشی منتظر رسیدگی نیست. 👌' : 'موردی نیست.')
   const buttons: Row[] = []
   for (const row of rows) {
-    const status = PAYMENT_STATUS_FA[row.status] ?? { icon: '•', label: row.status }
+    const status = filter === 'd' ? { icon: '📦', label: 'منتظر رسیدگی' } : PAYMENT_STATUS_FA[row.status] ?? { icon: '•', label: row.status }
     const who = row.customerName || paymentSubject(row)
-    lines.push(`${status.icon} <b>${money(row.baseAmount)}</b> · ${escapeHtml(clip(who, 26))} · ${ago(row.createdAt)}`)
+    lines.push(`${status.icon} <b>${money(row.baseAmount)}</b> · ${escapeHtml(clip(who, 26))} · ${ago(filter === 'd' ? row.paidAt ?? row.createdAt : row.createdAt)}`)
     buttons.push([btn(`${status.icon} ${fa(row.baseAmount)} · ${clip(who, 22)}`, `py:v:${row.id}`)])
   }
   const tab = (key: PaymentListFilter, label: string) => btn(filter === key ? `● ${label}` : label, `py:l:${key}:0`)
-  const rowsOut: Row[] = [[tab('a', 'همه'), tab('o', 'منتظر'), tab('r', 'بررسی'), tab('p', 'پرداخت‌شده')], ...buttons]
+  const rowsOut: Row[] = [[tab('a', 'همه'), tab('o', 'منتظر'), tab('r', 'بررسی')], [tab('p', 'پرداخت‌شده'), tab('d', '📦 منتظر رسیدگی')], ...buttons]
   const nav: Row = []
   if (page > 0) nav.push(btn('▶️ قبلی', `py:l:${filter}:${page - 1}`))
   if (page + 1 < pages && page < 99) nav.push(btn('بعدی ◀️', `py:l:${filter}:${page + 1}`))
@@ -218,6 +234,10 @@ export async function paymentScreen(workspaceId: string, paymentId: string, noti
   if (!payment) return null
   const status = PAYMENT_STATUS_FA[payment.status] ?? { icon: '•', label: payment.status }
   const lateWindow = payment.status === 'EXPIRED' && payment.holdUntil > new Date()
+  // A paid order: what to send and where, and whether it was handled.
+  const order = payment.status === 'PAID' && payment.purpose === 'ORDER' && !payment.reference.startsWith('TEST-')
+    ? await loadPaymentPurchase(workspaceId, payment.id).catch(() => null)
+    : null
   const lines = [
     notice ? `${notice}\n` : '',
     `🧾 <b>${escapeHtml(paymentSubject(payment))}</b>`,
@@ -229,10 +249,11 @@ export async function paymentScreen(workspaceId: string, paymentId: string, noti
       ? `👤 ${escapeHtml(payment.customerName || 'مشتری')}${payment.customerPhone ? ` · 📞 <code>${escapeHtml(payment.customerPhone)}</code>` : ''}`
       : '',
     `💳 ${bankByKey(payment.card.bankKey).fa} ••${payment.card.last4}`,
-    `🔗 ${SOURCE_FA[payment.source] ?? payment.source} · کد <code>${escapeHtml(payment.reference)}</code>`,
+    `🔗 ${SOURCE_FA[payment.source] ?? payment.source} · کد <code>${escapeHtml(displayOrderCode(payment.reference))}</code>`,
     `🕒 ساخته شد ${tehranDateTime(payment.createdAt)}`,
     payment.paidAt ? `✅ پرداخت ${tehranDateTime(payment.paidAt)}` : payment.status === 'PENDING' ? `⏳ مهلت تا ${tehranTime(payment.expiresAt)}` : '',
-    payment.description && payment.purpose === 'ORDER' ? `📝 ${escapeHtml(clip(payment.description, 140))}` : '',
+    payment.description && payment.purpose === 'ORDER' && !order ? `📝 ${escapeHtml(clip(payment.description, 140))}` : '',
+    ...(order ? orderLines(order) : []),
     lateWindow ? '\nℹ️ مهلت تمام شده ولی اگر واریزش دیر رسیده باشد هنوز می‌توانید تأییدش کنید.' : '',
     payment.callbackError ? `\n⚠️ خبر دادن به سایت ناموفق بود: ${escapeHtml(clip(payment.callbackError, 80))}` : '',
   ].filter(Boolean)
@@ -242,12 +263,29 @@ export async function paymentScreen(workspaceId: string, paymentId: string, noti
     rows.push([btn('✅ واریز را دیدم، تأیید', `py:y:${payment.id}`), ...(lateWindow ? [] : [btn('❌ رد', `py:n:${payment.id}`)])])
   }
   if (payment.status === 'PENDING') rows.push([btn('🚫 لغو این پرداخت', `py:x:${payment.id}`)])
+  if (order) rows.push([order.handledAt ? btn('↩️ لغو رسیدگی', `py:u:${payment.id}`) : btn('📦 رسیدگی شد (ارسال کردم)', `py:h:${payment.id}`)])
   const links: Row = []
   if (payment.conversationId) links.push(link('💬 گفتگو', `${APP_URL}/conversations/${encodeURIComponent(payment.conversationId)}`))
   links.push(link('🔗 صفحهٔ پرداخت', `${APP_URL}/pay/${payment.authority}`))
   rows.push(links)
-  rows.push([btn('↩️ تراکنش‌ها', 'py:l:a:0'), btn('💳 درگاه', 'm:pay'), btn('🏠 خانه', 'm:home')])
+  rows.push([order && !order.handledAt ? btn('↩️ منتظر رسیدگی', 'py:l:d:0') : btn('↩️ تراکنش‌ها', 'py:l:a:0'), btn('💳 درگاه', 'm:pay'), btn('🏠 خانه', 'm:home')])
   return { text: lines.join('\n'), keyboard: kb(rows) }
+}
+
+/** A paid order's items, address and delivery state for the payment screen. */
+function orderLines(order: NonNullable<Awaited<ReturnType<typeof loadPaymentPurchase>>>): string[] {
+  const lines = [DIVIDER, '🛍 <b>اقلام سفارش</b>']
+  for (const line of order.lines.slice(0, 12)) {
+    const price = line.unitPrice != null ? ` — ${money(line.unitPrice * line.quantity)}` : ''
+    lines.push(`• ${line.quantity > 1 ? `${fa(line.quantity)}× ` : ''}${escapeHtml(clip([line.name, line.variant].filter(Boolean).join(' · '), 80))}${price}`)
+  }
+  if (order.lines.length > 12) lines.push(`… و ${fa(order.lines.length - 12)} قلم دیگر`)
+  if (order.shipping) lines.push(`🚚 ${escapeHtml(order.shipping.label || 'ارسال')}: ${order.shipping.cost ? money(order.shipping.cost) : 'رایگان'}`)
+  if (order.discount) lines.push(`🏷 تخفیف: ${money(order.discount)}`)
+  if (order.address) lines.push(`📍 ${escapeHtml(clip(order.address, 200))}`)
+  if (order.storeOrder) lines.push(`🏬 در فروشگاه سایت ثبت شد: <code>#${escapeHtml(order.storeOrder)}</code>`)
+  lines.push(order.handledAt ? `✅ رسیدگی شد · ${tehranDateTime(order.handledAt)}` : '📦 <b>منتظر رسیدگی</b> — بعد از ارسال سفارش (یا شروع خدمت) «رسیدگی شد» را بزنید.')
+  return lines
 }
 
 /** «Sure?» before money changes state from a phone. */

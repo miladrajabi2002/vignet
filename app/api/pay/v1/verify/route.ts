@@ -28,8 +28,14 @@ export async function POST(req: Request) {
   if (payment.status !== 'PAID') return NextResponse.json({ success: false, data: { code: -1, status: payment.status.toLowerCase() } })
 
   // The first verify of a paid payment answers 100, every later one 101.
-  const first = await prisma.cardPayment.updateMany({ where: { id: payment.id, verifiedAt: null }, data: { verifiedAt: new Date() } })
+  const now = new Date()
+  const first = await prisma.cardPayment.updateMany({ where: { id: payment.id, verifiedAt: null }, data: { verifiedAt: now } })
   const verifiedBefore = first.count === 0
+  // The site took the paid order and delivers it itself (a plan, a credit, a
+  // shop order on its own panel): it does not wait in the owner's «خرید موفق» list.
+  if (!verifiedBefore && payment.purpose === 'ORDER') {
+    await prisma.cardPayment.updateMany({ where: { id: payment.id, handledAt: null }, data: { handledAt: now } })
+  }
   return NextResponse.json({
     success: true,
     data: {

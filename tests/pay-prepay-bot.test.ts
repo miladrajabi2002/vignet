@@ -44,6 +44,9 @@ describe('manager bot payment buttons', () => {
     expect(parseOperatorBotCallback('pn:new')).toEqual({ type: 'payLink' })
     expect(parseOperatorBotCallback('pg:p')).toEqual({ type: 'gateway', action: 'pause' })
     expect(parseOperatorBotCallback('p:payments')).toEqual({ type: 'pref', key: 'payments' })
+    expect(parseOperatorBotCallback('py:l:d:0')).toEqual({ type: 'payList', filter: 'd', page: 0 })
+    expect(parseOperatorBotCallback(`py:h:${ID}`)).toEqual({ type: 'payment', action: 'handled', paymentId: ID })
+    expect(parseOperatorBotCallback(`py:u:${ID}`)).toEqual({ type: 'payment', action: 'unhandled', paymentId: ID })
     expect(parseOperatorBotCallback('py:l:z:0')).toBeNull()
   })
   it('callback data fits Telegram’s 64 bytes', () => {
@@ -55,6 +58,11 @@ describe('manager bot payment buttons', () => {
   it('approve/reject only while the payment is open', () => {
     expect(paymentAlertButtons({ id: ID, status: 'CLAIMED' }).flat().map((b) => b.callback_data)).toContain(`py:y:${ID}`)
     expect(paymentAlertButtons({ id: ID, status: 'PAID' }).flat().map((b) => b.callback_data)).toEqual([`py:v:${ID}`])
+  })
+  it('a paid order not yet delivered can be marked handled from the alert', () => {
+    expect(paymentAlertButtons({ id: ID, status: 'PAID', purpose: 'ORDER', handledAt: null }).flat().map((b) => b.callback_data)).toEqual([`py:h:${ID}`, `py:v:${ID}`])
+    expect(paymentAlertButtons({ id: ID, status: 'PAID', purpose: 'ORDER', handledAt: new Date() }).flat().map((b) => b.callback_data)).toEqual([`py:v:${ID}`])
+    expect(paymentAlertButtons({ id: ID, status: 'PAID', purpose: 'BOOKING', handledAt: null }).flat().map((b) => b.callback_data)).toEqual([`py:v:${ID}`])
   })
   it('reads a typed amount', () => {
     expect(readPayLinkInput('250000')).toEqual({ amount: 250_000, description: null })

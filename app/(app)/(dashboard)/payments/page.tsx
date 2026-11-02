@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { getLocale } from 'next-intl/server'
-import { Bot, MessageSquareText, TrendingUp, WalletCards, Zap } from 'lucide-react'
+import { Banknote, Bot, CircleAlert, Hourglass, MessageSquareText, TrendingUp, WalletCards } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { cn } from '@/lib/utils'
@@ -9,11 +9,14 @@ import { PaymentsShell } from '@/components/payments/payments-shell'
 import { CustomerCardPaySwitch, PaymentActions, UnmatchedSmsActions } from '@/components/payments/payment-actions'
 import { PaymentsList, type PaymentRowData } from '@/components/payments/payments-list'
 import { NewPaymentButton } from '@/components/payments/new-link-form'
+import { BulkDeleteMenu } from '@/components/ui/bulk-delete-menu'
 import { Sparkline } from '@/components/admin/sparkline'
 import { loadGatewayOverview, NOT_TEST } from '@/lib/payments/card/dashboard'
 import { depositFit, depositGapLabel, pendingDeposits } from '@/lib/payments/card/ingest'
 import { payPageUrl } from '@/lib/payments/card/service'
 import { readPayItems, type PayItem } from '@/lib/payments/card/items'
+import { BankMark } from '@/components/payments/bank-card'
+import { displayOrderCode } from '@/lib/commerce/order-ref'
 import { channelAvatarFor, channelHandleFor, contactDisplayName } from '@/lib/crm/display'
 import { contactAvatarSrc } from '@/lib/crm/avatar'
 import { dashboardTitle } from '@/lib/dashboard/page-title'
@@ -69,7 +72,7 @@ export default async function PaymentsPage(props: { searchParams: Promise<{ f?: 
   // Until the gateway is set up once, the page is the setup and nothing else.
   if (!overview.activated) return <PaymentsShell active="payments" overview={overview} locale={locale} />
 
-  const [payments, unmatched, paidToday, autoCount, paidCount, paidWeek] = await Promise.all([
+  const [payments, unmatched, paidToday, paidWeek] = await Promise.all([
     prisma.cardPayment.findMany({
       // The setup's own test transfers are never listed or counted.
       where: { workspaceId: user.workspaceId, ...NOT_TEST },
@@ -80,9 +83,7 @@ export default async function PaymentsPage(props: { searchParams: Promise<{ f?: 
     // Only deposits close to a payment of their last 12 hours wait for the owner.
     pendingDeposits(user.workspaceId),
     prisma.cardPayment.aggregate({ where: { workspaceId: user.workspaceId, status: 'PAID', paidAt: { gte: dayStart }, ...NOT_TEST }, _sum: { baseAmount: true }, _count: true }),
-    prisma.cardPayment.count({ where: { workspaceId: user.workspaceId, status: 'PAID', confirmedBy: 'AUTO', ...NOT_TEST } }),
-    prisma.cardPayment.count({ where: { workspaceId: user.workspaceId, status: 'PAID', ...NOT_TEST } }),
-    prisma.cardPayment.findMany({ where: { workspaceId: user.workspaceId, status: 'PAID', paidAt: { gte: weekStart }, ...NOT_TEST }, select: { paidAt: true, baseAmount: true, confirmedBy: true } }),
+    prisma.cardPayment.findMany({ where: { workspaceId: user.workspaceId, status: 'PAID', paidAt: { gte: weekStart }, ...NOT_TEST }, select: { paidAt: true, baseAmount: true } }),
   ])
   // Chat orders: their lines, and once paid whether they reached the WooCommerce store.
   const draftIds = [...new Set(payments.flatMap((payment) => (payment.orderDraftId ? [payment.orderDraftId] : [])))]
@@ -188,12 +189,6 @@ export default async function PaymentsPage(props: { searchParams: Promise<{ f?: 
       series: dailySeries(paidWeek, (row) => row.baseAmount * 10), format: 'irr' as const, bar: null,
     },
     {
-      label: fa ? 'تأیید خودکار' : 'Confirmed automatically', icon: Zap, tint: 'bg-[#f1eeff] text-[#5b3de8] dark:bg-[#5b3de8]/20 dark:text-[#b9adff]', stroke: '#5b3de8',
-      value: (paidCount ? Math.round((autoCount / paidCount) * 100) : 0).toLocaleString(numbers), unit: fa ? '٪' : '%',
-      hint: paidCount ? (fa ? `${autoCount.toLocaleString(numbers)} از ${paidCount.toLocaleString(numbers)} بدون شما` : `${autoCount} of ${paidCount} without you`) : (fa ? 'بعد از اولین پرداخت' : 'After the first payment'),
-      series: dailySeries(paidWeek, (row) => (row.confirmedBy === 'AUTO' ? 1 : 0)), format: 'number' as const, bar: null,
-    },
-    {
       label: fa ? 'پرداخت این ماه' : 'Payments this month', icon: WalletCards, tint: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300', stroke: '#d97706',
       value: overview.usage.used.toLocaleString(numbers), unit: cap == null ? '' : (fa ? `از ${cap.toLocaleString(numbers)}` : `of ${cap}`),
       hint: cap == null ? (fa ? 'بدون سقف در پلن شما' : 'No limit on your plan') : (fa ? 'سقف پلن شما' : 'Your plan’s limit'),
@@ -204,8 +199,8 @@ export default async function PaymentsPage(props: { searchParams: Promise<{ f?: 
 
   return (
     <PaymentsShell active="payments" overview={overview} locale={locale} action={<NewPaymentButton locked={locked} />}>
-      {/* Three tiles side by side on every width, each with its last seven days. */}
-      <section className="grid grid-cols-3 gap-2 sm:gap-3">
+      {/* Two tiles side by side on every width, each with its last seven days. */}
+      <section className="grid grid-cols-2 gap-2 sm:gap-3">
         {tiles.map((tile) => {
           const Icon = tile.icon
           return (
@@ -238,59 +233,88 @@ export default async function PaymentsPage(props: { searchParams: Promise<{ f?: 
       )}
 
       {(review.length > 0 || unmatched.length > 0) && (
-        <section className="rounded-card border border-red-200 bg-red-50/70 p-4 sm:p-5 dark:border-red-900/50 dark:bg-red-950/20">
-          <h2 className="flex items-center gap-2 text-[15px] font-bold text-red-800 dark:text-red-200">
-            {fa ? 'منتظر تصمیم شما' : 'Waiting for your decision'}
-            <span className="rounded-full bg-red-600 px-2 text-[12px] leading-5 text-white tabular-nums">{(review.length + unmatched.length).toLocaleString(numbers)}</span>
-          </h2>
-          <ul className="mt-3 grid gap-2.5">
-            {review.map((payment) => (
-              <li key={payment.id} className="rounded-2xl border border-red-200 bg-white p-3.5 dark:border-red-900/50 dark:bg-neutral-900">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span dir="ltr" className="font-mono text-sm font-bold">#{payment.reference}</span>
-                  <span className="text-sm font-bold text-[var(--text-primary)]">{money(payment.payAmount)}</span>
-                  <span className="ms-auto text-xs text-[var(--text-muted)]">{time.format(payment.claimedAt ?? payment.createdAt)}</span>
-                </div>
-                <p className="mt-1.5 text-[13px] leading-6 text-[var(--text-secondary)]">
-                  {fa ? `${payment.customerName ?? 'مشتری'} می‌گوید این مبلغ را واریز کرده ولی پیامک واریز به ویجنت نرسیده. حساب بانکی را نگاه کنید.` : `${payment.customerName ?? 'The customer'} says this amount was transferred, but no deposit SMS reached Vigent. Check your bank account.`}
-                </p>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
+        <section aria-labelledby="decide-title" className="spatial-surface overflow-hidden rounded-card ring-1 ring-red-200 shadow-[0_1px_2px_rgba(17,17,17,.04),0_14px_34px_-18px_rgba(220,38,38,.35)] dark:ring-red-900/60">
+          <header className="flex items-center gap-3 border-b border-red-100 bg-red-50/80 px-4 py-3 sm:px-5 dark:border-red-900/40 dark:bg-red-950/30">
+            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-red-600 text-white"><CircleAlert className="size-[18px]" aria-hidden /></span>
+            <div className="min-w-0 flex-1">
+              <h2 id="decide-title" className="flex items-center gap-2 text-[15px] font-bold text-red-900 dark:text-red-100">
+                {fa ? 'منتظر تصمیم شما' : 'Waiting for your decision'}
+                <span className="rounded-full bg-red-600 px-2 text-[12px] leading-5 text-white tabular-nums">{(review.length + unmatched.length).toLocaleString(numbers)}</span>
+              </h2>
+              <p className="text-[12px] leading-5 text-red-800/80 dark:text-red-200/80">{fa ? 'تا تصمیم شما، به مشتری نمی‌گوییم پرداخت تأیید شده است.' : 'Until you decide, the customer is not told the payment is confirmed.'}</p>
+            </div>
+          </header>
+          <ul className="divide-y divide-[var(--border-subtle)]">
+            {review.map((payment) => {
+              const conversation = payment.conversationId ? conversations.get(payment.conversationId) : undefined
+              return (
+                <li key={payment.id} className="grid gap-3 p-4 sm:p-5">
+                  <div className="flex items-start gap-3">
+                    <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-amber-50 text-amber-700 ring-1 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-900"><Hourglass className="size-[18px]" aria-hidden /></span>
+                    <div className="min-w-0 flex-1">
+                      <p className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                        <span className="text-[14px] font-bold text-[var(--text-primary)]">{fa ? 'مشتری می‌گوید پرداخت کرده' : 'The customer says they paid'}</span>
+                        <span className="text-[12px] tabular-nums text-[var(--text-muted)]">{time.format(payment.claimedAt ?? payment.createdAt)}</span>
+                      </p>
+                      <p className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 text-[12.5px] text-[var(--text-secondary)]">
+                        <span dir="ltr" className="font-mono font-semibold" title={payment.reference}>#{displayOrderCode(payment.reference)}</span>
+                        {payment.customerName ? <span className="truncate">· {payment.customerName}</span> : null}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-2xl bg-[var(--bg-muted)] px-3.5 py-3">
+                    <span className="grid">
+                      <span className="text-[11.5px] text-[var(--text-muted)]">{fa ? 'مبلغ دقیق واریز' : 'Exact amount'}</span>
+                      <span className="text-[18px] font-extrabold leading-7 tabular-nums text-[var(--text-primary)]">{money(payment.payAmount)}</span>
+                    </span>
+                    <span className="inline-flex items-center gap-2 text-[12.5px] text-[var(--text-secondary)]">
+                      <BankMark bankKey={payment.card.bankKey} size={22} />
+                      <span>{fa ? 'به کارت' : 'To card'} <span dir="ltr" className="font-mono">…{payment.card.last4}</span></span>
+                    </span>
+                  </div>
+                  <p className="text-[12.5px] leading-6 text-[var(--text-secondary)]">
+                    {fa ? 'پیامک واریز به ویجنت نرسیده. موجودی همین کارت را در همراه‌بانک نگاه کنید؛ اگر رسیده تأیید و اگر نرسیده رد کنید.' : 'No deposit SMS reached Vigent. Check this card in your bank app; confirm if it arrived, reject if not.'}
+                  </p>
                   <PaymentActions paymentId={payment.id} mode="review" />
-                  {payment.conversationId && <Link href={`/conversations/${payment.conversationId}`} className="ui-link inline-flex items-center gap-1 text-[13px]"><MessageSquareText className="size-4" aria-hidden />{fa ? 'دیدن گفتگو' : 'Open conversation'}</Link>}
-                  {(() => {
-                    const conversation = payment.conversationId ? conversations.get(payment.conversationId) : undefined
-                    return conversation?.contactId ? <span className="sm:ms-auto"><CustomerCardPaySwitch paymentId={payment.id} blocked={Boolean(conversation.contact?.cardPayBlockedAt)} variant="inline" /></span> : null
-                  })()}
-                </div>
-              </li>
-            ))}
+                  {(payment.conversationId || conversation?.contactId) ? (
+                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-dashed border-[var(--border-subtle)] pt-3">
+                      {payment.conversationId ? <Link href={`/conversations/${payment.conversationId}`} className="ui-link inline-flex items-center gap-1.5 text-[13px]"><MessageSquareText className="size-4" aria-hidden />{fa ? 'دیدن گفتگو' : 'Open conversation'}</Link> : <span />}
+                      {conversation?.contactId ? <CustomerCardPaySwitch paymentId={payment.id} blocked={Boolean(conversation.contact?.cardPayBlockedAt)} variant="inline" /> : null}
+                    </div>
+                  ) : null}
+                </li>
+              )
+            })}
             {unmatched.map(({ sms, candidates }) => (
-              <li key={sms.id} className="rounded-2xl border border-red-200 bg-white p-3.5 dark:border-red-900/50 dark:bg-neutral-900">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-bold text-[var(--text-primary)]">{fa ? 'واریز بدون سفارش' : 'Deposit with no order'}</span>
-                  {sms.amount != null && <span className="text-sm font-bold">{money(sms.amount)}</span>}
-                  <span className="ms-auto text-xs text-[var(--text-muted)]">{time.format(sms.receivedAt)}</span>
+              <li key={sms.id} className="grid gap-3 p-4 sm:p-5">
+                <div className="flex items-start gap-3">
+                  <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-sky-50 text-sky-700 ring-1 ring-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:ring-sky-900"><Banknote className="size-[18px]" aria-hidden /></span>
+                  <div className="min-w-0 flex-1">
+                    <p className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                      <span className="text-[14px] font-bold text-[var(--text-primary)]">{fa ? 'واریز بدون سفارش' : 'Deposit with no order'}</span>
+                      <span className="text-[12px] tabular-nums text-[var(--text-muted)]">{time.format(sms.receivedAt)}</span>
+                    </p>
+                    <p className="mt-0.5 text-[18px] font-extrabold leading-7 tabular-nums text-[var(--text-primary)]">{sms.amount != null ? money(sms.amount) : (fa ? 'مبلغ نامشخص' : 'Unknown amount')}</p>
+                  </div>
                 </div>
-                <p className="mt-1.5 text-[13px] leading-6 text-[var(--text-secondary)]">
+                <p className="text-[12.5px] leading-6 text-[var(--text-secondary)]">
                   {fa
-                    ? (candidates.length > 1 ? 'با هیچ پرداختی دقیقاً برابر نیست، ولی به این پرداخت‌های ۱۲ ساعت اخیر نزدیک است. اگر برای یکی از آن‌هاست رویش بزنید:' : 'با هیچ پرداختی دقیقاً برابر نیست، ولی به این پرداختِ ۱۲ ساعت اخیر نزدیک است. اگر برای آن است رویش بزنید:')
-                    : 'It equals no payment exactly, but is close to these payments of the last 12 hours. Tap the one it is for:'}
+                    ? (candidates.length > 1 ? 'با هیچ پرداختی دقیقاً برابر نیست ولی به این پرداخت‌های ۱۲ ساعت اخیر نزدیک است. اگر برای یکی از آن‌هاست، انتخابش کنید:' : 'با هیچ پرداختی دقیقاً برابر نیست ولی به این پرداختِ ۱۲ ساعت اخیر نزدیک است. اگر برای آن است، انتخابش کنید:')
+                    : 'It equals no payment exactly, but is close to these payments of the last 12 hours. Pick the one it is for:'}
                 </p>
-                <div className="mt-2.5">
-                  <UnmatchedSmsActions smsId={sms.id} suggestions={candidates.map((payment) => {
+                <UnmatchedSmsActions
+                  smsId={sms.id}
+                  // Rows stored before escaped line breaks were read still carry a literal «\n».
+                  smsText={sms.text.replace(/\\n/g, '\n')}
+                  suggestions={candidates.map((payment) => {
                     const fit = depositFit(sms.amount, payment.payAmount)
                     const gap = sms.amount != null && sms.amount !== payment.payAmount ? depositGapLabel(sms.amount, payment.payAmount, locale) : null
                     const hint = !gap ? null
                       : fit.kind === 'SHORT' ? (fa ? `${gap}؛ بقیه از مشتری خواسته می‌شود` : `${gap}; the rest is asked for`)
                       : fa ? `${gap}؛ تأیید می‌شود` : `${gap}; it is confirmed`
-                    return { id: payment.id, label: `#${payment.reference}`, name: payment.customerName, amount: money(payment.payAmount), hint }
-                  })} />
-                </div>
-                <details className="mt-2.5 text-xs text-[var(--text-muted)]">
-                  <summary className="cursor-pointer select-none">{fa ? 'متن پیامک بانک' : 'Bank SMS'}</summary>
-                  {/* Rows stored before escaped line breaks were read still carry a literal «\n». */}
-                  <p dir="auto" className="mt-1.5 whitespace-pre-line break-words rounded-xl bg-[var(--bg-surface)] p-2.5 leading-6 text-[var(--text-secondary)]">{sms.text.replace(/\\n/g, '\n')}</p>
-                </details>
+                    return { id: payment.id, label: `#${displayOrderCode(payment.reference)}`, name: payment.customerName, amount: money(payment.payAmount), hint, short: fit.kind === 'SHORT' }
+                  })}
+                />
               </li>
             ))}
           </ul>
@@ -300,7 +324,25 @@ export default async function PaymentsPage(props: { searchParams: Promise<{ f?: 
       <section className="spatial-surface overflow-hidden rounded-card shadow-[0_1px_2px_rgba(17,17,17,.04),0_10px_28px_-14px_rgba(17,17,17,.16)]">
         <div className="flex items-center justify-between gap-3 px-4 pb-2 pt-4 sm:px-5">
           <h2 className="text-[15px] font-bold text-[var(--text-primary)]">{fa ? 'پرداخت‌ها' : 'Payments'}</h2>
-          {rest.length ? <span className="text-[12.5px] tabular-nums text-[var(--text-muted)]">{fa ? `${rest.length.toLocaleString(numbers)} پرداخت` : `${rest.length} payments`}</span> : null}
+          <div className="flex items-center gap-2">
+            {rest.length ? <span className="text-[12.5px] tabular-nums text-[var(--text-muted)]">{fa ? `${rest.length.toLocaleString(numbers)} پرداخت` : `${rest.length} payments`}</span> : null}
+            {all.length ? (
+              <BulkDeleteMenu
+                endpoint="/api/payments/bulk"
+                undoKind="payment"
+                entityLabel={fa ? 'تراکنش' : 'payments'}
+                compactOnMobile
+                options={[
+                  { scope: 'closed', label: fa ? 'حذف تراکنش‌های ناموفق' : 'Delete failed payments', hint: fa ? 'منقضی، لغوشده یا ردشده' : 'Expired, withdrawn or rejected' },
+                  { scope: 'older_90d', label: fa ? 'حذف تراکنش‌های قدیمی‌تر از سه ماه' : 'Delete payments older than 3 months', hint: fa ? 'ساخته‌شده بیش از ۹۰ روز پیش' : 'Created more than 90 days ago' },
+                  { scope: 'all', label: fa ? 'حذف همهٔ تراکنش‌های بسته‌شده' : 'Delete every closed payment', hint: fa ? 'پرداخت‌شده‌ها هم؛ باز‌ها می‌مانند' : 'Paid ones too; open ones stay' },
+                ]}
+                extraWarning={fa
+                  ? 'پرداخت‌های باز (در انتظار واریز یا بررسی) حذف نمی‌شوند و پرداخت‌شده‌ها از آمار درآمد هم بیرون می‌روند'
+                  : 'Open payments (waiting for a transfer or your review) are kept, and paid ones also leave the revenue figures'}
+              />
+            ) : null}
+          </div>
         </div>
         {/* Four chips that fit a phone's width side by side, no sideways scroll. */}
         {all.length ? (

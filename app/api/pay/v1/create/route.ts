@@ -25,14 +25,31 @@ const schema = z.object({
   type: z.string().optional(),
 })
 
-const ERRORS: Record<CreatePaymentError, [number, string]> = {
-  NO_CARD: [503, 'No active card available'],
-  DISABLED: [503, 'Payment gateway is turned off'],
-  CAP_REACHED: [402, 'Monthly payment limit of the plan is reached'],
-  AMOUNT_TOO_HIGH: [400, 'Amount is above the card-to-card limit'],
-  AMOUNT_TOO_LOW: [400, 'Amount must be more than 10000 IR.'],
-  NO_SLOT: [503, 'Too many open payments with this amount; try again shortly'],
-  DUPLICATE_REFERENCE: [409, 'Order ID already exists'],
+/**
+ * Every refusal names itself: `code` for the site's own logic, `message` in
+ * English (ZarinPay style) and `message_fa` ready to show a Persian customer.
+ * Amount limits come back in rials, like `amount`.
+ */
+const ERRORS: Record<CreatePaymentError, { status: number; message: (limit?: number) => string; fa: (limit?: number) => string }> = {
+  NO_CARD: { status: 503, message: () => 'No active card is available on the gateway.', fa: () => 'کارت فعالی روی درگاه نیست.' },
+  DISABLED: { status: 503, message: () => 'The payment gateway is turned off.', fa: () => 'درگاه پرداخت خاموش است.' },
+  CAP_REACHED: { status: 402, message: () => 'The monthly payment limit of the plan is reached.', fa: () => 'سقف پرداخت‌های ماهانهٔ پلن پر شده است.' },
+  AMOUNT_TOO_HIGH: {
+    status: 400,
+    message: (limit) => limit ? `amount is above the card-to-card ceiling of ${tomanToRial(limit)} rials.` : 'amount is above the card-to-card ceiling.',
+    fa: (limit) => limit ? `مبلغ از سقف کارت‌به‌کارت (${limit.toLocaleString('fa-IR')} تومان) بیشتر است.` : 'مبلغ از سقف کارت‌به‌کارت بیشتر است.',
+  },
+  AMOUNT_TOO_LOW: {
+    status: 400,
+    message: (limit) => `amount is below the minimum of ${tomanToRial(limit ?? 1_000)} rials (${(limit ?? 1_000)} toman).`,
+    fa: (limit) => `مبلغ کمتر از حداقل است؛ کارت‌به‌کارت دست‌کم ${(limit ?? 1_000).toLocaleString('fa-IR')} تومان است.`,
+  },
+  NO_SLOT: { status: 503, message: () => 'Too many open payments with this amount; try again shortly.', fa: () => 'پرداخت‌های باز زیادی با همین مبلغ هست؛ چند دقیقهٔ دیگر دوباره تلاش کنید.' },
+  DUPLICATE_REFERENCE: { status: 409, message: () => 'order_id already exists.', fa: () => 'این شمارهٔ سفارش قبلاً ثبت شده است.' },
+}
+
+function refuse(status: number, code: string, message: string, messageFa: string, extra: Record<string, unknown> = {}) {
+  return NextResponse.json({ success: false, code, message, message_fa: messageFa, ...extra }, { status })
 }
 
 /**
@@ -45,17 +62,23 @@ export async function POST(req: Request) {
   if (!site) return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
   if (!(await rateLimit(`pay-api:${site.id}`, 120, 60))) return NextResponse.json({ success: false, message: 'Too many requests' }, { status: 429 })
   const parsed = schema.safeParse(await req.json().catch(() => null))
-  if (!parsed.success) return NextResponse.json({ success: false, message: 'Invalid input', errors: parsed.error.flatten().fieldErrors }, { status: 400 })
+  if (!parsed.success) {
+    const errors = parsed.error.flatten().fieldErrors
+    if (errors.amount) return refuse(400, 'AMOUNT_INVALID', 'amount must be a positive whole number of rials.', 'مبلغ باید عددی مثبت و به ریال باشد.', { errors })
+    return refuse(400, 'INVALID_INPUT', `Invalid input: ${Object.keys(errors).join(', ')}.`, 'ورودی نامعتبر است.', { errors })
+  }
   const input = parsed.data
   const baseAmount = rialToToman(input.amount)
-  if (baseAmount == null) return NextResponse.json({ success: false, message: 'Amount must end in 0 (a whole toman).' }, { status: 400 })
+  if (baseAmount == null) return refuse(400, 'AMOUNT_NOT_WHOLE_TOMAN', 'amount must end in 0 (a whole toman).', 'مبلغ ریالی باید به صفر ختم شود (تومان کامل).')
 
   try {
     // A repeated order_id answers with the same open payment, like ZarinPay.
     const existing = await prisma.cardPayment.findUnique({ where: { siteId_reference: { siteId: site.id, reference: input.order_id } }, include: { card: true } })
     if (existing) {
       if (existing.status === 'PENDING' || existing.status === 'CLAIMED') return NextResponse.json(answer(existing, existing.card, Boolean(input.embed)))
-      return NextResponse.json({ success: false, message: existing.status === 'EXPIRED' ? 'Previous transaction expired' : 'Order ID already exists' }, { status: existing.status === 'EXPIRED' ? 410 : 409 })
+      return existing.status === 'EXPIRED'
+        ? refuse(410, 'EXPIRED', 'The previous payment for this order_id expired; send a new order_id.', 'پرداخت قبلی این سفارش منقضی شده است؛ با شمارهٔ سفارش تازه بسازید.')
+        : refuse(409, 'DUPLICATE_REFERENCE', ERRORS.DUPLICATE_REFERENCE.message(), ERRORS.DUPLICATE_REFERENCE.fa())
     }
     const created = await createCardPayment({
       workspaceId: site.workspaceId,
@@ -70,8 +93,10 @@ export async function POST(req: Request) {
       returnUrl: input.return_url ?? null,
     })
     if (!created.ok) {
-      const [status, message] = ERRORS[created.error]
-      return NextResponse.json({ success: false, message }, { status })
+      const error = ERRORS[created.error]
+      const limit = created.limit
+      const bounds = created.error === 'AMOUNT_TOO_LOW' && limit ? { min_amount: tomanToRial(limit) } : created.error === 'AMOUNT_TOO_HIGH' && limit ? { max_amount: tomanToRial(limit) } : {}
+      return refuse(error.status, created.error, error.message(limit), error.fa(limit), bounds)
     }
     return NextResponse.json(answer(created.payment, created.card, Boolean(input.embed)))
   } catch (error) {

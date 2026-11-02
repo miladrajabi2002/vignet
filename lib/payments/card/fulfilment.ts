@@ -12,7 +12,11 @@ import { captureError } from '@/lib/errors/capture'
 import { readPayItems, type PayItem } from '@/lib/payments/card/items'
 import { contactPhoneLookupVariants as phoneVariants } from '@/lib/phone'
 
-/** Paid orders the owner has not handled yet (setup test transfers aside). */
+/**
+ * Paid orders the owner has not handled yet (setup test transfers aside).
+ * A connected site's order counts as handled once the site verifies it: the
+ * site delivers it itself (see /api/pay/v1/verify).
+ */
 export function awaitingHandlingWhere(workspaceId: string): Prisma.CardPaymentWhereInput {
   return { workspaceId, status: 'PAID', purpose: 'ORDER', handledAt: null, NOT: { reference: { startsWith: 'TEST-' } } }
 }
@@ -27,6 +31,11 @@ export async function conversationsAwaitingHandling(workspaceId: string, take = 
     select: { conversationId: true },
   }).catch(() => [])
   return rows.flatMap((row) => (row.conversationId ? [row.conversationId] : []))
+}
+
+/** Payments the owner may delete: closed ones, setup test transfers aside. */
+export function deletablePaymentsWhere(workspaceId: string): Prisma.CardPaymentWhereInput {
+  return { workspaceId, status: { notIn: ['PENDING', 'CLAIMED'] }, NOT: { reference: { startsWith: 'TEST-' } } }
 }
 
 /** The owner delivered a paid order (or takes that back). False when it is not a paid order of theirs. */
@@ -126,6 +135,10 @@ export interface Purchase {
   confirmedBy: string | null
   address: string | null
   conversationId: string | null
+  /** CHAT (taken in a chat) | LINK (a link made by hand) | API (a connected site) | STORE (the store's own checkout). */
+  source: string
+  /** The connected site that created it, API only. */
+  siteName: string | null
   /** The order on the store, when it was placed there. */
   storeOrder: string | null
   handledAt: Date | null
@@ -174,19 +187,21 @@ export async function loadConversationPurchases(workspaceId: string, conversatio
 }
 
 /**
- * Orders paid by card-to-card in Vigent (chat orders and payment links) that
- * did not become a store order: the orders page lists them beside the
- * store's. `handled` narrows to those delivered (true) or waiting (false).
+ * Orders paid by card-to-card in Vigent (chat orders, payment links and
+ * connected sites) that did not become a store order: the orders page lists
+ * them beside the store's. `handled` narrows to those delivered (true) or
+ * waiting (false).
  */
 export async function loadGatewayOrders(workspaceId: string, opts: { query?: string[]; handled?: boolean; take?: number } = {}): Promise<Purchase[]> {
   const search: Prisma.CardPaymentWhereInput[] = (opts.query ?? []).flatMap((term) => [
     { reference: { contains: term, mode: 'insensitive' as const } },
     { customerName: { contains: term, mode: 'insensitive' as const } },
     { customerPhone: { contains: term } },
+    { description: { contains: term, mode: 'insensitive' as const } },
   ])
   const purchases = await loadPurchases(workspaceId, {
     payments: [{
-      source: { in: ['CHAT', 'LINK'] },
+      source: { in: ['CHAT', 'LINK', 'API'] },
       ...(opts.handled === true ? { handledAt: { not: null } } : opts.handled === false ? { handledAt: null } : {}),
       ...(search.length ? { OR: search } : {}),
     }],
@@ -196,6 +211,39 @@ export async function loadGatewayOrders(workspaceId: string, opts: { query?: str
   return purchases.filter((purchase) => !purchase.storeOrder)
 }
 
+/**
+ * Ids of the gateway orders the orders page lists that a bulk-delete preset
+ * covers (they are all paid, so «cancelled» has none). The page lists one
+ * the store took as the store's order, so that one is left out here too.
+ */
+export async function gatewayOrderIdsForScope(workspaceId: string, scope: 'all' | 'cancelled' | 'completed' | 'older_90d', now = new Date(), take = 20_000): Promise<string[]> {
+  if (scope === 'cancelled') return []
+  const payments = await prisma.cardPayment.findMany({
+    where: {
+      workspaceId,
+      status: 'PAID',
+      purpose: 'ORDER',
+      source: { in: ['CHAT', 'LINK', 'API'] },
+      NOT: { reference: { startsWith: 'TEST-' } },
+      ...(scope === 'completed' ? { handledAt: { not: null } } : {}),
+      ...(scope === 'older_90d' ? { paidAt: { lt: new Date(now.getTime() - 90 * 86_400_000) } } : {}),
+    },
+    select: { id: true, orderDraftId: true },
+    take,
+  })
+  const draftIds = payments.flatMap((payment) => (payment.orderDraftId ? [payment.orderDraftId] : []))
+  const onStore = new Set(draftIds.length
+    ? (await prisma.orderDraft.findMany({ where: { id: { in: draftIds }, OR: [{ externalOrderId: { not: null } }, { externalOrderNumber: { not: null } }] }, select: { id: true } })).map((draft) => draft.id)
+    : [])
+  return payments.filter((payment) => !payment.orderDraftId || !onStore.has(payment.orderDraftId)).map((payment) => payment.id)
+}
+
+/** One paid card-to-card order as a purchase (its lines, address, store order), or null when it is not one. */
+export async function loadPaymentPurchase(workspaceId: string, paymentId: string): Promise<Purchase | null> {
+  const [purchase] = await loadPurchases(workspaceId, { payments: [{ id: paymentId }], drafts: [] }, 1)
+  return purchase ?? null
+}
+
 async function loadPurchases(workspaceId: string, who: { payments: Prisma.CardPaymentWhereInput[]; drafts: Prisma.OrderDraftWhereInput[] }, take: number): Promise<Purchase[]> {
   const [payments, ownDrafts] = await Promise.all([
     who.payments.length
@@ -203,7 +251,7 @@ async function loadPurchases(workspaceId: string, who: { payments: Prisma.CardPa
           where: { workspaceId, status: 'PAID', purpose: 'ORDER', NOT: { reference: { startsWith: 'TEST-' } }, OR: who.payments },
           orderBy: { paidAt: 'desc' },
           take,
-          include: { card: { select: { bankKey: true, last4: true } } },
+          include: { card: { select: { bankKey: true, last4: true } }, site: { select: { name: true } } },
         })
       : [],
     who.drafts.length
@@ -237,6 +285,8 @@ async function loadPurchases(workspaceId: string, who: { payments: Prisma.CardPa
       confirmedBy: payment.confirmedBy,
       address: address(draft),
       conversationId: payment.conversationId,
+      source: payment.source,
+      siteName: payment.site?.name ?? null,
       storeOrder: draft?.externalOrderNumber ?? draft?.externalOrderId ?? null,
       handledAt: payment.handledAt,
       customerName: payment.customerName ?? draft?.customerName ?? null,
@@ -260,6 +310,8 @@ async function loadPurchases(workspaceId: string, who: { payments: Prisma.CardPa
       confirmedBy: null,
       address: address(draft),
       conversationId: draft.conversationId,
+      source: 'STORE',
+      siteName: null,
       storeOrder: draft.externalOrderNumber ?? draft.externalOrderId,
       handledAt: null,
       customerName: draft.customerName,

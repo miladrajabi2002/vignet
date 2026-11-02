@@ -164,7 +164,8 @@ export interface CreatePaymentInput {
   now?: Date
 }
 
-export type CreatePaymentResult = { ok: true; payment: CardPayment; card: PayCard } | { ok: false; error: CreatePaymentError }
+/** `limit` (whole tomans) is the boundary an amount crossed: the minimum or the gateway's ceiling. */
+export type CreatePaymentResult = { ok: true; payment: CardPayment; card: PayCard } | { ok: false; error: CreatePaymentError; limit?: number }
 
 /** «L-7KQ2MX» for a hand-made link, «TEST-…» for the setup's own transfer. */
 export function manualLinkReference(test: boolean): string {
@@ -185,13 +186,13 @@ function newAuthority(): string {
 export async function createCardPayment(input: CreatePaymentInput): Promise<CreatePaymentResult> {
   const now = input.now ?? new Date()
   const baseAmount = Math.round(input.baseAmount)
-  if (!(baseAmount >= MIN_PAY_AMOUNT)) return { ok: false, error: 'AMOUNT_TOO_LOW' }
+  if (!(baseAmount >= MIN_PAY_AMOUNT)) return { ok: false, error: 'AMOUNT_TOO_LOW', limit: MIN_PAY_AMOUNT }
   const [platform, workspace] = await Promise.all([
     getPlatformGatewaySettings(),
     prisma.workspace.findUnique({ where: { id: input.workspaceId }, select: { plan: true, payGatewayEnabled: true, payGatewaySettings: true, payGatewaySuspendedAt: true, payGatewayCapOverride: true } }),
   ])
   if (!platform.enabled || !workspace?.payGatewayEnabled || workspace.payGatewaySuspendedAt) return { ok: false, error: 'DISABLED' }
-  if (baseAmount > platform.maxAmount) return { ok: false, error: 'AMOUNT_TOO_HIGH' }
+  if (baseAmount > platform.maxAmount) return { ok: false, error: 'AMOUNT_TOO_HIGH', limit: platform.maxAmount }
   const usage = await getGatewayUsage(input.workspaceId, workspace.plan, workspace.payGatewayCapOverride)
   if (usage.reached) return { ok: false, error: 'CAP_REACHED' }
   const settings = readPayGatewaySettings(workspace.payGatewaySettings)

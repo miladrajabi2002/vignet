@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
-import { Check, ChevronLeft, Copy, MessageSquareText, PackageCheck, PackageX, ReceiptText, X } from 'lucide-react'
+import { Check, ChevronLeft, Copy, MessageSquareText, PackageCheck, PackageX, ReceiptText, Trash2, X } from 'lucide-react'
 import type { ChannelType } from '@prisma/client'
 import { SideSheet } from '@/components/ui/side-sheet'
 import { StatusChip, type ChipTone } from '@/components/ui/status-chip'
@@ -12,8 +12,11 @@ import { ContactAvatar } from '@/components/crm/contact-avatar'
 import { ChannelGlyph, channelLabel } from '@/components/crm/channel-badge'
 import { BankMark } from '@/components/payments/bank-card'
 import { CustomerCardPaySwitch } from '@/components/payments/payment-actions'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { queueUndo } from '@/lib/undo-queue'
 import { copyText } from '@/components/commerce/card-pay-view'
 import type { PayItem } from '@/lib/payments/card/items'
+import { displayOrderCode } from '@/lib/commerce/order-ref'
 import { cn } from '@/lib/utils'
 
 export interface PaymentRowData {
@@ -221,6 +224,78 @@ function LateConfirm({ row, onDone }: { row: PaymentRowData; onDone?: () => void
 	)
 }
 
+/**
+ * Trashes a closed payment after the shared confirm dialog says what goes
+ * with it; the «بازگردانی» snackbar brings it back for a few minutes. `icon` is the desktop row's square button; `sheet` the
+ * full-width one at the foot of the detail sheet.
+ */
+function DeletePaymentButton({ row, variant, onDone }: { row: PaymentRowData; variant: 'icon' | 'sheet'; onDone?: () => void }) {
+	const router = useRouter()
+	const { fa, num } = useFormat()
+	const [confirming, setConfirming] = useState(false)
+	const [busy, setBusy] = useState(false)
+	const [error, setError] = useState<string | null>(null)
+	const label = fa ? 'حذف تراکنش' : 'Delete payment'
+	const paid = row.status === 'PAID'
+	const description = [
+		`#${displayOrderCode(row.reference)} · ${num(row.baseAmount)} ${fa ? 'تومان' : 'Toman'} · ${row.title}.`,
+		paid
+			? (fa ? 'از فهرست پرداخت‌ها، آمار درآمد و سابقهٔ خرید مشتری پاک می‌شود. پولی که واریز شده و سفارش دست نمی‌خورند.' : 'It leaves the payments list, the revenue figures and the customer’s purchase history. The money received and the order are not touched.')
+			: (fa ? 'از فهرست پرداخت‌ها پاک می‌شود و لینک پرداختش دیگر باز نمی‌شود.' : 'It leaves the payments list and its payment link stops opening.'),
+		row.source === 'API' ? (fa ? 'سایت متصل هم دیگر نمی‌تواند وضعیتش را استعلام کند.' : 'The connected site can no longer look it up either.') : null,
+	].filter(Boolean).join(' ')
+
+	async function remove() {
+		setBusy(true)
+		setError(null)
+		try {
+			const response = await fetch(`/api/payments/${row.id}`, { method: 'DELETE' })
+			if (response.status === 409) throw new Error(fa ? 'پرداخت باز را اول لغو کنید، بعد حذفش کنید.' : 'Withdraw the open payment first, then delete it.')
+			if (!response.ok && response.status !== 404) throw new Error(fa ? 'حذف نشد؛ دوباره تلاش کنید.' : 'It was not deleted; try again.')
+			setConfirming(false)
+			if (response.ok) queueUndo('payment', [row.id], fa ? 'تراکنش' : 'payment')
+			onDone?.()
+			router.refresh()
+		} catch (cause) {
+			setError(cause instanceof Error ? cause.message : String(cause))
+		} finally {
+			setBusy(false)
+		}
+	}
+
+	// The dialog portals out of the row, but React still bubbles its clicks to the row.
+	return (
+		<span className="contents" onClick={(event) => event.stopPropagation()}>
+			<button
+				type="button"
+				title={label}
+				onClick={() => { setError(null); setConfirming(true) }}
+				className={cn(
+					'inline-flex items-center justify-center gap-1.5 border font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]',
+					variant === 'icon'
+						? 'size-9 shrink-0 rounded-full border-[var(--border-default)] bg-white text-[var(--text-muted)] hover:border-red-300 hover:bg-red-50 hover:text-red-700 dark:bg-neutral-900 dark:hover:border-red-900 dark:hover:bg-red-950/40 dark:hover:text-red-300'
+						: 'min-h-11 w-full rounded-2xl border-red-200 bg-white px-4 text-[13.5px] font-bold text-red-700 hover:border-red-300 hover:bg-red-50 dark:border-red-900 dark:bg-transparent dark:text-red-300 dark:hover:bg-red-950/40',
+				)}
+			>
+				<Trash2 className="size-4" aria-hidden />
+				{variant === 'icon' ? <span className="sr-only">{label}</span> : label}
+			</button>
+			<ConfirmDialog
+				open={confirming}
+				title={fa ? 'این تراکنش حذف شود؟' : 'Delete this payment?'}
+				description={description}
+				confirmLabel={label}
+				cancelLabel={fa ? 'انصراف' : 'Cancel'}
+				busy={busy}
+				error={error}
+				undoNote={fa ? 'تا چند ثانیه بعد از حذف، «بازگردانی» پایین صفحه برش می‌گرداند.' : 'For a few seconds after deleting, Undo at the bottom of the screen brings it back.'}
+				onConfirm={remove}
+				onClose={() => { if (!busy) setConfirming(false) }}
+			/>
+		</span>
+	)
+}
+
 function Detail({ row, onClose }: { row: PaymentRowData; onClose: () => void }) {
 	const { fa, num, time, clock } = useFormat()
 	const open = row.status === 'PENDING' || row.status === 'CLAIMED'
@@ -242,7 +317,7 @@ function Detail({ row, onClose }: { row: PaymentRowData; onClose: () => void }) 
 	return (
 		<SideSheet
 			title={row.title}
-			subtitle={`#${row.reference}`}
+			subtitle={`#${displayOrderCode(row.reference)}`}
 			onClose={onClose}
 			closeLabel={fa ? 'بستن' : 'Close'}
 			className="md:w-[min(28rem,calc(100vw-1.5rem))]"
@@ -251,8 +326,14 @@ function Detail({ row, onClose }: { row: PaymentRowData; onClose: () => void }) 
 				<div className="grid gap-2">
 					<DecisionButtons row={row} size="sheet" onDone={onClose} />
 					<CopyLinkButton url={row.payUrl} />
+					<p className="text-center text-[11.5px] leading-5 text-[var(--text-muted)]">{fa ? 'برای حذف این تراکنش، اول «لغو» را بزنید.' : 'To delete this payment, withdraw it first.'}</p>
 				</div>
-			) : late ? <LateConfirm row={row} onDone={onClose} /> : undefined}
+			) : (
+				<div className="grid gap-2">
+					{late ? <LateConfirm row={row} onDone={onClose} /> : null}
+					<DeletePaymentButton row={row} variant="sheet" onDone={onClose} />
+				</div>
+			)}
 		>
 			<div className="grid gap-5">
 				<div className="grid justify-items-center gap-1.5 rounded-2xl bg-[var(--bg-surface)] px-4 py-5 text-center">
@@ -365,7 +446,11 @@ export function PaymentsList({ rows }: { rows: PaymentRowData[] }) {
 								tabIndex={0}
 								aria-label={fa ? `جزئیات ${row.title}، ${num(row.baseAmount)} تومان` : `Details of ${row.title}, ${row.baseAmount} Toman`}
 								onClick={() => setOpenId(row.id)}
-								onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setOpenId(row.id) } }}
+								onKeyDown={(event) => {
+									// Keys on the buttons inside (and the dialogs they open) are theirs.
+									if (event.target !== event.currentTarget) return
+									if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setOpenId(row.id) }
+								}}
 								className={cn(
 									'grid cursor-pointer grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-4 py-3 transition-colors hover:bg-[var(--bg-surface)] focus-visible:bg-[var(--bg-surface)] focus-visible:outline-none active:bg-[var(--bg-hover)] sm:px-5 md:grid-cols-[2.25rem_minmax(0,1.6fr)_minmax(0,.9fr)_minmax(0,.9fr)_minmax(13rem,auto)] md:gap-x-4',
 									openId === row.id && 'bg-[var(--bg-surface)]',
@@ -375,7 +460,7 @@ export function PaymentsList({ rows }: { rows: PaymentRowData[] }) {
 								<div className="min-w-0">
 									<p className="flex min-w-0 items-center gap-2">
 										<span className="truncate text-[13.5px] font-bold text-[var(--text-primary)]">{row.title}</span>
-										<span dir="ltr" className="hidden shrink-0 font-mono text-[11.5px] text-[var(--text-muted)] sm:inline">#{row.reference}</span>
+										<span dir="ltr" className="hidden shrink-0 font-mono text-[11.5px] text-[var(--text-muted)] sm:inline">#{displayOrderCode(row.reference)}</span>
 									</p>
 									<p className="mt-0.5 hidden min-w-0 items-center gap-1.5 text-[12px] text-[var(--text-muted)] md:flex">
 										{row.conversation ? <FromChip conversation={row.conversation} /> : null}
@@ -401,7 +486,10 @@ export function PaymentsList({ rows }: { rows: PaymentRowData[] }) {
 											<DecisionButtons row={row} />
 										</>
 									) : (
-										<span className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-[var(--border-default)] px-3.5 text-[12.5px] font-medium text-[var(--text-secondary)]"><ReceiptText className="size-4" aria-hidden />{fa ? 'جزئیات' : 'Details'}</span>
+										<>
+											<span className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-[var(--border-default)] px-3.5 text-[12.5px] font-medium text-[var(--text-secondary)]"><ReceiptText className="size-4" aria-hidden />{fa ? 'جزئیات' : 'Details'}</span>
+											<DeletePaymentButton row={row} variant="icon" onDone={() => { if (openId === row.id) setOpenId(null) }} />
+										</>
 									)}
 								</div>
 							</div>

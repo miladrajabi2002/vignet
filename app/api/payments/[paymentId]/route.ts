@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { cancelOpenCardPayments, confirmCardPayment, rejectCardPayment, setCardPayBlockForPayment } from '@/lib/payments/card/service'
-import { setPaymentHandled } from '@/lib/payments/card/fulfilment'
+import { deletablePaymentsWhere, setPaymentHandled } from '@/lib/payments/card/fulfilment'
 
 type Params = { params: Promise<{ paymentId: string }> }
 
@@ -37,5 +37,22 @@ export async function PATCH(req: Request, props: Params) {
   else if (parsed.data.action === 'reject') changed = (await rejectCardPayment(payment.id)).changed
   else changed = (await cancelOpenCardPayments({ id: payment.id })) > 0
   if (!changed) return NextResponse.json({ error: 'ALREADY_FINAL' }, { status: 409 })
+  return NextResponse.json({ ok: true })
+}
+
+/**
+ * The owner trashes a payment: it leaves the gateway's list and counts (undo
+ * for a few minutes, purged after 7 days). An open one is withdrawn first:
+ * until then a late deposit SMS must find it.
+ */
+export async function DELETE(_req: Request, props: Params) {
+  const { paymentId } = await props.params
+  const user = await getCurrentUser()
+  if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+  const payment = await prisma.cardPayment.findFirst({ where: { OR: [{ id: paymentId }, { authority: paymentId }], workspaceId: user.workspaceId }, select: { id: true, status: true } })
+  if (!payment) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
+  if (payment.status === 'PENDING' || payment.status === 'CLAIMED') return NextResponse.json({ error: 'OPEN' }, { status: 409 })
+  const removed = await prisma.cardPayment.deleteMany({ where: { id: payment.id, ...deletablePaymentsWhere(user.workspaceId) } })
+  if (!removed.count) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
   return NextResponse.json({ ok: true })
 }

@@ -30,7 +30,9 @@ async function settle(paymentId: string): Promise<Outcome> {
 	})
 	if (!payment || payment.gateway !== 'VIGENTPAY' || !payment.authority) return 'failed'
 	if (payment.status === 'PAID') return 'success'
-	if (payment.status !== 'PENDING') return 'failed'
+	// FAILED is asked again: the gateway closes an unpaid link as «expired», and the
+	// owner may still confirm the transfer by hand afterwards (a late deposit).
+	if (payment.status !== 'PENDING' && payment.status !== 'FAILED') return 'failed'
 
 	let verify
 	try {
@@ -53,6 +55,11 @@ async function settle(paymentId: string): Promise<Outcome> {
 	if (verify.amount == null || Math.round(verify.amount) !== Math.round(payment.amount) || (verify.orderId != null && verify.orderId !== payment.id)) {
 		await prisma.payment.updateMany({ where: { id: payment.id, status: 'PENDING' }, data: { status: 'FAILED', callbackPayload: verify.raw as Prisma.InputJsonValue } })
 		return 'failed'
+	}
+
+	// Verified paid after being closed as failed: reopen it so the single PENDING→PAID claim below applies.
+	if (payment.status === 'FAILED') {
+		await prisma.payment.updateMany({ where: { id: payment.id, status: 'FAILED' }, data: { status: 'PENDING' } })
 	}
 
 	const paymentUpdate = {

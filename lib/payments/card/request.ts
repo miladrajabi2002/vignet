@@ -20,7 +20,7 @@ export type PaymentRequestError = CreatePaymentError | 'NOT_FOUND' | 'WINDOW_CLO
 
 export type PaymentRequestResult =
   | { ok: true; payment: CardPayment; url: string; delivery: 'sent' | 'stored' | 'failed'; message: { id: string; role: string; content: string; createdAt: Date; metadata: unknown } | null }
-  | { ok: false; error: PaymentRequestError }
+  | { ok: false; error: PaymentRequestError; limit?: number }
 
 export async function requestPaymentInConversation(input: {
   workspaceId: string
@@ -60,7 +60,7 @@ export async function requestPaymentInConversation(input: {
     customerName: cleanContactName(conversation.contact?.name),
     customerPhone: conversation.contact?.phone ?? null,
   })
-  if (!created.ok) return { ok: false, error: created.error }
+  if (!created.ok) return { ok: false, error: created.error, limit: created.limit }
 
   const workspace = await prisma.workspace.findUniqueOrThrow({ where: { id: input.workspaceId }, select: { payGatewaySettings: true } })
   const { deliverAssistantNotice, lastCustomerLang } = await import('@/lib/commerce/checkout-service')

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { BankMark } from '@/components/payments/bank-card'
 import { PaymentActions, PaymentHandledButton } from '@/components/payments/payment-actions'
 import { PurchaseCard } from '@/components/payments/purchase-card'
+import { displayOrderCode } from '@/lib/commerce/order-ref'
 import { awaitingHandlingWhere, loadConversationPurchases } from '@/lib/payments/card/fulfilment'
 
 /**
@@ -33,7 +34,7 @@ export async function ConversationPaymentBanner({ workspaceId, conversationId, l
 						<summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-2.5 gap-y-1.5 px-3.5 py-2.5 [&::-webkit-details-marker]:hidden">
 							<PartyPopper className="size-[18px] shrink-0 text-emerald-700" aria-hidden />
 							<span className="text-[14px] font-bold text-emerald-900">{fa ? 'خرید موفق' : 'Paid order'}</span>
-							<span dir="ltr" className="font-mono text-[13px] font-bold text-emerald-900">#{purchase.code}</span>
+							<span dir="ltr" className="font-mono text-[13px] font-bold text-emerald-900">#{displayOrderCode(purchase.code)}</span>
 							<span className="text-[13px] font-bold text-emerald-900">{money(purchase.total)}</span>
 							<span className="min-w-0 flex-1 truncate text-[13px] text-emerald-800">· {lines}</span>
 							<span className="inline-flex items-center gap-1 text-[12.5px] font-medium text-emerald-800">{fa ? 'جزئیات' : 'Details'}<ChevronDown className="size-4 transition-transform group-open:rotate-180" aria-hidden /></span>
@@ -58,7 +59,7 @@ export async function ConversationPaymentBanner({ workspaceId, conversationId, l
 					<div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
 						<CircleAlert className="size-5 shrink-0 text-red-600" aria-hidden />
 						<h2 className="text-[15px] font-bold text-red-800">{fa ? 'بررسی پرداخت' : 'Payment review'}</h2>
-						<span dir="ltr" className="font-mono text-sm font-bold text-red-900">#{payment.reference}</span>
+						<span dir="ltr" className="font-mono text-sm font-bold text-red-900">#{displayOrderCode(payment.reference)}</span>
 						<span className="text-sm font-bold text-red-900">{money(payment.payAmount)}</span>
 						<span className="inline-flex items-center gap-1.5 text-[13px] text-red-800"><BankMark bankKey={payment.card.bankKey} size={20} /><span dir="ltr" className="font-mono">…{payment.card.last4}</span></span>
 					</div>
@@ -73,7 +74,7 @@ export async function ConversationPaymentBanner({ workspaceId, conversationId, l
 				<section key={payment.id} className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 rounded-card border border-amber-200 bg-amber-50/80 px-3.5 py-2.5">
 					<Hourglass className="size-4 shrink-0 text-amber-700" aria-hidden />
 					<p className="min-w-0 flex-1 text-[13.5px] leading-7 text-amber-900">
-						{fa ? 'در انتظار واریز' : 'Waiting for the transfer'} <span dir="ltr" className="font-mono font-bold">#{payment.reference}</span> · {money(payment.payAmount)} {fa ? 'به کارت' : 'to card'} <span dir="ltr" className="font-mono">…{payment.card.last4}</span>{fa ? '. با رسیدن پیامک بانک خودکار تأیید می‌شود.' : '. It confirms by itself when the bank SMS arrives.'}
+						{fa ? 'در انتظار واریز' : 'Waiting for the transfer'} <span dir="ltr" className="font-mono font-bold">#{displayOrderCode(payment.reference)}</span> · {money(payment.payAmount)} {fa ? 'به کارت' : 'to card'} <span dir="ltr" className="font-mono">…{payment.card.last4}</span>{fa ? '. با رسیدن پیامک بانک خودکار تأیید می‌شود.' : '. It confirms by itself when the bank SMS arrives.'}
 					</p>
 					<PaymentActions paymentId={payment.id} mode="pending" compact />
 				</section>
@@ -85,7 +86,7 @@ export async function ConversationPaymentBanner({ workspaceId, conversationId, l
 /** Above the inbox: payments waiting for the owner's decision, each linking to its conversation. */
 export async function PaymentReviewStrip({ workspaceId, locale }: { workspaceId: string; locale: 'fa' | 'en' }) {
 	const fa = locale !== 'en'
-	const [payments, paidWaiting] = await Promise.all([
+	const [payments, paidWaiting, paidWaitingInChats] = await Promise.all([
 		prisma.cardPayment.findMany({
 			where: { workspaceId, status: 'CLAIMED' },
 			orderBy: { claimedAt: 'desc' },
@@ -93,9 +94,13 @@ export async function PaymentReviewStrip({ workspaceId, locale }: { workspaceId:
 			select: { id: true, reference: true, payAmount: true, conversationId: true, customerName: true },
 		}).catch(() => []),
 		prisma.cardPayment.count({ where: awaitingHandlingWhere(workspaceId) }).catch(() => 0),
+		prisma.cardPayment.count({ where: { ...awaitingHandlingWhere(workspaceId), conversationId: { not: null } } }).catch(() => 0),
 	])
+	// Orders paid in a chat are flagged in the inbox; one paid by a link or a
+	// connected site has no chat, so the list goes to the orders page instead.
+	const paidHref = paidWaitingInChats === paidWaiting ? '/conversations?sales=PAID' : '/products/orders?status=processing'
 	const paidLine = paidWaiting > 0 ? (
-		<Link href="/conversations?sales=PAID" className="flex min-h-11 items-center gap-2 rounded-card border border-emerald-300 bg-emerald-50 px-3.5 text-[13.5px] font-semibold text-emerald-900 hover:border-emerald-400">
+		<Link href={paidHref} className="flex min-h-11 items-center gap-2 rounded-card border border-emerald-300 bg-emerald-50 px-3.5 text-[13.5px] font-semibold text-emerald-900 hover:border-emerald-400">
 			<PartyPopper className="size-4 shrink-0 text-emerald-700" aria-hidden />
 			{fa ? `${paidWaiting.toLocaleString('fa-IR')} خرید موفق منتظر ارسال یا رسیدگی شماست` : `${paidWaiting} paid order${paidWaiting === 1 ? '' : 's'} waiting for you to deliver`}
 			<span className="ms-auto text-[12.5px] font-medium text-emerald-700">{fa ? 'نمایش' : 'Show'}</span>
@@ -111,7 +116,7 @@ export async function PaymentReviewStrip({ workspaceId, locale }: { workspaceId:
 				{payments.map((payment) => (
 					<li key={payment.id}>
 						<Link href={payment.conversationId ? `/conversations/${payment.conversationId}` : '/payments'} className="inline-flex min-h-9 items-center gap-2 rounded-full border border-red-200 bg-white px-3 text-[13px] text-red-900 hover:border-red-400">
-							<span dir="ltr" className="font-mono font-bold">#{payment.reference}</span>
+							<span dir="ltr" className="font-mono font-bold">#{displayOrderCode(payment.reference)}</span>
 							<span>{payment.payAmount.toLocaleString(fa ? 'fa-IR' : 'en-US')} {fa ? 'تومان' : 'Toman'}</span>
 							{payment.customerName ? <span className="text-red-700">· {payment.customerName}</span> : null}
 						</Link>

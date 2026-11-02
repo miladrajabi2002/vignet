@@ -10,18 +10,9 @@ import { CopyButton } from '@/components/ui/copy-button'
 import { SideSheet } from '@/components/ui/side-sheet'
 import { toEnglishDigits } from '@/lib/phone'
 import { AmountField, formatAmountInput, ItemsEditor, itemsTotal, RecipientPicker, RecipientRow, toPayItems, type EditorItem, type Recipient } from '@/components/payments/payment-request-fields'
+import { MIN_PAY_AMOUNT_TOMAN, paymentCreateErrorText } from '@/lib/payments/card/create-errors'
 import { cn } from '@/lib/utils'
 
-const ERRORS: Record<string, [string, string]> = {
-	NO_CARD: ['اول یک کارت فعال اضافه کنید.', 'Add an active card first.'],
-	DISABLED: ['درگاه خاموش است؛ از «تنظیمات» روشنش کنید.', 'The gateway is off; switch it on in Settings.'],
-	AMOUNT_TOO_HIGH: ['این مبلغ از سقف کارت‌به‌کارت بیشتر است.', 'This amount is above the card-to-card limit.'],
-	AMOUNT_TOO_LOW: ['حداقل مبلغ ۱٬۰۰۰ تومان است.', 'The minimum is 1,000 Toman.'],
-	CAP_REACHED: ['سقف پرداخت‌های این ماهِ پلن شما پر شده است.', 'This month’s payment limit of your plan is reached.'],
-	NO_SLOT: ['الان پرداخت‌های باز زیادی با همین مبلغ هست؛ چند دقیقهٔ دیگر تلاش کنید.', 'Too many open payments with this amount; try again shortly.'],
-	WINDOW_CLOSED: ['اینستاگرام فقط تا ۲۴ ساعت بعد از آخرین پیام مشتری اجازهٔ پیام می‌دهد؛ «فقط لینک بساز» را بزنید و لینک را جور دیگری بفرستید.', 'Instagram allows messages only within 24 hours of the customer’s last one; make a link instead.'],
-	NOT_FOUND: ['این گفتگو پیدا نشد.', 'That conversation was not found.'],
-}
 
 /**
  * «پرداخت تازه» in the gateway's header: a payment link to send by hand (a
@@ -85,6 +76,8 @@ export function NewPaymentButton({ locked }: { locked: 'card' | 'platform' | nul
 	async function submit(event: React.FormEvent) {
 		event.preventDefault()
 		if (!ready) return
+		// Said here, before a round trip, the way the server would say it.
+		if (value < MIN_PAY_AMOUNT_TOMAN) { setError(paymentCreateErrorText('AMOUNT_TOO_LOW', fa)); return }
 		setBusy(true)
 		setError(null)
 		try {
@@ -98,10 +91,9 @@ export function NewPaymentButton({ locked }: { locked: 'card' | 'platform' | nul
 					...(target === 'chat' && recipient ? { conversationId: recipient.conversationId } : {}),
 				}),
 			})
-			const data = (await response.json().catch(() => null)) as { url?: string; error?: string; delivery?: string } | null
+			const data = (await response.json().catch(() => null)) as { url?: string; error?: string; limit?: number | null; delivery?: string } | null
 			if (!response.ok || !data?.url) {
-				const copy = ERRORS[data?.error ?? '']
-				setError(copy ? copy[fa ? 0 : 1] : (fa ? 'پرداخت ساخته نشد؛ دوباره تلاش کنید.' : 'The payment was not created; try again.'))
+				setError(paymentCreateErrorText(data?.error, fa, data?.limit) ?? (fa ? 'پرداخت ساخته نشد؛ دوباره تلاش کنید.' : 'The payment was not created; try again.'))
 				return
 			}
 			setMade({ url: data.url, amount: value, description: description.trim(), recipient: target === 'chat' ? recipient : null, delivery: data.delivery ?? null })

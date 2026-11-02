@@ -11,8 +11,9 @@ import { requestPaymentInConversation } from '@/lib/payments/card/request'
 const TEST_AMOUNT = 10_000
 
 const schema = z.object({
-  // Whole tomans.
-  amount: z.number().int().min(1_000).max(2_000_000_000).optional(),
+  // Whole tomans; the minimum and the ceiling are checked by createCardPayment,
+  // which says which one was crossed.
+  amount: z.number().int().positive().max(2_000_000_000).optional(),
   description: z.string().trim().max(200).optional(),
   customerName: z.string().trim().max(80).optional(),
   // Send it to this customer's conversation instead of handing back a link.
@@ -28,9 +29,12 @@ export async function POST(req: Request) {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
   const parsed = schema.safeParse(await req.json().catch(() => null))
-  if (!parsed.success) return NextResponse.json({ error: 'INVALID_INPUT' }, { status: 400 })
+  if (!parsed.success) {
+    const amountWrong = parsed.error.issues.some((issue) => issue.path[0] === 'amount')
+    return NextResponse.json({ error: amountWrong ? 'AMOUNT_INVALID' : 'INVALID_INPUT' }, { status: 400 })
+  }
   const test = parsed.data.test === true
-  if (!test && !parsed.data.amount) return NextResponse.json({ error: 'INVALID_INPUT' }, { status: 400 })
+  if (!test && !parsed.data.amount) return NextResponse.json({ error: 'AMOUNT_INVALID' }, { status: 400 })
   if (test) {
     // The test must work before the owner switches the gateway on.
     const cards = await prisma.payCard.count({ where: { workspaceId: user.workspaceId, active: true, deletedAt: null } })
@@ -57,7 +61,7 @@ export async function POST(req: Request) {
       items,
       note: parsed.data.note ?? null,
     })
-    if (!requested.ok) return NextResponse.json({ error: requested.error }, { status: requested.error === 'NOT_FOUND' ? 404 : 400 })
+    if (!requested.ok) return NextResponse.json({ error: requested.error, limit: requested.limit ?? null }, { status: requested.error === 'NOT_FOUND' ? 404 : 400 })
     return NextResponse.json({ ok: true, id: requested.payment.id, url: requested.url, delivery: requested.delivery, message: requested.message })
   }
   const created = await createCardPayment({
@@ -69,7 +73,7 @@ export async function POST(req: Request) {
     description: test ? 'واریز آزمایشی راه‌اندازی' : parsed.data.description ?? null,
     customerName: parsed.data.customerName ?? null,
   })
-  if (!created.ok) return NextResponse.json({ error: created.error }, { status: 400 })
+  if (!created.ok) return NextResponse.json({ error: created.error, limit: created.limit ?? null }, { status: 400 })
   const workspace = await prisma.workspace.findUniqueOrThrow({ where: { id: user.workspaceId }, select: { payGatewaySettings: true } })
   return NextResponse.json({
     ok: true,
