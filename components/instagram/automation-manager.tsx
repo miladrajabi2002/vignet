@@ -12,6 +12,7 @@ import {
     ChevronDown,
     Camera,
     PowerOff,
+    Unplug,
     type LucideIcon,
 } from 'lucide-react'
 import { AutomationCard } from '@/components/instagram/automation-card'
@@ -63,6 +64,7 @@ const TABS: TabDef[] = [
 
 export function InstagramAutomationManager({
         agentId,
+        channelId,
         agentActive: initialAgentActive = true,
         accountUsername,
         accountAvatarUrl,
@@ -72,6 +74,9 @@ export function InstagramAutomationManager({
         reports = {},
 }: {
         agentId: string
+        /** The connected Instagram channel — present only while the account is
+         *  wired up; it powers the «قطع اتصال» action in the header. */
+        channelId?: string
         /** False while the agent is switched off — nothing from Instagram is
          *  processed then, scenarios included. */
         agentActive?: boolean
@@ -114,6 +119,29 @@ export function InstagramAutomationManager({
         const [toast, setToast] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
         const [agentActive, setAgentActive] = useState(initialAgentActive)
         const [resuming, setResuming] = useState<'scenarios' | 'all' | null>(null)
+        // Disconnecting the Instagram account from this page: the connection's
+        // own control panel, not a quiet link at the bottom of the channels sheet.
+        const [disconnectOpen, setDisconnectOpen] = useState(false)
+        const [disconnecting, setDisconnecting] = useState(false)
+
+        async function disconnectAccount() {
+                if (!channelId) return
+                setDisconnecting(true)
+                const failedMsg = locale === 'fa' ? 'قطع اتصال نشد؛ دوباره امتحان کنید.' : 'Could not disconnect; try again.'
+                try {
+                        const res = await fetch(`/api/agents/${agentId}/channels/${channelId}`, { method: 'DELETE' })
+                        if (!res.ok) {
+                                flash('err', failedMsg)
+                                return
+                        }
+                        setDisconnectOpen(false)
+                        router.refresh()
+                } catch {
+                        flash('err', failedMsg)
+                } finally {
+                        setDisconnecting(false)
+                }
+        }
 
         const byType = useMemo(() => {
                 const map: Record<AutomationType, Automation[]> = {
@@ -280,16 +308,31 @@ export function InstagramAutomationManager({
                                         </span>
                                 )}
                                 actions={(
-                                        <button
-                                                type="button"
-                                                onClick={() => router.push(newHref)}
-                                                aria-label={fa ? 'سناریوی جدید' : 'New scenario'}
-                                                title={fa ? 'سناریوی جدید' : 'New scenario'}
-                                                className="spatial-press inline-flex min-h-11 w-11 items-center justify-center gap-2 rounded-xl bg-black px-0 text-sm font-semibold text-white shadow-[var(--shadow-control)] sm:w-auto sm:px-4"
-                                        >
-                                                <Plus className="h-4 w-4" />
-                                                <span className="hidden sm:inline">{fa ? 'سناریوی جدید' : 'New scenario'}</span>
-                                        </button>
+                                        <div className="flex items-center gap-2">
+                                                <button
+                                                        type="button"
+                                                        onClick={() => router.push(newHref)}
+                                                        aria-label={fa ? 'سناریوی جدید' : 'New scenario'}
+                                                        title={fa ? 'سناریوی جدید' : 'New scenario'}
+                                                        className="spatial-press inline-flex min-h-11 w-11 items-center justify-center gap-2 rounded-xl bg-black px-0 text-sm font-semibold text-white shadow-[var(--shadow-control)] sm:w-auto sm:px-4"
+                                                >
+                                                        <Plus className="h-4 w-4" />
+                                                        <span className="hidden sm:inline">{fa ? 'سناریوی جدید' : 'New scenario'}</span>
+                                                </button>
+                                                {channelId && (
+                                                        <button
+                                                                type="button"
+                                                                onClick={() => setDisconnectOpen(true)}
+                                                                disabled={disconnecting}
+                                                                aria-label={fa ? 'قطع اتصال اینستاگرام' : 'Disconnect Instagram'}
+                                                                title={fa ? 'قطع اتصال اینستاگرام' : 'Disconnect Instagram'}
+                                                                className="spatial-press inline-flex min-h-11 w-11 items-center justify-center gap-2 rounded-xl border border-danger/30 bg-danger/5 px-0 text-sm font-semibold text-danger transition-colors hover:border-danger/60 hover:bg-danger/10 disabled:opacity-50 sm:w-auto sm:px-4"
+                                                        >
+                                                                {disconnecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Unplug className="h-4 w-4" aria-hidden />}
+                                                                <span className="hidden sm:inline">{fa ? 'قطع اتصال' : 'Disconnect'}</span>
+                                                        </button>
+                                                )}
+                                        </div>
                                 )}
                         />
 
@@ -427,6 +470,22 @@ export function InstagramAutomationManager({
                                 busy={deleting}
                                 onConfirm={confirmDelete}
                                 onClose={() => { if (!deleting) setDeleteTarget(null) }}
+                        />
+
+                        {/* Disconnect the Instagram account itself. Same primitive, so the
+                            action is as safe as deleting a scenario. */}
+                        <ConfirmDialog
+                                open={disconnectOpen}
+                                title={fa ? `اتصال @${accountUsername || 'اینستاگرام'} قطع شود؟` : `Disconnect @${accountUsername || 'Instagram'}?`}
+                                description={fa
+                                        ? 'ایجنت دیگر به دایرکت، کامنت و استوری این پیج جواب نمی‌دهد. سناریوها نگه داشته می‌شوند و با اتصال دوباره برمی‌گردند.'
+                                        : 'The agent stops answering this page\u2019s DMs, comments and stories. Scenarios are kept and return when you reconnect.'}
+                                confirmLabel={fa ? 'قطع اتصال' : 'Disconnect'}
+                                cancelLabel={fa ? 'انصراف' : 'Cancel'}
+                                tone="danger"
+                                busy={disconnecting}
+                                onConfirm={() => void disconnectAccount()}
+                                onClose={() => { if (!disconnecting) setDisconnectOpen(false) }}
                         />
 
                         {/* Toast */}

@@ -229,6 +229,7 @@ async function InstagramAutomationContent({
                         {statusBanner}
                         <InstagramAutomationManager
                                 agentId={agent.id}
+                                channelId={igChannel.id}
                                 agentActive={agent.active}
                                 accountUsername={accountUsername}
                                 accountAvatarUrl={accountAvatarUrl}

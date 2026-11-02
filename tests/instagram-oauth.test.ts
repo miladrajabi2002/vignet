@@ -59,7 +59,9 @@ describe('Instagram webhook subscription', () => {
       'messages,messaging_postbacks,comments,mentions',
     )
     expect(url.searchParams.get('access_token')).toBe('token-1')
-    expect(requestInit).toEqual({ method: 'POST' })
+    // Bounded request: a stalled Meta connection must not hang the caller.
+    expect(requestInit.method).toBe('POST')
+    expect(requestInit.signal).toBeInstanceOf(AbortSignal)
   })
 
   it('removes the app webhook subscription when an account is disconnected', async () => {
@@ -78,7 +80,9 @@ describe('Instagram webhook subscription', () => {
     const url = new URL(requestUrl)
     expect(url.pathname).toContain('/ig-user-1/subscribed_apps')
     expect(url.searchParams.get('access_token')).toBe('token-1')
-    expect(requestInit).toEqual({ method: 'DELETE' })
+    // Bounded request: the disconnect path must never hang on a silent Meta.
+    expect(requestInit.method).toBe('DELETE')
+    expect(requestInit.signal).toBeInstanceOf(AbortSignal)
   })
 })
 
@@ -89,7 +93,7 @@ describe('Instagram long-lived token endpoints', () => {
     vi.unstubAllEnvs()
   })
 
-  it('exchanges the short-lived token with a POST form body', async () => {
+  it('exchanges the short-lived token with a GET query first (live-verified 2026-10-28)', async () => {
     vi.stubEnv('INSTAGRAM_APP_SECRET', 'app-secret')
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -109,15 +113,15 @@ describe('Instagram long-lived token endpoints', () => {
       string | URL,
       RequestInit,
     ]
-    expect(String(requestUrl)).toBe('https://graph.instagram.com/access_token')
-    expect(requestInit.method).toBe('POST')
-    const body = requestInit.body as URLSearchParams
-    expect(body.get('grant_type')).toBe('ig_exchange_token')
-    expect(body.get('client_secret')).toBe('app-secret')
-    expect(body.get('access_token')).toBe('short-token')
+    const url = new URL(requestUrl)
+    expect(String(url.origin + url.pathname)).toBe('https://graph.instagram.com/access_token')
+    expect(url.searchParams.get('grant_type')).toBe('ig_exchange_token')
+    expect(url.searchParams.get('client_secret')).toBe('app-secret')
+    expect(url.searchParams.get('access_token')).toBe('short-token')
+    expect(requestInit.method).toBe('GET')
   })
 
-  it('refreshes the long-lived token with a POST form body', async () => {
+  it('refreshes the long-lived token with a GET query first (live-verified 2026-10-28)', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -136,12 +140,12 @@ describe('Instagram long-lived token endpoints', () => {
       string | URL,
       RequestInit,
     ]
-    expect(String(requestUrl)).toBe(
+    const url = new URL(requestUrl)
+    expect(String(url.origin + url.pathname)).toBe(
       'https://graph.instagram.com/refresh_access_token',
     )
-    expect(requestInit.method).toBe('POST')
-    const body = requestInit.body as URLSearchParams
-    expect(body.get('grant_type')).toBe('ig_refresh_token')
-    expect(body.get('access_token')).toBe('long-token')
+    expect(url.searchParams.get('grant_type')).toBe('ig_refresh_token')
+    expect(url.searchParams.get('access_token')).toBe('long-token')
+    expect(requestInit.method).toBe('GET')
   })
 })

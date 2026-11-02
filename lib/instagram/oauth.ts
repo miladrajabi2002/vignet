@@ -258,24 +258,34 @@ export async function exchangeCodeForUserToken(
 }
 
 /**
- * graph.instagram.com token endpoints reject GET with "Unsupported request -
- * method type: get" (IGApiException code 100) in production, so POST a
- * form-encoded body first. Fall back to GET only if POST itself is refused.
+ * graph.instagram.com token endpoints (`/access_token` for the long-lived
+ * exchange, `/refresh_access_token` for the daily refresh) accept GET only.
+ * Verified live against Meta on 2026-10-28 with a real production token:
+ *   POST  -> HTTP 400 IGApiException code 100 ("Unsupported post request...
+ *            does not support this operation" / "Unsupported request -
+ *            method type: post")
+ *   GET   -> HTTP 200 with a fresh token
+ * The old POST-first order failed open: when Meta attached that method
+ * rejection to a 2xx body (it does for some error shapes), post.ok was true,
+ * the fallback never ran and the caller threw the raw error body - that is
+ * the 2026-10-25/26 "Long-lived token exchange failed" storm. GET now goes
+ * first, exactly as Meta documents; POST is kept only as a fallback in case
+ * the API ever refuses GET again.
  */
 async function igTokenRequest(
   endpoint: string,
   params: Record<string, string>,
 ): Promise<Response> {
+  const url = new URL(endpoint)
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v)
+  const get = await fetch(url, { method: 'GET' })
+  if (get.ok) return get
   const post = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams(params),
   })
-  if (post.ok || post.status < 400 || post.status >= 500) return post
-  const url = new URL(endpoint)
-  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v)
-  const get = await fetch(url, { method: 'GET' })
-  return get.ok ? get : post
+  return post.ok ? post : get
 }
 
 /**
@@ -294,7 +304,7 @@ export async function exchangeForLongLivedToken(
   const data = (await res.json()) as LongTokenResponse & { error?: unknown }
   if (!res.ok || !data.access_token) {
     throw new Error(
-      `Long-lived token exchange failed: ${JSON.stringify(data)}`,
+      `Long-lived token exchange failed (HTTP ${res.status}): ${JSON.stringify(data)}`,
     )
   }
   const ttl = data.expires_in ?? 60 * 24 * 60 * 60
@@ -317,7 +327,7 @@ export async function refreshLongLivedToken(
   )
   const data = (await res.json()) as LongTokenResponse & { error?: unknown }
   if (!res.ok || !data.access_token) {
-    throw new Error(`Token refresh failed: ${JSON.stringify(data)}`)
+    throw new Error(`Token refresh failed (HTTP ${res.status}): ${JSON.stringify(data)}`)
   }
   const ttl = data.expires_in ?? 60 * 24 * 60 * 60
   return {
@@ -420,7 +430,9 @@ export async function subscribeIgUserToWebhook(
       'subscribed_fields',
       INSTAGRAM_WEBHOOK_FIELDS.join(','),
     )
-    const res = await fetch(url, { method: 'POST' })
+    // Bounded: an untimed fetch to Meta could hang the caller (OAuth callback,
+    // diagnostics) for minutes when the network path stalls.
+    const res = await fetch(url, { method: 'POST', signal: AbortSignal.timeout(8_000) })
     const data = (await res.json()) as {
       success?: boolean
       error?: { message?: string; code?: number }
@@ -451,7 +463,9 @@ export async function unsubscribeIgUserFromWebhook(
   try {
     const url = new URL(`${GRAPH_BASE}/${igUserId}/subscribed_apps`)
     url.searchParams.set('access_token', igToken)
-    const res = await fetch(url, { method: 'DELETE' })
+    // Bounded: this runs on the disconnect path, where an untimed fetch left
+    // the channel row alive (and the account "connected") while it hung.
+    const res = await fetch(url, { method: 'DELETE', signal: AbortSignal.timeout(8_000) })
     const data = (await res.json()) as {
       success?: boolean
       error?: { message?: string; code?: number }
@@ -482,7 +496,7 @@ export async function getIgUserWebhookSubscription(
   try {
     const url = new URL(`${GRAPH_BASE}/${igUserId}/subscribed_apps`)
     url.searchParams.set('access_token', igToken)
-    const res = await fetch(url, { method: 'GET' })
+    const res = await fetch(url, { method: 'GET', signal: AbortSignal.timeout(8_000) })
     const data = (await res.json()) as {
       data?: Array<{ subscribed_fields?: string[] }>
       error?: { message?: string }

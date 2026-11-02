@@ -12,6 +12,7 @@ import {
   ExternalLink,
   Plus,
   ShieldCheck,
+  Unplug,
   X,
 } from 'lucide-react'
 import { InstagramConnectFlow } from '@/components/channels/instagram-connect-wizard'
@@ -613,12 +614,16 @@ export function MessengerChannel({
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border-subtle)] pt-5">
               <p className="min-w-0 flex-1 basis-56 text-xs leading-6 text-[var(--text-muted)]">{t('disableChannelBody')}</p>
+              {/* The visible way out of a connection: an icon + danger styling,
+                  so «قطع اتصال» is found at a glance instead of hiding as a
+                  quiet text link at the bottom of the sheet. */}
               <button
                 type="button"
                 onClick={() => setDisableOpen(true)}
                 disabled={busy}
-                className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-[var(--border-default)] px-4 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:border-danger/40 hover:text-danger disabled:opacity-50"
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-danger/30 bg-danger/5 px-4 text-sm font-semibold text-danger transition-colors hover:border-danger/60 hover:bg-danger/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50"
               >
+                <Unplug className="h-4 w-4" aria-hidden />
                 {t('disconnect')}
               </button>
             </div>
