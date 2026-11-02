@@ -21,8 +21,8 @@ const FALLBACK: PlatformAiConfig = {
 }
 
 const DEFAULT_PROVIDER_MODELS: Partial<Record<ModelAlias, string>> = {
-  fast: 'deepseek/deepseek-v4.1-flash',
-  smart: 'deepseek/deepseek-v4.1-flash',
+  fast: 'deepseek/deepseek-v4.1-flash-1017',
+  smart: 'deepseek/deepseek-v4.1-flash-1017',
 }
 
 let cache: { value: PlatformAiConfig; expiresAt: number } | null = null

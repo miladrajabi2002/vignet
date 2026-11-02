@@ -24,6 +24,8 @@ export interface AgentSkillPostprocessContext {
   turnWasRead?: boolean
   /** The reading found a request to order in chat that this agent cannot take. */
   orderAsked?: boolean
+  /** The reply's promise of a human follow-up was filed for the owner this turn (lib/agent/turn/follow-up.ts). */
+  followUpFiled?: boolean
   isFa?: boolean
   /** Verified channel media on this turn, when the platform payload proves one. */
   inboundMediaKind?: string
@@ -140,7 +142,8 @@ export function runAgentSkillPostprocessors(
       turnWasRead: context.turnWasRead ?? false,
       orderAsked: context.orderAsked ?? false,
     })
-    output = enforceNoFalseFollowUp(output, context.isFa ?? true)
+    // A filed follow-up is a kept promise; only an unbacked one is rewritten.
+    if (!context.followUpFiled) output = enforceNoFalseFollowUp(output, context.isFa ?? true)
   }
   // After the action guards: they may already have swapped a link placeholder
   // for the trusted catalog URL, which is grounded by definition.

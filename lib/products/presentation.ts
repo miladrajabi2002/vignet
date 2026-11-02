@@ -71,14 +71,17 @@ export function showcaseIntroText(params: {
   unavailable?: boolean
   /** A deliverable back-in-stock offer line for this channel, if any. */
   restockOffer?: string | null
+  /** At least one shown card carries a price («عکس و قیمتش» would lie otherwise). */
+  priced?: boolean
 }): string {
   if (params.unavailable && params.count > 0) {
+    const priced = params.priced !== false
     const offer = params.restockOffer?.trim()
     const lang = resolveReplyLang(params.lang, params.isFa)
     const subject = (params.subject ?? '').trim().slice(0, 40)
     if (lang === 'en') {
       return [
-        `${params.count === 1 ? 'This item is' : `These ${params.count} ${subject || 'items'} are`} out of stock right now; photos and prices are below.`,
+        `${params.count === 1 ? 'This item is' : `These ${params.count} ${subject || 'items'} are`} out of stock right now; ${priced ? 'photos and prices are' : 'photos are'} below.`,
         offer
           ? `${offer} Or tell me which one you like and I will suggest the closest available model.`
           : 'If you like one of them, tell me and I will suggest the closest available model.',
@@ -92,8 +95,8 @@ export function showcaseIntroText(params: {
     }
     return [
       params.count === 1
-        ? `${subject ? `این ${subject}` : 'این مدل'} فعلاً ناموجوده؛ عکس و قیمتش را در ادامه می‌بینید.`
-        : `${params.count.toLocaleString('fa-IR')} مدل ${subject || 'محصول'} داریم ولی فعلاً همه ناموجودن؛ عکس و قیمت هر کدام را در ادامه می‌بینید.`,
+        ? `${subject ? `این ${subject}` : 'این مدل'} فعلاً ناموجوده؛ ${priced ? 'عکس و قیمتش را' : 'عکسش را'} در ادامه می‌بینید.`
+        : `${params.count.toLocaleString('fa-IR')} مدل ${subject || 'محصول'} داریم ولی فعلاً همه ناموجودن؛ ${priced ? 'عکس و قیمت هر کدام را' : 'عکس هر کدام را'} در ادامه می‌بینید.`,
       offer
         ? `${offer}؛ یا بگید کدوم رو پسندیدید تا مدل موجودِ مشابهش رو پیشنهاد بدم`
         : 'اگر یکی‌شان را پسندیدید بگویید تا مدل موجودِ مشابهش را پیشنهاد بدهم.',
@@ -715,6 +718,7 @@ export async function buildTrustedProductReply(params: {
         narrowed: params.narrowed,
         unavailable: params.unavailable,
         restockOffer: params.restockOffer,
+        priced: selectedProducts.some((product) => product.price != null && product.price > 0),
       })
     : parsed.text
 

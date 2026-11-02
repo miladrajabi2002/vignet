@@ -8,7 +8,7 @@ import { ACTION_CAPABILITY_SKILL_VERSION, actionCapabilityInstruction, bookingUn
 import { needsVisualReferenceSkill, VISUAL_REFERENCE_SKILL_VERSION, visualReferenceInstruction } from '@/lib/agent-kernel/skills/visual-reference'
 import { HUMANIZER_SKILL_VERSION, humanizerPolishInstruction } from '@/lib/agent-kernel/skills/humanizer-polish'
 
-export const AGENT_KERNEL_VERSION = '2026.10.13-core-hard.1'
+export const AGENT_KERNEL_VERSION = '2026.10.23-agent-upgrade.1'
 
 const manifests = {
   security: { key: 'security-boundaries', version: '1.0.0', phase: 'policy', priority: 1000, description: 'Immutable safety and instruction hierarchy.' },

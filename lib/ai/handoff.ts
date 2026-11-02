@@ -244,11 +244,35 @@ export function evaluateHandoffPolicy(input: HandoffPolicyInput): HandoffDecisio
         }
 }
 
+/**
+ * Text the system appended to the customer's message (a photo or story
+ * description from machine vision) starts with one of these labels. Keyword
+ * and phrase matching must never read it: a vision line «انسان: ندارد» once
+ * matched the owner's keyword «انسان» and handed a product photo to a person.
+ */
+const MACHINE_CONTEXT_LABELS = [
+        '[محتوای تصویر ارسالی مشتری',
+        '[Customer-sent image content',
+        '[استوری‌ای که مشتری رویش پیام داده',
+        '[Story the customer replied to',
+]
+
+/** The customer's own words in a stored or inbound USER message. */
+export function customerAuthoredText(text: string): string {
+        let end = text.length
+        for (const label of MACHINE_CONTEXT_LABELS) {
+                const at = text.indexOf(label)
+                if (at >= 0 && at < end) end = at
+        }
+        return text.slice(0, end).trim()
+}
+
 export async function shouldHandoff(
         agent: ChatAgent,
         conversationId: string,
         userMessage: string,
 ): Promise<HandoffDecision> {
+        userMessage = customerAuthoredText(userMessage)
         const normalizedMessage = normalizeSalesText(userMessage)
         const customKeyword = agent.handoffKeywords.find((keyword) => {
                 const normalizedKeyword = normalizeSalesText(keyword)
@@ -264,7 +288,9 @@ export async function shouldHandoff(
         }
 
         const messages = context
-                ? [...context.messages]
+                ? context.messages.map((message) => message.role === 'USER'
+                        ? { ...message, content: customerAuthoredText(message.content) }
+                        : message)
                 : [{ role: 'USER' as const, content: userMessage }]
         const lastUser = [...messages].reverse().find((message) => message.role === 'USER')
         if (!lastUser || normalizeSalesText(lastUser.content) !== normalizedMessage) {

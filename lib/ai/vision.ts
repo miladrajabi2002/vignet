@@ -257,3 +257,52 @@ export async function understandInboundImage(params: {
     : imageDescriptionContextEn(result.description)
   return { kind: 'described', label }
 }
+
+/** Label for the description of the story a customer replied to. */
+export function storyDescriptionContext(description: string, isFa: boolean): string {
+  return isFa
+    ? `[استوری‌ای که مشتری رویش پیام داده — توصیف بینایی ماشین]\n${description}`
+    : `[Story the customer replied to — machine-vision description]\n${description}`
+}
+
+const STORY_CACHE_SECONDS = 48 * 60 * 60
+
+/**
+ * «این چنده؟» under a story: the agent only knew it was a story reply, never
+ * what the story showed, and asked «کدوم محصول؟» again and again. Describe the
+ * story image once per story (cached for 48 h), only on turns the AI answers,
+ * so the reading and the catalog search see the product the customer means.
+ * Videos are skipped. Never throws.
+ */
+export async function describeStoryForTurn(params: {
+  storyId: string
+  storyUrl: string
+  workspaceId: string
+  agentId: string
+  language?: string
+  idempotencyKey: string
+}): Promise<string | null> {
+  const isFa = (params.language ?? 'fa').toLowerCase().startsWith('fa')
+  const cacheKey = `story:desc:${params.workspaceId}:${params.storyId}`
+  try {
+    const { getRedis } = await import('@/lib/redis')
+    const cached = await getRedis().get(cacheKey).catch(() => null)
+    if (cached) return storyDescriptionContext(cached, isFa)
+    const dl = await downloadImage(params.storyUrl)
+    if (!dl) return null
+    const result = await describeImage({
+      image: dl.image,
+      mime: dl.mime,
+      language: params.language,
+      workspaceId: params.workspaceId,
+      agentId: params.agentId,
+      idempotencyKey: `vision:story:${params.storyId}:${params.idempotencyKey}`,
+    })
+    if (result.status !== 'ok') return null
+    await getRedis().set(cacheKey, result.description, 'EX', STORY_CACHE_SECONDS).catch(() => null)
+    return storyDescriptionContext(result.description, isFa)
+  } catch (error) {
+    console.error('[vision] story description failed:', error)
+    return null
+  }
+}

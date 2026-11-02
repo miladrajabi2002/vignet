@@ -34,6 +34,7 @@ import { relativeTime } from '@/lib/format'
 import { summarizeAgentReadiness } from '@/lib/agents/readiness'
 import { buildLinkEvidence } from '@/lib/agent-kernel/skills/link-grounding'
 import { dashboardTitle } from '@/lib/dashboard/page-title'
+import { handoffPromptMismatch } from '@/lib/agent/config-lint'
 
 export const generateMetadata = dashboardTitle('ایجنت', 'Agent')
 
@@ -105,6 +106,7 @@ export default async function AgentDetailPage(
       systemPrompt: true,
       promptConfig: true,
       welcomeMessage: true,
+      handoffEnabled: true,
     },
   })
   if (!agent) notFound()
@@ -120,6 +122,7 @@ export default async function AgentDetailPage(
     pendingImprovementCount,
     linkedKnowledgeCount,
     linkedProductCount,
+    knowledgeConflicts,
   ] =
     await Promise.all([
       prisma.workspace.findUnique({
@@ -178,6 +181,10 @@ export default async function AgentDetailPage(
         },
       }),
       prisma.product.count({ where: { workspaceId: user.workspaceId, active: true, externalUrl: { not: null } } }),
+      // Open contradictions the knowledge-conflict review found between two entries.
+      prisma.skillFinding.count({
+        where: { agentId: agent.id, workspaceId: user.workspaceId, skillKey: 'knowledge-conflict', status: 'OPEN' },
+      }),
     ])
 
   const modules = getDashboardModules(workspaceCapabilities(workspace))
@@ -339,6 +346,39 @@ export default async function AgentDetailPage(
       href: `/agents/${agent.id}/improve`,
       cta: fa ? 'رفتن به بهبود ایجنت' : 'Open agent improvements',
       badge: fa ? 'اثر بالا' : 'High impact',
+      attention: true,
+    })
+  }
+
+  // The prompt tells the agent to pass chats to a person while the switch is
+  // off: it then promises calls that never reach anyone.
+  const handoffWords = handoffPromptMismatch(agent)
+  if (handoffWords.length) {
+    growthActions.push({
+      key: 'handoff-mismatch',
+      icon: TriangleAlert,
+      title: fa ? 'انتقال به اپراتور خاموش است ولی دستورها آن را می‌خواهند' : 'Handoff is off but the instructions ask for it',
+      desc: fa
+        ? `در متن ایجنت آمده «${handoffWords.slice(0, 2).join('»، «')}»، ولی انتقال خودکار به اپراتور خاموش است. ایجنت درخواست صریح مشتری را برای شما ثبت می‌کند، اما بهتر است یا انتقال را روشن کنید یا این جمله‌ها را از دستورها بردارید.`
+        : `The agent's instructions mention “${handoffWords.slice(0, 2).join('”, “')}” while handoff to an operator is off. Explicit requests are still filed for you, but turn handoff on or remove those lines.`,
+      href: `/agents/${agent.id}/settings`,
+      cta: fa ? 'رفتن به تنظیمات انتقال' : 'Open handoff settings',
+      badge: fa ? 'نیازمند توجه' : 'Needs attention',
+      attention: true,
+    })
+  }
+
+  if (knowledgeConflicts > 0) {
+    growthActions.push({
+      key: 'knowledge-conflict',
+      icon: TriangleAlert,
+      title: fa ? 'دانش ایجنت با خودش تناقض دارد' : 'The agent’s knowledge contradicts itself',
+      desc: fa
+        ? `${knowledgeConflicts.toLocaleString('fa-IR')} جفت مدخل دانش حرف متفاوتی می‌زنند (مثلاً دو نرخ یا دو شرط مختلف). ایجنت بسته به جست‌وجو یکی از آن‌ها را می‌گوید؛ یکی را اصلاح یا حذف کنید.`
+        : `${knowledgeConflicts.toLocaleString('en-US')} pairs of knowledge entries disagree (two rates or two conditions). Fix or remove one of each pair.`,
+      href: `/agents/${agent.id}/knowledge`,
+      cta: fa ? 'بازبینی دانش' : 'Review knowledge',
+      badge: fa ? 'نیازمند توجه' : 'Needs attention',
       attention: true,
     })
   }

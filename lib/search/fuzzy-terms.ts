@@ -138,6 +138,10 @@ export function correctCatalogTerm(
   // Glued or split compound: «میزتلویزیون» ↔ «میز تلویزیون».
   const compact = value.split(' ').join('')
   if (compact !== value && vocabulary.has(compact)) return compact
+  // The other direction: a customer glues what the catalog writes apart
+  // («رژگونه» for «رژ گونه»). Split each unknown word into two catalog words.
+  const split = splitGluedWords(value, vocabulary)
+  if (split && split !== value) return split
   if (limit === 0) return null
 
   let best = limit + 1
@@ -165,6 +169,25 @@ export function correctCatalogTerm(
   const pool = sameStart.length ? sameStart : winners
   const completions = pool.filter((word) => word.startsWith(value))
   return completions.length === 1 ? completions[0] : null
+}
+
+/** «رژگونه استامپی» → «رژ گونه استامپی» when «رژ» and «گونه» are both catalog words. */
+function splitGluedWords(phrase: string, vocabulary: ReadonlySet<string>): string | null {
+  let changed = false
+  const words = phrase.split(' ').map((word) => {
+    const letters = [...word]
+    if (letters.length < 4 || vocabulary.has(word) || looksLikeCode(word)) return word
+    for (let cut = 2; cut <= letters.length - 2; cut++) {
+      const left = letters.slice(0, cut).join('')
+      const right = letters.slice(cut).join('')
+      if (vocabulary.has(left) && vocabulary.has(right)) {
+        changed = true
+        return `${left} ${right}`
+      }
+    }
+    return word
+  })
+  return changed ? words.join(' ') : null
 }
 
 export interface TermCorrection {

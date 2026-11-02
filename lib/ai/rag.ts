@@ -202,8 +202,10 @@ function buildCatalogBlock(
     // the model claim «هیچ مبل کرمی پیدا نکردم» instead of advising designs.
     if (productRequest?.advisoryConsult || productRequest?.anaphoraConsult) return ''
     return isFa
-      ? '\n\nمحصول منطبق و قابل‌اعتمادی برای این درخواست پیدا نشد. نام، قیمت، موجودی یا مشخصات محصولی را حدس نزن و کوتاه بگو محصول منطبق در کاتالوگ فعلی پیدا نشد.'
-      : '\n\nNo trusted matching product was found for this request. Do not invent a product, price, stock level, or specifications; briefly say no matching catalog item was found.'
+      // «محصول منطبق در کاتالوگ فعلی پیدا نشد» was dictated here word for word
+      // and reached customers verbatim; say it like a salesperson instead.
+      ? '\n\nبرای این درخواست محصولی در کاتالوگ پیدا نشد. نام، قیمت، موجودی یا مشخصات محصولی را حدس نزن. مثل یک فروشنده، کوتاه و طبیعی بگو این را پیدا نکردی و اگر خواستهٔ مشتری مبهم یا احتمالاً غلط تایپی است، یک سؤال کوتاه بپرس (اسم دقیق، کاربرد یا عکسش). جملهٔ ثابت «محصول منطبق در کاتالوگ پیدا نشد» را به کار نبر.'
+      : '\n\nNo catalog product was found for this request. Do not invent a product, price, stock level, or specifications. Like a salesperson, say briefly and naturally that you could not find it, and if the request is vague or likely misspelled, ask one short question (exact name, use, or a photo). Do not use a stock phrase such as “no matching catalog item was found”.'
   }
 
   // A question about one or two products («جنسش چیه؟ پایه‌هاش فلزیه؟») needs

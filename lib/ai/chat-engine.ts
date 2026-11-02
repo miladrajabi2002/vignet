@@ -52,7 +52,7 @@ import {
 } from '@/lib/ai/conversation'
 import { catalogSearchVocabulary, getAgentCatalogLexicon } from '@/lib/ai/catalog-lexicon'
 import { correctSearchTerms } from '@/lib/search/fuzzy-terms'
-import { shouldHandoff, handoffReplyText } from '@/lib/ai/handoff'
+import { shouldHandoff, handoffReplyText, customerAuthoredText } from '@/lib/ai/handoff'
 import { captureError } from '@/lib/errors/capture'
 import { checkChatAllowed, type BlockReason } from '@/lib/billing/entitlements'
 import { DEFAULT_MODEL, resolveModelAlias, resolveModelId } from '@/lib/ai/models'
@@ -100,6 +100,9 @@ import { TurnLedger } from '@/lib/ai/llm/aux'
 import { UNDERSTANDING_DOMAINS } from '@/lib/agent/understand/domains'
 import { runUnderstandingStage } from '@/lib/agent/turn/understand-stage'
 import { emptyProductPlan } from '@/lib/agent/turn/route'
+import { waitingRoomInstruction, waitingRoomStatus } from '@/lib/agent/turn/waiting-room'
+import { fileFollowUpRequest } from '@/lib/agent/turn/follow-up'
+import { applyProductJudgement, judgeCatalogCandidates } from '@/lib/agent/turn/product-judge'
 import { closingReplyFor, composeSpellingNote, composeTurnBrief } from '@/lib/agent/turn/brief'
 import { recordCustomerReading } from '@/lib/agent/turn/customer-reading'
 import { buildSystemPrompt, defaultProviderFailureText, appendSalesGuidance } from '@/lib/agent/turn/prompt'
@@ -193,6 +196,15 @@ export interface PreparedTurnData {
         stateTrace: ConversationStateTrace
         /** A human is needed (verified reading, or the legacy analyzer's rescue verdict). */
         analyzerHandoffSignal: boolean
+        /**
+         * The verified reading says the customer asked for a person, in any
+         * wording («بسپار به همکارت», «یکی زنگ بزنه»). Unlike a complaint this is
+         * the customer's own request, so it transfers even with proactive
+         * handoff switched off.
+         */
+        analyzerHumanRequest: boolean
+        /** A transfer nobody has answered yet: answer factual questions, never transfer again. */
+        waitingRoom: boolean
         /** Product ids carded in the agent's previous reply. */
         recentCardIds: string[]
         /** Deterministic pre-order / back-in-stock step for this turn. */
@@ -240,8 +252,13 @@ async function prepareTurn(params: StartChatParams): Promise<
 
         // Human ownership is a hard, channel-agnostic gate. Persist the inbound
         // message for the inbox, but never reserve credit or call a model until
-        // the operator explicitly returns the conversation to the agent.
-        if (isHumanOwnedConversation(conversation)) {
+        // the operator explicitly returns the conversation to the agent. The one
+        // exception is the waiting room: a transfer nobody has answered or
+        // claimed yet, where the assistant keeps answering factual questions.
+        const waitingRoom = isHumanOwnedConversation(conversation)
+                ? await waitingRoomStatus(conversationId).catch(() => ({ waiting: false, since: null }))
+                : { waiting: false, since: null }
+        if (isHumanOwnedConversation(conversation) && !(waitingRoom.waiting && waitingRoom.since)) {
                 await persistInboundTurnMessage(params, conversationId, true)
                 await prisma.conversation.update({
                         where: { id: conversationId },
@@ -459,7 +476,7 @@ async function prepareTurn(params: StartChatParams): Promise<
         const modelHistory = [...crossChannelContext.modelHistory, ...history]
         // Language mirroring: the reply locale comes from what the customer
         // actually wrote THIS turn — never from a pinned agent locale.
-        let turnLang = detectTurnLanguage(message, planningHistory)
+        let turnLang = detectTurnLanguage(message, planningHistory, agent.language === 'en' ? 'en' : agent.language === 'ar' ? 'ar' : 'fa')
         const systemPromptFor = (language: TurnLanguage) => buildSystemPrompt({
                 agent,
                 customerInfoState: freshState,
@@ -472,7 +489,9 @@ async function prepareTurn(params: StartChatParams): Promise<
                 turnLanguage: language,
                 channel: params.channel,
                 inboundSource: params.inboundMetadata ?? null,
-        })
+        }) + (waitingRoom.waiting && waitingRoom.since
+                ? waitingRoomInstruction(language === 'en' ? 'en' : 'fa', Math.max(1, Math.round((Date.now() - waitingRoom.since.getTime()) / 60_000)))
+                : '')
         let finalSystemPrompt = systemPromptFor(turnLang)
 
         const reserved = await reserveChatCredit({
@@ -605,6 +624,8 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 stateExpectedRevision: loadedState.expectedRevision,
                                 stateTrace,
                                 analyzerHandoffSignal: false,
+                                analyzerHumanRequest: false,
+                                waitingRoom: waitingRoom.waiting,
                                 recentCardIds: [],
                                 commerceTurn: { kind: 'none' },
                                 catalogToolReason: null,
@@ -686,6 +707,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                 // An explicit human request or a high-severity complaint in the
                 // verified reading escalates to a person.
                 const analyzerHandoffSignal = route ? route.handoff.human || route.handoff.complaintHigh : false
+                const analyzerHumanRequest = route ? route.handoff.human : false
 
                 const productIds = [...new Set([
                         ...chunks
@@ -856,6 +878,50 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 ? cheaper
                                 : (await fetchCatalogProductsByIds(agent.id, [cheaperReferenceId ?? '']).catch(() => []))
                                         .map((product) => ({ ...product, fullTermMatch: false }))
+                }
+                // Product judge: a lexical search pulls in rows that only share a
+                // word with the request («طی کلیپسی» → a hair-styling set). When the
+                // rows compete or none is a full match, the model reads them and
+                // keeps only the right ones, or none. References, cheaper-than and
+                // budget/superlative lists are already exact and skip it.
+                // Recall: the word search misses spellings the catalog writes
+                // differently («رژگونه» vs «رژ گونه»); the semantic hits of this
+                // turn's retrieval join the judge's pool so it can still find them.
+                const semanticIds = productsRouted && agent.productAccessEnabled && productRequest.isProductTurn
+                        ? [...new Set(chunks
+                                .filter((chunk) => chunk.similarity >= 0.4 && chunk.metadata && typeof chunk.metadata === 'object' && 'productId' in chunk.metadata)
+                                .sort((left, right) => right.similarity - left.similarity)
+                                .map((chunk) => String((chunk.metadata as Record<string, unknown>).productId)))]
+                                .filter((id) => !catalogProducts.some((product) => product.id === id))
+                                .slice(0, 6)
+                        : []
+                const judgeable = productsRouted && agent.productAccessEnabled && productRequest.isProductTurn
+                        && !referencedIds.length && !cheaperThan && !route.catalogSearch
+                        && (catalogProducts.length > 0 || semanticIds.length > 0)
+                        && (catalogProducts.length !== 1 || !catalogProducts[0].fullTermMatch)
+                if (judgeable) {
+                        const semanticRows = semanticIds.length
+                                ? await fetchCatalogProductsByIds(agent.id, semanticIds).catch(() => [] as CatalogProduct[])
+                                : []
+                        const pool = [...catalogProducts, ...semanticRows]
+                        const judgement = await judgeCatalogCandidates({
+                                workspaceId,
+                                agentId: agent.id,
+                                conversationId,
+                                ledger,
+                                message: customerAuthoredText(message) || message,
+                                searchTerms: productRequest.searchTerms,
+                                candidates: pool,
+                        })
+                        const applied = judgement ? applyProductJudgement(pool, judgement) : catalogProducts
+                        // An unusable verdict returns the whole pool: keep the search result then.
+                        const judged = applied === pool ? catalogProducts : applied
+                        if (judged !== catalogProducts) {
+                                catalogProducts = judged
+                                if (judgement?.kind === 'none' || judgement?.kind === 'similar') {
+                                        productRequest = { ...productRequest, explicitShowcase: false }
+                                }
+                        }
                 }
                 // Exact matches that are all sold out: a consultation says
                 // «فعلاً ناموجوده» with a real next step.
@@ -1123,6 +1189,8 @@ async function prepareTurn(params: StartChatParams): Promise<
                         stateExpectedRevision: loadedState.expectedRevision,
                         stateTrace,
                         analyzerHandoffSignal,
+                        analyzerHumanRequest,
+                        waitingRoom: waitingRoom.waiting,
                         recentCardIds: shownCardIds,
                         commerceTurn,
                         catalogToolReason,
@@ -1260,6 +1328,8 @@ export async function completeTurn(
                 stateExpectedRevision,
                 stateTrace,
                 analyzerHandoffSignal,
+                analyzerHumanRequest,
+                waitingRoom: inWaitingRoom,
                 recentCardIds,
                 commerceTurn,
                 catalogToolReason,
@@ -1273,20 +1343,37 @@ export async function completeTurn(
         // here must not leave wallet credit reserved forever.
         let handoffCheck: Awaited<ReturnType<typeof shouldHandoff>>
         try {
-                handoffCheck = await shouldHandoff(agent, conversationId, message)
+                // Already with a person: the waiting room never transfers again.
+                handoffCheck = inWaitingRoom
+                        ? { handoff: false, recommended: false, code: '', reasonCodes: [], reason: '', score: 0, priority: 'normal' }
+                        : await shouldHandoff(agent, conversationId, message)
         } catch (error) {
                 await releaseChatCredit(reservation, 'Handoff policy check failed').catch(() => {})
                 throw new TurnPreparationError(error)
         }
         // The turn analyzer's rescue verdict escalates to a human even when
         // the keyword/policy layers saw nothing.
-        if (!handoffCheck.handoff && analyzerHandoffSignal && agent.handoffEnabled) {
+        // The customer's own request for a person, in any wording, is the
+        // customer's right: it transfers whatever the proactive switch says
+        // (the phrase lists in sales-intelligence only ever caught a few
+        // spellings of it). A high-severity complaint still follows the switch.
+        if (!handoffCheck.handoff && analyzerHumanRequest && !inWaitingRoom) {
                 handoffCheck = {
                         ...handoffCheck,
                         handoff: true,
                         recommended: true,
-                        code: 'MANUAL',
-                        reasonCodes: [...handoffCheck.reasonCodes, 'MANUAL'],
+                        code: 'EXPLICIT_REQUEST',
+                        reasonCodes: [...new Set([...handoffCheck.reasonCodes, 'EXPLICIT_REQUEST' as const])],
+                        reason: handoffCheck.reason || 'درخواست صریح مشتری برای صحبت با همکار انسانی',
+                        priority: 'high',
+                }
+        } else if (!handoffCheck.handoff && analyzerHandoffSignal && agent.handoffEnabled && !inWaitingRoom) {
+                handoffCheck = {
+                        ...handoffCheck,
+                        handoff: true,
+                        recommended: true,
+                        code: 'DISTRESS',
+                        reasonCodes: [...handoffCheck.reasonCodes, 'DISTRESS'],
                         reason: handoffCheck.reason || 'مشتری به پیگیری انسانی نیاز دارد',
                         priority: 'high',
                 }
@@ -1554,7 +1641,23 @@ export async function completeTurn(
                         continuityGuardCodes.push('UNGROUNDED_LINK_REPAIRED')
                 }
         }
+        // The reply declared a human follow-up (f=y): file it so the promise is
+        // real. Inside the waiting room the transfer itself already stands.
+        let followUpFiled = false
+        if (!providerFailed && turnSignal?.followUp) {
+                followUpFiled = inWaitingRoom || (await fileFollowUpRequest({
+                        workspaceId,
+                        conversationId,
+                        agentId: agent.id,
+                        channel: params.channel,
+                        contactId,
+                        contactName,
+                        contactPhone,
+                        customerMessage: message,
+                })) !== 'failed'
+        }
         reply = runAgentSkillPostprocessors(reply, skillPlan, {
+                followUpFiled,
                 catalogProducts: groundedPostprocessProducts,
                 userMessage: message,
                 isFa: turnLang !== 'en',

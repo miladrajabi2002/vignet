@@ -131,13 +131,18 @@ function isBareLatinName(text: string): boolean {
   return words.length > 0 && words.length <= 3 && !words.some((word) => ENGLISH_FUNCTION_WORDS.has(word))
 }
 
-export function detectTurnLanguage(message: string, history: ChatMessage[] = []): TurnLanguage {
+/**
+ * `storeLanguage` answers a bare Latin name that opens the conversation
+ * («ninja af400» as the first message of a Persian shop got an English reply).
+ */
+export function detectTurnLanguage(message: string, history: ChatMessage[] = [], storeLanguage?: TurnLanguage): TurnLanguage {
   const current = (message ?? '').trim()
   if (current) {
     const letters = current.replace(/[^\p{L}]/gu, '')
     if (letters.length >= 2) {
       const language = classifyLetteredText(current)
-      const earlier = language === 'en' && isBareLatinName(current) ? previousCustomerLanguage(history) : null
+      const bareName = language === 'en' && isBareLatinName(current)
+      const earlier = bareName ? previousCustomerLanguage(history) ?? storeLanguage ?? null : null
       return earlier ?? language
     }
   }

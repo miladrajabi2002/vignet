@@ -11,7 +11,7 @@ import type { StartChatParams } from '@/lib/ai/chat-types'
 import { notifyHandoff } from '@/lib/ai/handoff'
 import { startChannelTyping } from '@/lib/channels/typing'
 import { transcribeAudio, downloadAudio } from '@/lib/voice/stt'
-import { isInboundImage, understandInboundImage } from '@/lib/ai/vision'
+import { describeStoryForTurn, isInboundImage, understandInboundImage } from '@/lib/ai/vision'
 import { readBotToken, normalizeMessengerSettings } from '@/lib/channels/config'
 import {
         getAdapter,
@@ -75,6 +75,7 @@ import {
 import { processTrialQuotaAlert } from '@/lib/billing/trial-quota-alert'
 import { checkWorkspaceActive } from '@/lib/billing/entitlements'
 import { notifyWorkspace } from '@/lib/notifications/create'
+import { remindOwnerIfStillWaiting, waitingRoomStatus } from '@/lib/agent/turn/waiting-room'
 
 const AGENT_SELECT = {
         id: true,
@@ -1028,6 +1029,9 @@ async function processChannelInbound(
                                         : msg.voiceFileId && !msg.mediaKind ? 'voice' : msg.mediaKind
 
                         let scenarioHandled = false
+                        // A handed-off thread nobody has answered yet: the assistant keeps
+                        // helping (lib/agent/turn/waiting-room.ts) instead of a fixed «please wait».
+                        let waitingRoomTurn = false
                         let reactionClassInput = false
                         let fixedInstagramReply: string | null = null
                         if (instagramPolicy && !instagramSubscriptionBlocked) {
@@ -1311,6 +1315,20 @@ async function processChannelInbound(
                         // is sent while an operator owns the thread.
                         if (persistedInbound.humanOwned) {
                                 if (contactId && isMarketingOptOutMessage(text)) await optOutContact(contactId)
+                                const waiting = !automationOnly && !voiceSilentHandoff && !isMarketingOptOutMessage(text)
+                                        ? await waitingRoomStatus(persistedInbound.conversationId).catch(() => ({ waiting: false, since: null }))
+                                        : { waiting: false, since: null }
+                                if (waiting.waiting && waiting.since) {
+                                        waitingRoomTurn = true
+                                        void remindOwnerIfStillWaiting({
+                                                workspaceId: agent.workspaceId,
+                                                conversationId: persistedInbound.conversationId,
+                                                since: waiting.since,
+                                                contactName,
+                                        })
+                                }
+                        }
+                        if (persistedInbound.humanOwned && !waitingRoomTurn) {
                                 // ─ Waiting message after handoff: the customer is never
                                 // left hanging while the operator has not answered yet.
                                 // Sent at most once per WAITING_MESSAGE_MIN_INTERVAL_MS
@@ -1577,7 +1595,7 @@ async function processChannelInbound(
                         // Keyword scenarios, comment→DM funnels, follow-gates, and smart story
                         // replies run here. When a scenario handles the message, we skip the
                         // default AI turn entirely.
-                        if (type === 'INSTAGRAM') {
+                        if (type === 'INSTAGRAM' && !waitingRoomTurn) {
                                 const policy = instagramPolicy ?? await loadAutomationPolicy(agent.id, resolved.config)
                                 // A configured fixed reply has precedence over scenarios. When
                                                                 // disabled we still let scenarios match, but never fall through to AI.
@@ -1677,7 +1695,8 @@ async function processChannelInbound(
                                                                         text,
                                         kind: msg.kind,
                                         conversationMetadata: conv?.metadata ?? undefined,
-                                        conversationStatus: conv?.status,
+                                        // The waiting room answers on a HANDED_OFF thread on purpose.
+                                        conversationStatus: waitingRoomTurn ? undefined : conv?.status,
                                 })
                                 if (!allow) {
                                         // The inbound was persisted before automation/policy
@@ -1813,6 +1832,23 @@ async function processChannelInbound(
                         // DMs, or the message came from the request folder and hasn't been
                         // accepted yet). A failed send is captured below; the stored inbound
                         // remains visible to the operator in the conversations inbox.
+                        // A reply under a story: tell the AI what the story showed (once
+                        // per story, cached), so «این چنده؟» finds that product.
+                        if (
+                                msg.kind === 'STORY_REPLY' && msg.storyId && msg.storyUrl
+                                && (msg.storyMediaType ?? 'IMAGE').toUpperCase() !== 'VIDEO'
+                                && imageUnderstanding?.kind !== 'described' && agent.imageInputEnabled !== false
+                        ) {
+                                const storyLabel = await describeStoryForTurn({
+                                        storyId: msg.storyId,
+                                        storyUrl: msg.storyUrl,
+                                        workspaceId: agent.workspaceId,
+                                        agentId: agent.id,
+                                        language: agent.language,
+                                        idempotencyKey: eventLease.id,
+                                })
+                                if (storyLabel) text = `${text}\n\n${storyLabel}`
+                        }
                         let textStream: ReturnType<NonNullable<typeof deliveryAdapter.startTextStream>> | undefined
                         let result: Awaited<ReturnType<typeof generateReply>>
                         try {
@@ -1965,7 +2001,7 @@ async function processChannelInbound(
                                 : []
                         // Reply locale for card fallback text mirrors the
                         // customer's own message, not the agent's pinned locale.
-                        const cardLang = detectTurnLanguage(text ?? msg.text ?? '')
+                        const cardLang = detectTurnLanguage(text ?? msg.text ?? '', [], agent.language === 'en' ? 'en' : 'fa')
                         const productFallback = formatProductFallback(
                                 showcasedProducts,
                                 cardLang,

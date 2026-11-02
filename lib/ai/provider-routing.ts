@@ -57,6 +57,17 @@ export const PROVIDER_BENCHMARKS: Record<string, ProviderBenchmark[]> = {
     { slug: 'venice', medianMs: 4626, costUSD: 0.000301 },
     { slug: 'mancer/fp8', medianMs: 4454, costUSD: 0.000603 },
   ],
+  // The 17 Oct 2026 snapshot (2026-10-23 run, 4 requests per provider;
+  // deepinfra/fp8 scored 95.7% routing on the 162-case understanding eval).
+  // The DeepSeek endpoint itself refuses this account's data policy.
+  'deepseek/deepseek-v4.1-flash-1017': [
+    { slug: 'deepinfra/fp8', medianMs: 1001, costUSD: 0.00004, accuracy: 95.7 },
+    { slug: 'inference-net/fp8', medianMs: 1269, costUSD: 0.000068 },
+    { slug: 'wafer/mxfp4', medianMs: 562, costUSD: 0.000242 },
+    { slug: 'ionstream', medianMs: 649, costUSD: 0.000359 },
+    { slug: 'cloudflare', medianMs: 1548, costUSD: 0.000162 },
+    { slug: 'reka', medianMs: 1083, costUSD: 0.000221 },
+  ],
   'deepseek/deepseek-v4.1-flash': [
     { slug: 'digitalocean', medianMs: 842, costUSD: 0.000074, accuracy: 96.3 },
     { slug: 'together', medianMs: 513, costUSD: 0.000119, accuracy: 95.1 },

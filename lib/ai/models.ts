@@ -52,7 +52,10 @@ export const AGENT_MODELS: AgentModel[] = [
     name: 'سریع و اقتصادی',
     nameEn: 'Fast & economical',
     provider: 'DeepSeek V4.1 Flash',
-    providerId: 'deepseek/deepseek-v4.1-flash',
+    // The 17 Oct 2026 snapshot: half the price of the floating slug on the
+    // same model, quality equal on the understanding eval and persona bench
+    // (2026-10-23). The admin panel's provider model still overrides it.
+    providerId: 'deepseek/deepseek-v4.1-flash-1017',
     tier: 'economy',
     quality: 4,
     cost: 1,
@@ -70,7 +73,7 @@ export const AGENT_MODELS: AgentModel[] = [
     name: 'هوشمند و دقیق',
     nameEn: 'Smart & precise',
     provider: 'DeepSeek V4.1 Flash · Thinking',
-    providerId: 'deepseek/deepseek-v4.1-flash',
+    providerId: 'deepseek/deepseek-v4.1-flash-1017',
     tier: 'smart',
     quality: 5,
     cost: 2,
@@ -97,6 +100,7 @@ const LEGACY_ALIAS_MAP: Record<string, ModelAlias> = {
   premium: 'smart',
   'deepseek/deepseek-v4-flash': 'fast',
   'deepseek/deepseek-v4.1-flash': 'smart',
+  'deepseek/deepseek-v4.1-flash-1017': 'smart',
   'deepseek/deepseek-chat': 'fast',
   'deepseek/deepseek-chat-v3-0324:free': 'fast',
   'openai/gpt-oss-120b:free': 'fast',
@@ -144,14 +148,7 @@ export function resolveModelId(
   return providerModels?.[alias]?.trim() || findModel(alias).providerId
 }
 
-/** Catalog reply price; the owner panel's price (getEffectiveReplyPriceIRR) wins at runtime. */
+/** Catalog reply price; the runtime owner-panel price is resolved in lib/billing/ai-credits. */
 export function getReplyPriceIRR(value: string | null | undefined): number {
   return findModel(value).replyPriceIRR
-}
-
-/** Runtime price selected in the owner panel, with the built-in catalog as fallback. */
-export async function getEffectiveReplyPriceIRR(value: string | null | undefined): Promise<number> {
-  const { getPlatformCommercialConfig } = await import('@/lib/platform/commercial-config')
-  const alias = resolveModelAlias(value)
-  return (await getPlatformCommercialConfig()).replyPricesIRR[alias]
 }

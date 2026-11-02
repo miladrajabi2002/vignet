@@ -26,7 +26,7 @@ describe('managed model policy', () => {
 
   it('resolves provider models from the admin panel, not env', () => {
     vi.stubEnv('OPENROUTER_MODEL_FAST', 'vendor/ignored')
-    expect(resolveModelId('fast')).toBe('deepseek/deepseek-v4.1-flash')
+    expect(resolveModelId('fast')).toBe('deepseek/deepseek-v4.1-flash-1017')
     expect(resolveModelId('fast', { fast: 'vendor/panel-fast' })).toBe('vendor/panel-fast')
   })
 
@@ -34,8 +34,8 @@ describe('managed model policy', () => {
     expect(resolveModelAlias('standard')).toBe('smart')
     expect(resolveModelAlias('balanced')).toBe('smart')
     expect(resolveModelAlias('premium')).toBe('smart')
-    expect(resolveModelId('premium')).toBe('deepseek/deepseek-v4.1-flash')
-    expect(resolveModelId(null)).toBe('deepseek/deepseek-v4.1-flash')
+    expect(resolveModelId('premium')).toBe('deepseek/deepseek-v4.1-flash-1017')
+    expect(resolveModelId(null)).toBe('deepseek/deepseek-v4.1-flash-1017')
   })
 
   it('runs both modes on one model: only the smart mode thinks before it reads', () => {
@@ -89,7 +89,7 @@ describe('OpenRouter platform wrapper', () => {
     )
 
     const result = await chatCompletion({
-      model: 'deepseek/deepseek-v4.1-flash',
+      model: 'deepseek/deepseek-v4.1-flash-1017',
       messages: [{ role: 'user', content: 'سلام' }],
       maxTokens: 8000,
     })
@@ -100,7 +100,7 @@ describe('OpenRouter platform wrapper', () => {
     expect(body.reasoning).toEqual({ enabled: false })
     expect(body.provider).toMatchObject({
       // The curated order of the model, best first, with fallbacks after it.
-      order: DEFAULT_PROVIDER_ORDERS['deepseek/deepseek-v4.1-flash'],
+      order: DEFAULT_PROVIDER_ORDERS['deepseek/deepseek-v4.1-flash-1017'],
       allow_fallbacks: true,
       data_collection: 'deny',
       // Catalog reference rates × safety margin, never below the floors that
@@ -110,7 +110,7 @@ describe('OpenRouter platform wrapper', () => {
     })
     expect(body.provider).not.toHaveProperty('zdr')
 
-    await chatCompletion({ model: 'deepseek/deepseek-v4.1-flash', messages: [{ role: 'user', content: 'سلام' }], reasoningEffort: 'low' })
+    await chatCompletion({ model: 'deepseek/deepseek-v4.1-flash-1017', messages: [{ role: 'user', content: 'سلام' }], reasoningEffort: 'low' })
     // Thinking is asked for by effort and never returned with the reply.
     expect(JSON.parse(String((fetchMock.mock.calls[1][1] as RequestInit).body)).reasoning).toEqual({ effort: 'low', exclude: true })
 
