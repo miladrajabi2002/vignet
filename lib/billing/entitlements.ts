@@ -8,6 +8,7 @@ import {
 import { sendSubscriptionPurchasedSms } from '@/lib/sms/ippanel'
 import { captureError } from '@/lib/errors/capture'
 import { CUSTOMER_WHERE } from '@/lib/crm/customer'
+import { CLAIMABLE_PAYMENT_STATUSES } from '@/lib/billing/payment-expiry'
 import type { ChannelType, Plan, Prisma } from '@prisma/client'
 
 /**
@@ -349,7 +350,8 @@ export async function activateSubscriptionPayment(params: SubscriptionActivation
         workspaceId: params.workspaceId,
         kind: 'SUBSCRIPTION',
         plan: params.plan,
-        status: 'PENDING',
+        // A verified late payment still counts after the stale-checkout sweep.
+        status: { in: CLAIMABLE_PAYMENT_STATUSES },
       },
       data: params.paymentUpdate,
     })

@@ -82,7 +82,7 @@ export async function POST(req: Request) {
       body.price_currency?.toLowerCase() !== 'usd'
     ) {
       await prisma.payment.updateMany({
-        where: { id: payment.id, status: 'PENDING' },
+        where: { id: payment.id, status: { in: ['PENDING', 'EXPIRED'] } },
         data: {
           status: 'FAILED',
           callbackPayload: JSON.parse(rawBody) as Prisma.InputJsonValue,

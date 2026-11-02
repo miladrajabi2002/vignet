@@ -1,6 +1,7 @@
 import { getTranslations, getLocale } from 'next-intl/server'
 import { Cpu, Wallet, Check, Sparkles, CircleAlert, RefreshCw } from 'lucide-react'
 import { requireUser } from '@/lib/session'
+import { expireCancelledPayment } from '@/lib/billing/payment-expiry'
 import { prisma } from '@/lib/prisma'
 import { CUSTOMER_WHERE } from '@/lib/crm/customer'
 import { StatsCard } from '@/components/dashboard/stats-card'
@@ -29,7 +30,7 @@ const PLAN_KEY: Record<string, string> = {
 
 export default async function BillingPage(
   props: {
-    searchParams?: Promise<{ payment?: string; plan?: string }>
+    searchParams?: Promise<{ payment?: string; plan?: string; pid?: string }>
   }
 ) {
   const searchParams = await props.searchParams;
@@ -37,6 +38,11 @@ export default async function BillingPage(
   const t = await getTranslations('billing')
   const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
   const ws = user.workspaceId
+  // Back from «cancel» on the crypto invoice: close that checkout now instead
+  // of leaving it pending for the day-long crypto window.
+  if (searchParams?.payment === 'cancelled' && searchParams.pid) {
+    await expireCancelledPayment(ws, searchParams.pid.slice(0, 64)).catch(() => false)
+  }
 
   const monthStart = new Date()
   monthStart.setDate(1)

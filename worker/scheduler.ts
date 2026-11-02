@@ -37,6 +37,7 @@ import { purgeExpiredOrderWatches } from '@/lib/commerce/order-updates'
 import { sweepOperatorDailyReports } from '@/lib/channels/operator-daily-report'
 import { sweepLowStockAlerts } from '@/lib/commerce/low-stock'
 import { sweepPlanExpiryAlerts } from '@/lib/billing/plan-expiry-alerts'
+import { sweepStalePayments } from '@/lib/billing/payment-expiry'
 import { sweepCustomerBookingReminders } from '@/lib/bookings/customer-reminders'
 import { sweepCourseReminders } from '@/lib/courses/reminders'
 import { sweepInstagramFollowGates } from '@/lib/instagram/automation'
@@ -1061,6 +1062,19 @@ export function startScheduler(): () => void {
         const initialCardPayments = setTimeout(runCardPaymentSweep, 75_000)
         const cardPaymentInterval = setInterval(runCardPaymentSweep, 60_000)
 
+        // Plan / AI-credit checkouts nobody finished: no gateway ever calls back
+        // for them, so they are closed here (1 hour, a day for crypto).
+        const runStalePaymentSweep = async () => {
+                try {
+                        const { expired } = await sweepStalePayments()
+                        if (expired) console.log(`[scheduler] stale checkouts: ${expired} expired`)
+                } catch (e) {
+                        console.error('[scheduler] stale payment sweep failed:', e)
+                }
+        }
+        const initialStalePayments = setTimeout(runStalePaymentSweep, 90_000)
+        const stalePaymentInterval = setInterval(runStalePaymentSweep, 10 * 60_000)
+
         // Cart hold (agent.cartHoldEnabled): the 30-minutes-left reminder and
         // the end of the one-hour hold, when sold-out lines leave the cart.
         const runCartHoldSweep = async () => {
@@ -1139,6 +1153,8 @@ export function startScheduler(): () => void {
                 clearInterval(checkoutInterval)
                 clearTimeout(initialCardPayments)
                 clearInterval(cardPaymentInterval)
+                clearTimeout(initialStalePayments)
+                clearInterval(stalePaymentInterval)
                 clearTimeout(initialCartHold)
                 clearInterval(cartHoldInterval)
                 clearTimeout(initialOperatorDaily)

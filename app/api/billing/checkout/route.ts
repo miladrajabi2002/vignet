@@ -105,7 +105,7 @@ export async function POST(req: Request) {
       orderId: payment.id,
       description: `Vigent ${plan} plan — 1 month`,
       successUrl: `${appUrl()}/billing?payment=success`,
-      cancelUrl: `${appUrl()}/billing?payment=cancelled`,
+      cancelUrl: `${appUrl()}/billing?payment=cancelled&pid=${payment.id}`,
       ipnCallbackUrl: `${appUrl()}/api/billing/callback/nowpayments`,
     })
     if (!result.success || !result.invoiceUrl) {

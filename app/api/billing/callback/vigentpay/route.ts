@@ -30,9 +30,9 @@ async function settle(paymentId: string): Promise<Outcome> {
 	})
 	if (!payment || payment.gateway !== 'VIGENTPAY' || !payment.authority) return 'failed'
 	if (payment.status === 'PAID') return 'success'
-	// FAILED is asked again: the gateway closes an unpaid link as «expired», and the
-	// owner may still confirm the transfer by hand afterwards (a late deposit).
-	if (payment.status !== 'PENDING' && payment.status !== 'FAILED') return 'failed'
+	// FAILED and EXPIRED are asked again: the gateway closes an unpaid link as «expired»,
+	// and the owner may still confirm the transfer by hand afterwards (a late deposit).
+	if (payment.status !== 'PENDING' && payment.status !== 'FAILED' && payment.status !== 'EXPIRED') return 'failed'
 
 	let verify
 	try {
@@ -61,6 +61,7 @@ async function settle(paymentId: string): Promise<Outcome> {
 	if (payment.status === 'FAILED') {
 		await prisma.payment.updateMany({ where: { id: payment.id, status: 'FAILED' }, data: { status: 'PENDING' } })
 	}
+	// EXPIRED (the stale-checkout sweep) is claimed as it is by the activation below.
 
 	const paymentUpdate = {
 		status: 'PAID' as const,

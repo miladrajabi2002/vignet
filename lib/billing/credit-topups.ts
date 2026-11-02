@@ -3,6 +3,7 @@ import {
   processAdminCommercialSmsPayment,
 } from '@/lib/billing/admin-commercial-outbox'
 import { prisma } from '@/lib/prisma'
+import { CLAIMABLE_PAYMENT_STATUSES } from '@/lib/billing/payment-expiry'
 import type { Prisma } from '@prisma/client'
 
 type AiCreditTopupCapture = {
@@ -26,7 +27,7 @@ export async function captureAiCreditTopupPayment(
         id: params.paymentId,
         workspaceId: params.workspaceId,
         kind: 'AI_CREDIT',
-        status: 'PENDING',
+        status: { in: CLAIMABLE_PAYMENT_STATUSES },
       },
       data: params.paymentUpdate,
     })
