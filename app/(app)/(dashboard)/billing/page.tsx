@@ -334,13 +334,13 @@ export default async function BillingPage(
             <p className="mt-1 text-[13px] leading-6">
               {locale === 'fa'
                 ? `از سقف پلن فعلی شما (تا ${formatFollowers(PLAN_MAX_IG_FOLLOWERS[plan] ?? 0, 'fa')} فالوور) عبور کرده است. سرویس شما بدون وقفه ادامه دارد؛ پیج‌های بزرگ‌تر با پلن سازمانی و بدون سقف فالوور پوشش داده می‌شوند.`
-                : `That is above your current plan's cap of ${formatFollowers(PLAN_MAX_IG_FOLLOWERS[plan] ?? 0, 'en')} followers. Your service keeps running; larger pages are covered by سازمانی (Business), which has no follower cap.`}
+                : `That is above your current plan's cap of ${formatFollowers(PLAN_MAX_IG_FOLLOWERS[plan] ?? 0, 'en')} followers. Your service keeps running; larger pages are covered by the Business plan, which has no follower cap.`}
             </p>
             <a
               href="#plan-BUSINESS"
               className="mt-3 inline-flex min-h-10 items-center rounded-xl bg-black px-4 text-[13px] font-semibold text-white"
             >
-              {locale === 'fa' ? 'دیدن پلن سازمانی' : 'See the سازمانی plan'}
+              {locale === 'fa' ? 'دیدن پلن سازمانی' : 'See the Business plan'}
             </a>
           </div>
         )}

@@ -114,7 +114,7 @@ export async function PricingSection() {
                                                 const key = PLAN_TRANSLATION_KEY[plan]
                                                 const replyPriceIRR = commercialConfig.replyPricesIRR.fast
                                                 const replyPriceToman = replyPriceIRR / 10
-                                                                                const recommended = plan === 'PRO'
+                                                const recommended = plan === 'PRO'
                                                 return (
                                                         <article
                                                                 key={plan}
