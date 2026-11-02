@@ -150,7 +150,9 @@ describe('live conversation summary', () => {
     expect(summary).toContain('هدف: میز تلویزیون ۱۶۰ آبی میخوام')
     expect(summary).toContain('محصول مورد بحث: میز تلویزیون آپادانا ۱۶۰')
     expect(summary).toContain('محصولات دیگری که دیده: میز تلویزیون آرتا ۱۹۰')
-    expect(summary).toContain('سفارش A7K2Q9')
+    // A cart still being collected has no number yet, so its code stays out.
+    expect(summary).toContain('سفارش: میز تلویزیون آپادانا ۱۶۰ — آبی × 1')
+    expect(summary).not.toContain('A7K2Q9')
     expect(summary).toContain('منتظر آدرس')
     expect(summary).toContain('رنگ: آبی')
     expect(buildLiveSummary({ state: null, draft: null, language: 'fa' })).toBeNull()
