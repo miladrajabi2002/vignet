@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
   useEffect,
   useId,
@@ -8,7 +9,7 @@ import {
   useState,
 } from 'react'
 import { createPortal } from 'react-dom'
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion, useTransform } from 'framer-motion'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -86,6 +87,22 @@ const desktopDialogVariants = {
   },
 }
 
+/**
+ * Drag to dismiss (phone sheet only). Pulling the handle or header down — or
+ * the content once it is scrolled to the top, like iOS sheets — moves the
+ * sheet with the finger; letting go past a quarter of its height (at most
+ * DISMISS_DISTANCE) or with a downward flick closes it, anything less springs
+ * back. Upward pulls meet rubber-band resistance.
+ */
+const DISMISS_DISTANCE = 140
+const DISMISS_VELOCITY = 600 // px/s
+const DRAG_SLOP = 6
+const SNAP_BACK = { type: 'spring' as const, stiffness: 520, damping: 42, mass: 0.8 }
+
+function rubberBand(offset: number) {
+  return offset >= 0 ? offset : -Math.min(24, Math.sqrt(-offset) * 2)
+}
+
 const FOCUSABLE_SELECTOR = [
   'button:not([disabled])',
   '[href]',
@@ -136,6 +153,14 @@ export function MobileBottomSheet({
   const [mounted, setMounted] = useState(false)
   const [isDesktopViewport, setIsDesktopViewport] = useState(false)
   const reduceMotion = useReducedMotion()
+  const contentRef = useRef<HTMLDivElement>(null)
+  const dragY = useMotionValue(0)
+  const overlayOpacity = useTransform(dragY, (value) => {
+    const height = panelRef.current?.offsetHeight || 600
+    return value <= 0 ? 1 : Math.max(0, 1 - value / height)
+  })
+  const dragRef = useRef<{ startY: number; startX: number; lastY: number; lastT: number; velocity: number; active: boolean; crossed: boolean } | null>(null)
+  const dragEnabledRef = useRef(false)
 
   onCloseRef.current = onClose
 
@@ -149,6 +174,10 @@ export function MobileBottomSheet({
     media.addEventListener('change', update)
     return () => media.removeEventListener('change', update)
   }, [mobileOnly])
+
+  useEffect(() => {
+    if (open) dragY.set(0)
+  }, [open, dragY])
 
   useEffect(() => {
     if (!open) return
@@ -211,10 +240,103 @@ export function MobileBottomSheet({
     }
   }, [open, triggerRef])
 
+  const usesDesktopDialogMotion = !mobileOnly && isDesktopViewport
+  dragEnabledRef.current = !usesDesktopDialogMotion
+
+  function dismissDistance() {
+    return Math.min(DISMISS_DISTANCE, (panelRef.current?.offsetHeight ?? 560) * 0.25)
+  }
+
+  function beginDrag(x: number, y: number) {
+    dragRef.current = { startY: y, startX: x, lastY: y, lastT: performance.now(), velocity: 0, active: false, crossed: false }
+  }
+
+  /** Returns true once the gesture is a sheet drag (the caller then owns the event). */
+  function moveDrag(x: number, y: number, fromContent: boolean): boolean {
+    const drag = dragRef.current
+    if (!drag) return false
+    const dy = y - drag.startY
+    if (!drag.active) {
+      if (Math.abs(dy) < DRAG_SLOP || Math.abs(dy) < Math.abs(x - drag.startX)) return false
+      // Content only hands over a downward pull that starts at the very top.
+      if (fromContent && (dy < 0 || (contentRef.current?.scrollTop ?? 0) > 0)) {
+        dragRef.current = null
+        return false
+      }
+      drag.active = true
+      drag.startY = y
+    }
+    const now = performance.now()
+    const dt = Math.max(1, now - drag.lastT)
+    drag.velocity = ((y - drag.lastY) / dt) * 1000
+    drag.lastY = y
+    drag.lastT = now
+    const offset = rubberBand(y - drag.startY)
+    dragY.set(offset)
+    const crossed = offset > dismissDistance()
+    if (crossed !== drag.crossed) {
+      drag.crossed = crossed
+      // A light tick as the release point is crossed (Android; iOS has no web haptics).
+      if (crossed) navigator.vibrate?.(8)
+    }
+    return true
+  }
+
+  function endDrag() {
+    const drag = dragRef.current
+    dragRef.current = null
+    if (!drag?.active) return
+    const offset = dragY.get()
+    if (offset > dismissDistance() || (drag.velocity > DISMISS_VELOCITY && offset > 0)) {
+      onCloseRef.current()
+      return
+    }
+    animate(dragY, 0, reduceMotion ? { duration: 0 } : SNAP_BACK)
+  }
+
+  function onHeaderPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!dragEnabledRef.current || event.button !== 0) return
+    if ((event.target as HTMLElement).closest('a, button, input, select, textarea, [contenteditable="true"]')) return
+    event.currentTarget.setPointerCapture(event.pointerId)
+    beginDrag(event.clientX, event.clientY)
+  }
+
+  function onHeaderPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    if (moveDrag(event.clientX, event.clientY, false)) event.preventDefault()
+  }
+
+  // Touch on the scrolling content: a non-passive listener so a pull-down at
+  // scrollTop 0 can stop the native overscroll and move the sheet instead.
+  useEffect(() => {
+    const content = contentRef.current
+    if (!open || !content) return
+    const onTouchStart = (event: TouchEvent) => {
+      if (!dragEnabledRef.current || event.touches.length !== 1) return
+      const touch = event.touches[0]
+      beginDrag(touch.clientX, touch.clientY)
+    }
+    const onTouchMove = (event: TouchEvent) => {
+      const touch = event.touches[0]
+      if (touch && moveDrag(touch.clientX, touch.clientY, true) && event.cancelable) event.preventDefault()
+    }
+    const onTouchEnd = () => endDrag()
+    content.addEventListener('touchstart', onTouchStart, { passive: true })
+    content.addEventListener('touchmove', onTouchMove, { passive: false })
+    content.addEventListener('touchend', onTouchEnd)
+    content.addEventListener('touchcancel', onTouchEnd)
+    return () => {
+      content.removeEventListener('touchstart', onTouchStart)
+      content.removeEventListener('touchmove', onTouchMove)
+      content.removeEventListener('touchend', onTouchEnd)
+      content.removeEventListener('touchcancel', onTouchEnd)
+    }
+    // The handlers only read refs and the motion value, so binding once per open is enough.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, mounted])
+
   if (!mounted) return null
 
   const usesDetailMotion = motionPreset === 'detail'
-  const usesDesktopDialogMotion = !mobileOnly && isDesktopViewport
   const activeDetailVariants = reduceMotion
     ? reducedDetailSheetVariants
     : usesDesktopDialogMotion
@@ -247,8 +369,14 @@ export function MobileBottomSheet({
             aria-label={closeLabel}
             onClick={onClose}
             variants={usesDetailMotion ? overlayVariants : undefined}
-            className="absolute inset-0 cursor-default bg-black/50 backdrop-blur-sm"
-          />
+            className="absolute inset-0 cursor-default"
+          >
+            <motion.span
+              aria-hidden="true"
+              style={{ opacity: overlayOpacity }}
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            />
+          </motion.button>
 
           <motion.div
             ref={panelRef}
@@ -257,6 +385,7 @@ export function MobileBottomSheet({
             aria-labelledby={titleId}
             aria-describedby={description ? descriptionId : undefined}
             tabIndex={-1}
+            style={{ y: dragY }}
             variants={usesDetailMotion ? activeDetailVariants : undefined}
             initial={
               usesDetailMotion
@@ -293,11 +422,20 @@ export function MobileBottomSheet({
               panelClassName,
             )}
           >
-            <div className="shrink-0 border-b border-[var(--border-subtle)] bg-white/95 px-4 pb-3 pt-2 backdrop-blur-xl">
+            <div
+              onPointerDown={onHeaderPointerDown}
+              onPointerMove={onHeaderPointerMove}
+              onPointerUp={endDrag}
+              onPointerCancel={endDrag}
+              className={cn(
+                'shrink-0 touch-none select-none border-b border-[var(--border-subtle)] bg-white/95 px-4 pb-3 pt-2 backdrop-blur-xl',
+                !mobileOnly && 'md:touch-auto md:select-auto',
+              )}
+            >
               <span
                 aria-hidden="true"
                 className={cn(
-                  'mx-auto mb-2 block h-1.5 w-11 rounded-full bg-black/15',
+                  'mx-auto mb-2 block h-1.5 w-11 cursor-grab rounded-full bg-black/15 active:cursor-grabbing',
                   !mobileOnly && 'md:hidden',
                 )}
               />
@@ -331,6 +469,7 @@ export function MobileBottomSheet({
             </div>
 
             <div
+              ref={contentRef}
               className={cn(
                 'min-h-0 flex-1 overscroll-contain overflow-y-auto px-4 py-4',
                 !footer && '[padding-bottom:max(1rem,env(safe-area-inset-bottom))]',

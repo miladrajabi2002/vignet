@@ -2,8 +2,11 @@
 
 import { useRef, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import type { ChannelType, ConvStatus } from '@prisma/client'
-import { ArrowLeft, Clock3, Lightbulb, MessageSquareText, MessagesSquare, Sparkles } from 'lucide-react'
+import { ArrowLeft, Bot, Clock3, Headset, Lightbulb, MessageSquareText, MessagesSquare, Sparkles, Trash2 } from 'lucide-react'
+import { SwipeRow, type SwipeAction } from '@/components/ui/swipe-row'
+import { queueUndo } from '@/lib/undo-queue'
 import { ChannelBadge } from '@/components/crm/channel-badge'
 import { ContactAvatar } from '@/components/crm/contact-avatar'
 import { ConversationDeleteAction } from '@/components/crm/conversation-actions'
@@ -66,9 +69,56 @@ export function MobileConversationCard({
   const [open, setOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const isFa = locale === 'fa'
+  const router = useRouter()
+
+  // Swipe shortcuts for the two inbox decisions; both also live in the
+  // summary sheet (delete) and the conversation page (handoff / resume).
+  const handedOff = status === 'HANDED_OFF'
+  const ownershipAction: SwipeAction = handedOff
+    ? {
+        key: 'resume',
+        label: isFa ? 'پاسخ خودکار' : 'Auto-reply',
+        icon: Bot,
+        tone: 'ok',
+        onAction: async () => {
+          await fetch(`/api/conversations/${conversationId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ resumeAi: true }),
+          }).catch(() => undefined)
+          router.refresh()
+        },
+      }
+    : {
+        key: 'handoff',
+        label: isFa ? 'اپراتور' : 'Operator',
+        icon: Headset,
+        tone: 'brand',
+        onAction: async () => {
+          await fetch(`/api/conversations/${conversationId}/handoff`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({}),
+          }).catch(() => undefined)
+          router.refresh()
+        },
+      }
+  const deleteAction: SwipeAction = {
+    key: 'delete',
+    label: isFa ? 'حذف' : 'Delete',
+    icon: Trash2,
+    tone: 'danger',
+    onAction: async () => {
+      const response = await fetch(`/api/conversations/${conversationId}`, { method: 'DELETE' }).catch(() => null)
+      // The global «بازگردانی» toast brings it back within the undo window.
+      if (response?.ok) queueUndo('conversation', [conversationId], isFa ? 'گفتگو' : 'conversation')
+      router.refresh()
+    },
+  }
 
   return (
     <>
+      <SwipeRow leading={[ownershipAction]} trailing={[deleteAction]} className="rounded-card">
       <article
         className={cn(
           'spatial-surface overflow-hidden rounded-card transition-[border-color,box-shadow] duration-150',
@@ -115,6 +165,7 @@ export function MobileConversationCard({
           </div>
         </button>
       </article>
+      </SwipeRow>
 
       <MobileBottomSheet
         open={open}
