@@ -115,7 +115,9 @@ export async function POST(req: Request, props: Params) {
         recipient,
         text,
       )
-  if (delivery.status === 'failed') {
+  // A closed 24-hour window is the customer's state, not a system fault: the
+  // operator already sees «مهلت پاسخ ۲۴ساعته بسته شده» under the message.
+  if (delivery.status === 'failed' && delivery.reason !== 'reply_window_closed') {
     captureError('conversation:operator-reply', delivery.cause ?? new Error('OUTBOUND_PROVIDER_ERROR'), {
       workspaceId: user.workspaceId,
       metadata: { conversationId: conversation.id, channel: conversation.channel },

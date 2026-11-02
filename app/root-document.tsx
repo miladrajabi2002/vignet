@@ -109,6 +109,10 @@ export function RootDocument({ locale, children }: { locale: Locale; children: R
                 <html
                         lang={locale}
                         dir={dirForLocale(locale)}
+                        // Browser page translation rewrites text nodes React owns, and the
+                        // next re-render then crashes with «insertBefore … not a child».
+                        // The app ships its own fa/en copy, so the page opts out.
+                        translate="no"
                         suppressHydrationWarning
                                                 className={`${geistSans.variable} ${geistMono.variable}`}
                 >

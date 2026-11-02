@@ -122,6 +122,19 @@ export function inboundPayloadHash(payload: unknown): string {
 }
 
 /**
+ * Meta signs every CDN link (story, attachment, avatar) per delivery, so a
+ * redelivered webhook carries the same message with fresh `…Url` values. They
+ * are left out of the conflict hash; everything that identifies the message
+ * (text, ids, kind) still has to match.
+ */
+function withoutSignedUrls(payload: unknown): unknown {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return payload
+  return Object.fromEntries(
+    Object.entries(payload as Record<string, unknown>).filter(([key]) => !/Url$/.test(key)),
+  )
+}
+
+/**
  * Platforms normally provide a message id. The deterministic fingerprint is a
  * last-resort identity for malformed/legacy adapters, and deliberately uses
  * only normalized immutable fields so a redelivery hashes identically.
@@ -199,7 +212,7 @@ export async function claimInboundEvent(
   const pollMs = options.pollMs ?? DEFAULT_POLL_MS
   const deadline = Date.now() + waitTimeoutMs
   const leaseOwner = crypto.randomUUID()
-  const payloadHash = inboundPayloadHash(input.payload)
+  const payloadHash = inboundPayloadHash(withoutSignedUrls(input.payload))
 
   for (;;) {
     const now = new Date()

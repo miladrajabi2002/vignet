@@ -43,6 +43,9 @@ module.exports = {
       env: { NODE_ENV: "production", ...deploymentEnv },
       max_memory_restart: "512M",
       instances: 1,
+      // Without an explicit fork mode PM2 ran tsx in cluster mode, where the
+      // worker's own console output never reached the PM2 log files.
+      exec_mode: "fork",
       autorestart: true,
       // An inbound job holds a 5-30s LLM round trip. PM2's 1.6s default
       // SIGKILLed the worker mid-job on every deploy, and BullMQ then re-ran

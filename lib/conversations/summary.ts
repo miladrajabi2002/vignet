@@ -74,7 +74,16 @@ function isTrivialConversation(messages: SummaryMessage[]): boolean {
 function compact(value: string, max = MAX_FALLBACK_PART): string {
   const clean = stripProductTokens(value).replace(/\s+/g, ' ').trim()
   if (clean.length <= max) return clean
-  return `${clean.slice(0, max - 1).trimEnd()}\u2026`
+  let end = max - 1
+  // Never cut between a UTF-16 surrogate pair: a lone half (a split emoji)
+  // makes Prisma reject the whole update ("unexpected end of hex escape").
+  if (/[\uD800-\uDBFF]/.test(clean[end - 1] ?? '')) end--
+  return `${clean.slice(0, end).trimEnd()}\u2026`
+}
+
+/** Replace any lone surrogate (from the model or an older cut) with U+FFFD. */
+function wellFormed(value: string): string {
+  return value.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '\uFFFD')
 }
 
 /**
@@ -266,7 +275,7 @@ export function buildFallbackSummary(
 async function persistSummary(conversationId: string, summary: string): Promise<void> {
   await prisma.conversation.update({
     where: { id: conversationId },
-    data: { summary },
+    data: { summary: wellFormed(summary) },
   })
 }
 
