@@ -236,7 +236,7 @@ describe('smart operator handoff policy', () => {
       { language: 'en', handoffMessage: null } as never,
     )
 
-    expect(text).toContain('human specialist')
+    expect(text).toContain('colleague')
     expect(text).toContain('repeat')
   })
 })
