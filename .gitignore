@@ -60,3 +60,9 @@ tests-live/results/
 
 # Rendered film output (regenerate with video/vigent-film/render.mjs)
 /video/*/out/
+
+# Agent quality reviews hold real customer text (scripts/agent-quality-review.ts)
+evals/quality-reviews/
+
+# graphify knowledge graph output (local, regenerate with /graphify)
+graphify-out/
