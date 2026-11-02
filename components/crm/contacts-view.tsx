@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import type { ChannelType } from '@prisma/client'
-import { ChevronLeft, Columns3, Download, Filter, GripVertical, LayoutList, MoreVertical, SlidersHorizontal, Users, X } from 'lucide-react'
+import { ChevronLeft, Columns3, Download, Filter, GripVertical, LayoutList, MoreVertical, Phone, SlidersHorizontal, Users, X } from 'lucide-react'
 import { useUrlSearchInput } from '@/lib/hooks/use-url-search-input'
 import { ChannelBadge, ChannelGlyph, SourceTagBadges, isSourceTag } from '@/components/crm/channel-badge'
 import { smartTime, formatDateTime } from '@/lib/format'
@@ -26,6 +26,7 @@ import { ContactAvatar } from '@/components/crm/contact-avatar'
 import { BulkDeleteMenu } from '@/components/ui/bulk-delete-menu'
 import { UNDO_RESTORED_EVENT } from '@/lib/undo-queue'
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
+import { SwipeRow } from '@/components/ui/swipe-row'
 import { ContactDetailSheet } from '@/components/crm/contact-detail-sheet'
 import { ContactQuickAdd } from '@/components/crm/contact-quick-add'
 import {
@@ -263,16 +264,24 @@ export function ContactsView({
                 }
         }, [selected, stageFilter, channelFilter, tagFilter, query, audience])
 
-        const exportHref = useMemo(() => {
+        // Export asks which list to download (customers, audience or both) and
+        // whether the search and filters on screen apply to it.
+        type ExportView = 'customers' | 'audience' | 'all'
+        const [exportOpen, setExportOpen] = useState(false)
+        const [exportWithFilters, setExportWithFilters] = useState(true)
+        const exportTriggerRef = useRef<HTMLButtonElement>(null)
+        const exportHref = useMemo(() => (view: ExportView, withFilters: boolean) => {
                 const params = new URLSearchParams()
-                if (audience?.active) params.set('view', 'audience')
-                if (query.trim()) params.set('q', query.trim())
-                if (stageFilter) params.set('stage', stageFilter)
-                if (channelFilter) params.set('channel', channelFilter)
-                if (tagFilter) params.set('tag', tagFilter)
+                if (view !== 'customers') params.set('view', view)
+                if (withFilters) {
+                        if (query.trim()) params.set('q', query.trim())
+                        if (stageFilter) params.set('stage', stageFilter)
+                        if (channelFilter) params.set('channel', channelFilter)
+                        if (tagFilter) params.set('tag', tagFilter)
+                }
                 const search = params.toString()
                 return `/api/contacts/export${search ? `?${search}` : ''}`
-        }, [query, stageFilter, channelFilter, tagFilter, audience?.active])
+        }, [query, stageFilter, channelFilter, tagFilter])
 
         const hasFilters = Boolean(query || stageFilter || channelFilter || tagFilter)
 
@@ -326,18 +335,38 @@ export function ContactsView({
                 }).catch(() => {})
         }
 
-        const exportLink = (
+        const exportButtonClass = "spatial-press inline-flex min-h-11 w-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-0 text-xs font-semibold text-[var(--text-secondary)] shadow-[var(--shadow-xs)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] sm:w-auto sm:px-4 sm:text-sm"
+        const exportLink = audience ? (
+                <button
+                        ref={exportTriggerRef}
+                        type="button"
+                        onClick={() => { setExportWithFilters(hasFilters); setExportOpen(true) }}
+                        title={t('exportDescription')}
+                        aria-label={t('exportExcel')}
+                        aria-haspopup="dialog"
+                        className={exportButtonClass}
+                >
+                        <Download className="h-4 w-4" aria-hidden="true" />
+                        <span className="hidden sm:inline">{t('exportExcel')}</span>
+                </button>
+        ) : (
                 <a
-                        href={exportHref}
+                        href={exportHref('customers', true)}
                         download
                         title={t('exportDescription')}
                         aria-label={t('exportExcel')}
-                        className="spatial-press inline-flex min-h-11 w-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-0 text-xs font-semibold text-[var(--text-secondary)] shadow-[var(--shadow-xs)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] sm:w-auto sm:px-4 sm:text-sm"
+                        className={exportButtonClass}
                 >
                         <Download className="h-4 w-4" aria-hidden="true" />
                         <span className="hidden sm:inline">{t('exportExcel')}</span>
                 </a>
         )
+        const numberLocale = locale === 'fa' ? 'fa-IR' : 'en-US'
+        const exportChoices: { view: ExportView; label: string; hint: string; count: number | null }[] = audience ? [
+                { view: 'customers', label: t('exportCustomers'), hint: t('exportCustomersHint'), count: audience.customerCount },
+                { view: 'audience', label: t('exportAudience'), hint: t('exportAudienceHint'), count: audience.audienceCount },
+                { view: 'all', label: t('exportAll'), hint: t('exportAllHint'), count: audience.customerCount + audience.audienceCount },
+        ] : []
 
         return (
                 <LiveArrivalProvider key={liveScope} ids={rows.map((row) => row.id)}>
@@ -507,6 +536,49 @@ export function ContactsView({
                                 </div>
                         </div>
 
+                        {audience && (
+                                <MobileBottomSheet
+                                        mobileOnly={false}
+                                        open={exportOpen}
+                                        title={t('exportTitle')}
+                                        description={t('exportChooseDescription')}
+                                        closeLabel={t('detail.close')}
+                                        triggerRef={exportTriggerRef}
+                                        onClose={() => setExportOpen(false)}
+                                >
+                                        <div className="space-y-3">
+                                                {exportChoices.map((choice) => (
+                                                        <a
+                                                                key={choice.view}
+                                                                href={exportHref(choice.view, exportWithFilters)}
+                                                                download
+                                                                onClick={() => setExportOpen(false)}
+                                                                className="spatial-press flex min-h-14 items-center gap-3 rounded-xl border border-[var(--border-default)] bg-white px-4 py-3 text-start hover:border-[var(--border-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+                                                        >
+                                                                <Download className="h-4 w-4 shrink-0 text-[var(--text-muted)]" aria-hidden="true" />
+                                                                <span className="min-w-0 flex-1">
+                                                                        <span className="block text-sm font-semibold text-[var(--text-primary)]">{choice.label}</span>
+                                                                        <span className="block text-xs text-[var(--text-muted)]">{choice.hint}</span>
+                                                                </span>
+                                                                {choice.count != null && !(hasFilters && exportWithFilters) && (
+                                                                        <span className="shrink-0 tabular-nums text-xs font-semibold text-[var(--text-secondary)]">{choice.count.toLocaleString(numberLocale)}</span>
+                                                                )}
+                                                        </a>
+                                                ))}
+                                                {hasFilters && (
+                                                        <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl px-1 text-sm text-[var(--text-secondary)]">
+                                                                <input
+                                                                        type="checkbox"
+                                                                        checked={exportWithFilters}
+                                                                        onChange={(event) => setExportWithFilters(event.target.checked)}
+                                                                        className="h-5 w-5 accent-black"
+                                                                />
+                                                                {t('exportApplyFilters')}
+                                                        </label>
+                                                )}
+                                        </div>
+                                </MobileBottomSheet>
+                        )}
                         <MobileBottomSheet
                                 mobileOnly={false}
                                 open={filterSheetOpen}
@@ -734,6 +806,17 @@ function ListView({
                                         const normalizedStage = STAGES.includes(c.stage as Stage) ? c.stage as Stage : 'lead'
                                         return (
                                                 <LiveArrivalItem key={`mobile-${c.id}`} itemId={c.id}>
+                                                        {/* Swipe to call: the number is also on the card and in the detail sheet. */}
+                                                        <SwipeRow
+                                                                className="rounded-card"
+                                                                leading={c.phone ? [{
+                                                                        key: 'call',
+                                                                        label: locale === 'fa' ? 'تماس' : 'Call',
+                                                                        icon: Phone,
+                                                                        tone: 'ok',
+                                                                        onAction: () => { window.location.href = `tel:${c.phone}` },
+                                                                }] : []}
+                                                        >
                                                         <article
                                                                 className={cn(
                                                                         'spatial-surface overflow-hidden rounded-card transition-[border-color,box-shadow] duration-150',
@@ -810,6 +893,7 @@ function ListView({
                                                                         </div>
                                                                 </div>
                                                         </article>
+                                                        </SwipeRow>
                                                 </LiveArrivalItem>
                                         )
                                 })}

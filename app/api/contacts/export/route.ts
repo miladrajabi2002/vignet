@@ -41,11 +41,13 @@ export async function GET(request: Request) {
     : undefined
   const tag = params.get('tag')?.trim().slice(0, 40) ?? ''
   const phoneVariants = contactPhoneLookupVariants(query)
+  const view = params.get('view')
+  const fileLabel = view === 'audience' ? 'audience' : view === 'all' ? 'contacts' : 'customers'
 
   const where: Prisma.ContactWhereInput = {
     workspaceId: user.workspaceId,
-    // The list being viewed: customers, or the audience (?view=audience).
-    ...(params.get('view') === 'audience' ? AUDIENCE_WHERE : CUSTOMER_WHERE),
+    // Which list: customers (default), the audience (?view=audience), or both (?view=all).
+    ...(view === 'audience' ? AUDIENCE_WHERE : view === 'all' ? {} : CUSTOMER_WHERE),
     ...(stage ? { stage } : {}),
     ...(tag ? { tags: { has: tag } } : {}),
     ...(channelField ? { [channelField]: { not: null } } : {}),
@@ -171,7 +173,7 @@ export async function GET(request: Request) {
   return new Response(stream, {
     headers: {
       'Content-Type': 'text/csv; charset=utf-8',
-      'Content-Disposition': `attachment; filename="vigent-customers-${date}.csv"`,
+      'Content-Disposition': `attachment; filename="vigent-${fileLabel}-${date}.csv"`,
       'Cache-Control': 'private, no-store, max-age=0',
       'X-Content-Type-Options': 'nosniff',
     },
