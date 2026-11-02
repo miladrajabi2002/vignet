@@ -277,6 +277,10 @@ export function MobileNav({
 												className="absolute -top-1.5 end-0 h-[1.1rem] min-w-[1.1rem] text-[12px] ring-2 ring-white"
 											/>
 										)}
+										{/* Something waits for the owner here (paid orders, a payment to check). */}
+										{key !== 'conversations' && navStatus?.[key]?.tone === 'alert' && (
+											<NavStatusMark status={navStatus[key]!} locale={locale} className="absolute -top-1.5 end-0 rounded-full ring-2 ring-white" />
+										)}
 									</span>
 									<span className="max-w-full truncate">
 										{getDashboardModuleLabel(key, businessType, locale, t(key))}

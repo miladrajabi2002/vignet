@@ -7,12 +7,17 @@ export function CommerceTabs({
   productsLabel,
   ordersLabel,
   requestsLabel,
+  attention,
+  locale = 'fa',
 }: {
   active: 'products' | 'orders' | 'requests'
   productsLabel: string
   ordersLabel: string
   /** In-chat pre-orders and back-in-stock waiting list. */
   requestsLabel?: string
+  /** What waits for the owner on each tab (lib/commerce/attention). */
+  attention?: { orders: number; requests: number }
+  locale?: string
 }) {
   const items = [
     {
@@ -59,9 +64,26 @@ export function CommerceTabs({
               <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
             </span>
             <span className="min-w-0 truncate">{item.label}</span>
+            <TabCount
+              count={item.key === 'orders' ? attention?.orders : item.key === 'requests' ? attention?.requests : 0}
+              locale={locale}
+              label={item.key === 'orders' ? (locale === 'en' ? 'to deliver' : 'منتظر رسیدگی') : (locale === 'en' ? 'waiting for you' : 'منتظر شما')}
+            />
           </Link>
         )
       })}
     </nav>
+  )
+}
+
+/** A red count beside a tab: things on it that wait for the owner. */
+function TabCount({ count, locale, label }: { count?: number; locale: string; label: string }) {
+  if (!count) return null
+  const nf = new Intl.NumberFormat(locale === 'en' ? 'en-US' : 'fa-IR')
+  return (
+    <span className="grid h-[18px] min-w-[18px] shrink-0 place-items-center rounded-full bg-red-600 px-1.5 text-[11px] font-bold leading-none text-white tabular-nums">
+      <span className="sr-only">{label}: </span>
+      {count > 99 ? `${nf.format(99)}+` : nf.format(count)}
+    </span>
   )
 }

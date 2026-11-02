@@ -6,6 +6,7 @@ import { readMenuSettings } from '@/lib/menu/settings'
 import { workspaceCapabilities } from '@/lib/verticals/profile'
 import { menuOwnsCatalog } from '@/lib/verticals/registry'
 import { dashboardTitle } from '@/lib/dashboard/page-title'
+import { loadCommerceAttention } from '@/lib/commerce/attention'
 
 export const generateMetadata = dashboardTitle('منوی دیجیتال', 'Digital menu')
 
@@ -37,6 +38,8 @@ export default async function DigitalMenuDashboardPage({
     prisma.product.count({ where: { workspaceId: user.workspaceId } }),
     menuChatSlug(user.workspaceId),
   ])
+  const showOrders = menuOwnsCatalog(workspaceCapabilities(workspace))
+  const attention = showOrders ? await loadCommerceAttention(user.workspaceId) : null
   const base = publicSiteUrl()
 
   const items: MenuItem[] = products.map((product) => ({
@@ -65,7 +68,8 @@ export default async function DigitalMenuDashboardPage({
       categories={menuCategories}
       initialItems={items}
       truncated={total > items.length}
-      showOrders={menuOwnsCatalog(workspaceCapabilities(workspace))}
+      showOrders={showOrders}
+      ordersCount={attention?.orders ?? 0}
       initialTab={tab === 'design' ? 'design' : 'items'}
     />
   )

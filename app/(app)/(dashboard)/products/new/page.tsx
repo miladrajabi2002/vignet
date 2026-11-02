@@ -25,7 +25,7 @@ export default async function NewProductPage({
   })
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-6xl space-y-6">
       {onboardingMode ? (
         <div className="spatial-surface flex items-center gap-3 rounded-card p-4">
           <span className="grid h-10 w-10 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]"><Package className="h-4 w-4" /></span>

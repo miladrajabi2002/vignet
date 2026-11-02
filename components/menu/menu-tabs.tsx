@@ -19,10 +19,13 @@ export function MenuTabs({
   active,
   showOrders,
   onSelect,
+  ordersCount = 0,
 }: {
   active: MenuTab
   showOrders: boolean
   onSelect?: (tab: 'items' | 'design') => void
+  /** Paid orders waiting to be delivered: a red count on the Orders tab. */
+  ordersCount?: number
 }) {
   const tabs: MenuTab[] = showOrders ? ['items', 'orders', 'design'] : ['items', 'design']
   return (
@@ -32,7 +35,15 @@ export function MenuTabs({
         return tab !== 'orders' && onSelect ? (
           <button key={tab} type="button" aria-current={selected ? 'page' : undefined} onClick={() => onSelect(tab)} className="ui-seg-tab">{LABELS[tab]}</button>
         ) : (
-          <Link key={tab} href={tab === 'orders' ? '/menu/orders' : tab === 'design' ? '/menu?tab=design' : '/menu'} aria-current={selected ? 'page' : undefined} className="ui-seg-tab whitespace-nowrap">{LABELS[tab]}</Link>
+          <Link key={tab} href={tab === 'orders' ? '/menu/orders' : tab === 'design' ? '/menu?tab=design' : '/menu'} aria-current={selected ? 'page' : undefined} className="ui-seg-tab gap-1.5 whitespace-nowrap">
+            {LABELS[tab]}
+            {tab === 'orders' && ordersCount > 0 ? (
+              <span className="grid h-[18px] min-w-[18px] place-items-center rounded-full bg-red-600 px-1.5 text-[11px] font-bold leading-none text-white tabular-nums">
+                <span className="sr-only">منتظر رسیدگی: </span>
+                {ordersCount.toLocaleString('fa-IR')}
+              </span>
+            ) : null}
+          </Link>
         )
       })}
     </nav>

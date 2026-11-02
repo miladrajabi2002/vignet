@@ -22,6 +22,8 @@ import { searchVariants } from '@/lib/search/persian'
 import { LiveEmptyState } from '@/components/ui/live-empty-state'
 import { loadGatewayOrders, type Purchase } from '@/lib/payments/card/fulfilment'
 import { PurchaseCard } from '@/components/payments/purchase-card'
+import { displayOrderCode } from '@/lib/commerce/order-ref'
+import { loadCommerceAttention } from '@/lib/commerce/attention'
 
 const PAGE_SIZE = 20
 const ORDER_STATUSES = [
@@ -96,7 +98,7 @@ export async function OrdersView({
     ? await loadGatewayOrders(workspaceId, { query: needle ? searchVariants(needle) : undefined, handled: gatewayStatus })
     : []
 
-  const [orders, totalOrders, orderCapacity, planDefs] = await Promise.all([
+  const [orders, totalOrders, orderCapacity, planDefs, attention] = await Promise.all([
     prisma.storeOrder.findMany({
       where,
       orderBy: [{ orderDate: 'desc' }, { createdAt: 'desc' }],
@@ -111,6 +113,7 @@ export async function OrdersView({
     prisma.storeOrder.count({ where }),
     checkWorkspaceResourceCreateAllowed(workspaceId, 'orders'),
     getEffectivePlanDefs(),
+    loadCommerceAttention(workspaceId),
   ])
 
   const recommendedPlan = recommendedUpgradePlan(
@@ -189,14 +192,20 @@ export async function OrdersView({
     const items = order.lines.map((line) => `${line.quantity > 1 ? `${new Intl.NumberFormat(numberLocale).format(line.quantity)}× ` : ''}${line.name}`).join('، ')
     const count = order.lines.reduce((sum, line) => sum + line.quantity, 0)
     const state = order.handledAt ? 'completed' : 'processing'
+    // A connected site's order is delivered by the site once it verifies it.
+    const bySite = order.source === 'API'
     return {
-      orderNumber: order.code,
-      storeLabel: locale === 'en' ? 'Vigent · card transfer' : 'ویجنت · کارت‌به‌کارت',
+      orderNumber: displayOrderCode(order.code),
+      storeLabel: bySite
+        ? (locale === 'en' ? `Vigent gateway · ${order.siteName ?? 'connected site'}` : `درگاه ویجنت · ${order.siteName ?? 'سایت متصل'}`)
+        : locale === 'en' ? 'Vigent · card transfer' : 'ویجنت · کارت‌به‌کارت',
       customerName: order.customerName || t('unknownCustomer'),
       customerContact: order.customerPhone ? displayPhone(order.customerPhone) : null,
       itemsLabel: items || t('itemsCount', { count }),
       itemsCountLabel: items ? t('itemsCount', { count }) : null,
-      statusLabel: order.handledAt ? (locale === 'en' ? 'Handled' : 'رسیدگی شد') : (locale === 'en' ? 'Paid · to deliver' : 'پرداخت‌شده · منتظر رسیدگی'),
+      statusLabel: order.handledAt
+        ? bySite ? (locale === 'en' ? 'Delivered by the site' : 'تحویل‌شده توسط سایت') : (locale === 'en' ? 'Handled' : 'رسیدگی شد')
+        : (locale === 'en' ? 'Paid · to deliver' : 'پرداخت‌شده · منتظر رسیدگی'),
       statusClassName: statusClassName(state),
       amountLabel: amountLabel(order.total, 'IRT'),
       dateLabel: dateFormatter.format(order.paidAt),
@@ -221,7 +230,7 @@ export async function OrdersView({
       </OrderEntry>
     ) : (
       <OrderEntry variant={variant} {...gatewayEntryProps(entry.order)}>
-        <PurchaseCard purchase={entry.order} locale={locale === 'en' ? 'en' : 'fa'} />
+        <PurchaseCard purchase={entry.order} locale={locale === 'en' ? 'en' : 'fa'} variant="plain" className="rounded-card border border-[var(--border-default)] bg-white p-4 shadow-[var(--shadow-xs)]" />
       </OrderEntry>
     )
   }
@@ -307,15 +316,16 @@ export async function OrdersView({
               compactOnMobile
               options={[
                 { scope: 'cancelled', label: locale === 'en' ? 'Delete cancelled and failed orders' : 'حذف سفارش‌های لغوشده و ناموفق', hint: locale === 'en' ? 'Cancelled, refunded or failed payment' : 'لغوشده، مرجوعی یا پرداخت ناموفق' },
-                { scope: 'completed', label: locale === 'en' ? 'Delete completed orders' : 'حذف سفارش‌های تکمیل‌شده', hint: locale === 'en' ? 'Delivered; nothing left to follow up' : 'تحویل شده‌اند و پیگیری لازم ندارند' },
+                { scope: 'completed', label: locale === 'en' ? 'Delete completed orders' : 'حذف سفارش‌های تکمیل‌شده', hint: locale === 'en' ? 'Delivered or handled; nothing left to follow up' : 'تحویل یا رسیدگی شده‌اند و پیگیری لازم ندارند' },
                 { scope: 'older_90d', label: locale === 'en' ? 'Delete orders older than 3 months' : 'حذف سفارش‌های قدیمی‌تر از سه ماه', hint: locale === 'en' ? 'Placed more than 90 days ago' : 'ثبت‌شده بیش از ۹۰ روز پیش' },
                 { scope: 'all', label: t('deleteAll'), hint: locale === 'en' ? 'Every order, whatever its status' : 'همهٔ سفارش‌ها با هر وضعیتی' },
               ]}
-              extraWarning={scope === 'products'
-                ? (locale === 'en'
-                    ? 'Only the copy in Vigent is removed; the orders stay in your store'
-                    : 'فقط نسخهٔ ویجنت حذف می‌شود؛ سفارش‌ها در فروشگاه شما می‌مانند')
-                : undefined}
+              extraWarning={[
+                scope === 'products'
+                  ? (locale === 'en' ? 'Store orders: only the copy in Vigent is removed; they stay in your store' : 'از سفارش‌های فروشگاه فقط نسخهٔ ویجنت حذف می‌شود و در فروشگاه شما می‌مانند')
+                  : null,
+                locale === 'en' ? 'Orders paid through the Vigent gateway also leave the payment gateway tab' : 'سفارش‌هایی که با درگاه ویجنت پرداخت شده‌اند از تب «درگاه پرداخت» هم برداشته می‌شوند',
+              ].filter(Boolean).join('. ')}
             />
             <span className="inline-flex min-h-11 items-center rounded-xl border border-[var(--border-default)] px-3 text-sm text-[var(--text-secondary)]">
               {t('total', { count: listedCount.toLocaleString(locale === 'en' ? 'en-US' : 'fa-IR') })}
@@ -325,13 +335,15 @@ export async function OrdersView({
       />
 
       {scope === 'menu' ? (
-        <MenuTabs active="orders" showOrders />
+        <MenuTabs active="orders" showOrders ordersCount={attention.orders} />
       ) : (
         <CommerceTabs
           active="orders"
           productsLabel={productsT('title')}
           ordersLabel={t('title')}
           requestsLabel={t('requestsTab')}
+          attention={attention}
+          locale={locale}
         />
       )}
 

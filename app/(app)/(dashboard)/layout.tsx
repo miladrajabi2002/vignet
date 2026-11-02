@@ -21,6 +21,7 @@ import { DashboardPageEffects } from '@/components/dashboard/dashboard-page-effe
 import { ModuleAccessBanner } from '@/components/dashboard/module-access-banner'
 import { loadGatewayNavState } from '@/lib/payments/card/dashboard'
 import type { NavStatusMap } from '@/lib/dashboard/nav-status'
+import { loadCommerceAttention } from '@/lib/commerce/attention'
 
 export const metadata: Metadata = {
   title: { template: '%s · پنل ویجنت', default: 'پنل ویجنت' },
@@ -96,7 +97,7 @@ export default async function DashboardLayout({
   // Conversations handed to a human — shown as a count on the Conversations
   // nav item (desktop rail + phone bar). Served by @@index([workspaceId, status]).
   // A live Instagram channel promotes Instagram into the phone bar.
-  const [handedOffCount, instagramChannel, connectedStore, gateway] = await Promise.all([
+  const [handedOffCount, instagramChannel, connectedStore, gateway, commerce] = await Promise.all([
     prisma.conversation.count({
       where: { workspaceId: user.workspaceId, status: 'HANDED_OFF' },
     }),
@@ -111,6 +112,8 @@ export default async function DashboardLayout({
     }),
     // The gateway's live state for its menu mark; silent on a database without its tables.
     loadGatewayNavState(user.workspaceId).catch(() => null),
+    // Paid orders to deliver and pre-orders to answer: a count on «محصولات» / «منو».
+    loadCommerceAttention(user.workspaceId),
   ])
   const fa = (await getLocale()) !== 'en'
   // Marks beside menu items whose connection is live, half set up or needs the owner.
@@ -120,6 +123,15 @@ export default async function DashboardLayout({
     else if (gateway.state === 'live') navStatus.payments = { tone: 'live', label: fa ? 'درگاه روشن و وصل است' : 'The gateway is on and connected' }
     else if (gateway.state === 'setup') navStatus.payments = { tone: 'setup', label: fa ? 'راه‌اندازی درگاه ناتمام است' : 'Gateway setup is unfinished' }
     else if (gateway.state === 'suspended') navStatus.payments = { tone: 'alert', label: fa ? 'درگاه از طرف ویجنت متوقف شده' : 'Vigent has paused the gateway' }
+  }
+  const commerceCount = commerce.orders + commerce.requests
+  if (commerceCount > 0) {
+    const parts = [
+      commerce.orders ? (fa ? `${commerce.orders.toLocaleString('fa-IR')} سفارش منتظر رسیدگی` : `${commerce.orders} orders to deliver`) : null,
+      commerce.requests ? (fa ? `${commerce.requests.toLocaleString('fa-IR')} درخواست منتظر شما` : `${commerce.requests} requests wait for you`) : null,
+    ].filter(Boolean).join(fa ? '، ' : ', ')
+    navStatus.products = { tone: 'alert', count: commerceCount, label: parts }
+    if (commerce.orders) navStatus.menu = { tone: 'alert', count: commerce.orders, label: fa ? `${commerce.orders.toLocaleString('fa-IR')} سفارش منتظر رسیدگی` : `${commerce.orders} orders to deliver` }
   }
   if (connectedStore) {
     navStatus.store = connectedStore.lastSyncStatus === 'error'

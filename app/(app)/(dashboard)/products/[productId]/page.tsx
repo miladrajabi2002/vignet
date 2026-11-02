@@ -4,10 +4,7 @@ import { getTranslations, getLocale } from 'next-intl/server'
 import {
   Pencil,
   Package,
-  Search,
   Bot,
-  Boxes,
-  Tag,
   ExternalLink,
   CheckCircle2,
   XCircle,
@@ -27,6 +24,13 @@ import { dashboardTitle } from '@/lib/dashboard/page-title'
 
 export const generateMetadata = dashboardTitle('محصول', 'Product')
 
+const FULFILLMENT_LABEL = {
+  SHIPPED: ['ارسال پستی یا پیک', 'Shipped', 'ایجنت آدرس و شماره تماس را می‌گیرد', 'The agent asks for an address and phone'],
+  DIGITAL: ['دیجیتال (فایل، اشتراک، کد)', 'Digital', 'ایجنت آدرس نمی‌پرسد', 'The agent never asks for an address'],
+  SERVICE: ['خدمت', 'Service', 'انجام کار یا مشاوره', 'A job or a consultation'],
+  PICKUP: ['تحویل حضوری', 'Pickup', 'مشتری از فروشگاه تحویل می‌گیرد', 'The customer collects it in store'],
+} as const
+
 export default async function ProductDetailPage(
   props: {
     params: Promise<{ productId: string }>
@@ -36,7 +40,9 @@ export default async function ProductDetailPage(
   const user = await requireUser()
   const t = await getTranslations('products')
   const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
-  const fmt = (n: number) => n.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US')
+  const fa = locale === 'fa'
+  const L = (faText: string, enText: string) => (fa ? faText : enText)
+  const fmt = (n: number) => n.toLocaleString(fa ? 'fa-IR' : 'en-US')
 
   const product = await prisma.product.findFirst({
     where: { id: params.productId, workspaceId: user.workspaceId },
@@ -49,23 +55,17 @@ export default async function ProductDetailPage(
   })
   if (!product) notFound()
 
-  // ─── Variations ─────────────────────────────────────────────────────────
-  // Variable products carry their per-variant stock/price/attributes inside
-  // `attributes._variations`. We extract them here so the page can render a
-  // dedicated "تنوع‌ها" grid below the simple attributes, and so the stock
-  // summary can switch from "نامحدود" to an accurate per-variant breakdown
-  // (e.g. "۲ تنوع موجود از ۸ تنوع").
+  // Variable products carry per-variant stock/price/attributes inside
+  // `attributes._variations`; the parent stock is misleading for them, so the
+  // stock label switches to a per-variant summary.
   const variations: VariationRow[] = extractTypedVariations(product.attributes)
   const inStockVariations = variations.filter((v) =>
     v.manageStock ? (v.stockQuantity ?? 0) > 0 : v.inStock,
   )
 
-  // Stock label: when variations exist, the parent stock is misleading
-  // (null or 0 even when variants are in stock). Show a per-variant summary
-  // instead of the flat "نامحدود" / "N عدد".
   let stockLabel: string
   if (variations.length > 0) {
-    stockLabel = locale === 'fa'
+    stockLabel = fa
       ? `${fmt(inStockVariations.length)} تنوع موجود از ${fmt(variations.length)}`
       : `${fmt(inStockVariations.length)} of ${fmt(variations.length)} variants in stock`
   } else if (product.stock === null) {
@@ -74,65 +74,27 @@ export default async function ProductDetailPage(
     stockLabel = product.stock > 0 ? `${fmt(product.stock)}` : t('outOfStock')
   }
 
-  // ─── Attributes normalization ───────────────────────────────────────────
-  // The `attributes` JSON column accepts several shapes depending on the source:
-  //
-  //   1. Manual product form:   { "color": "blue", "size": "XL" }
-  //   2. WooCommerce REST poll: { "color": "blue", "size": "XL" }  (already
-  //      flattened by `mapWooProduct` in lib/integrations/woocommerce.ts)
-  //   3. WooCommerce webhook:   sometimes { "color": { name, options } } when
-  //      the plugin sends a raw attribute object — this is the source of the
-  //      `[object Object]` bug.
-  //   4. WooCommerce description blob:  the merchant put <ul><li>…</li></ul>
-  //      directly inside the description field (or the description is the only
-  //      place where attributes live) — this is the source of the raw-HTML
-  //      rendering bug.
-  //
-  // We normalize all of these into a flat `{ label: string, value: string }[]`
-  // and also extract any <li> items found inside the description so they show
-  // up as proper attribute rows instead of as raw HTML.
-  //
-  // NOTE: `normalizeAttributes` already strips the internal `_variations`
-  // key (see lib/products/description.ts), so it won't leak as a JSON dump
-  // into the attributes grid.
+  // `attributes` arrives in several shapes (manual form, Woo REST, Woo webhook
+  // objects, <ul><li> in the description) — normalise to flat label/value rows
+  // and keep list items out of the description text so no raw HTML shows.
   const attributes = normalizeAttributes(product.attributes)
-
-  // If the description contains <ul>…<li>…</li>…</ul> blocks (a common
-  // WooCommerce pattern where the merchant puts material/sizing info as a
-  // bullet list in the description), extract those <li> items and merge them
-  // into the attributes list so they render cleanly instead of as raw HTML.
   const descriptionItems = extractListItems(product.description ?? '')
   const mergedAttributes = [...attributes, ...descriptionItems]
-
-  // Re-render the description without the <ul>/<li> blocks so they don't
-  // appear twice (once as attributes, once as raw HTML).
   const cleanDescription = stripListBlocks(product.description ?? '')
 
-  const stats = [
-    {
-      icon: Search,
-      label: t('detail.queryCount'),
-      value: fmt(product.queryCount),
-    },
-    {
-      icon: Bot,
-      label: t('detail.agentCoverage'),
-      value: fmt(product.catalogItems.length),
-    },
-    {
-      icon: Boxes,
-      label: t('detail.stock'),
-      value: stockLabel,
-    },
-  ]
+  const fulfillment = FULFILLMENT_LABEL[product.fulfillment ?? 'SHIPPED'] ?? FULFILLMENT_LABEL.SHIPPED
+  const extraImages = product.images.slice(1, 9)
+
+  const card = 'spatial-surface rounded-card p-4 sm:p-5'
+  const cardTitle = 'text-[15px] font-medium text-[var(--text-primary)]'
+  const rows = 'mt-3 divide-y divide-[var(--border-subtle)]'
+  const row = 'flex items-center justify-between gap-3 py-2.5 text-[13.5px]'
+  const pill = 'inline-flex h-[26px] items-center gap-1.5 rounded-full bg-[var(--bg-muted)] px-2.5 text-xs font-medium text-[var(--text-secondary)]'
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-6xl space-y-4 sm:space-y-5">
       <div className="flex items-center justify-between">
         <BackButton href="/products" label={t('title')} />
-        {/* Edit button — matches the rest of the dashboard's primary-button
-            style (min-h-11, rounded-xl, bold) so it doesn't look out of place
-            next to the other action buttons. */}
         <Link
           href={`/products/${product.id}/edit`}
           className="fixed inset-x-4 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-40 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-bold text-[var(--bg-base)] shadow-[var(--shadow-floating)] transition-opacity hover:opacity-90 md:static md:min-h-11 md:shadow-[var(--shadow-control)]"
@@ -142,286 +104,293 @@ export default async function ProductDetailPage(
         </Link>
       </div>
 
-      {/* Header */}
-      <div className="spatial-surface flex flex-col gap-5 rounded-card p-5 sm:flex-row">
-        <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-[var(--bg-muted)] sm:w-56">
+      {/* Summary */}
+      <header className="flex items-center gap-3.5">
+        <div className="h-[76px] w-[76px] shrink-0 overflow-hidden rounded-[18px] bg-[var(--bg-muted)] md:h-[60px] md:w-[60px] md:rounded-2xl">
           {product.images[0] ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            (<ProductImage
-              src={product.images[0]}
-              alt={product.name}
-              width={640}
-              height={640}
-              decoding="async"
-              className="h-full w-full object-cover"
-            />)
+            <ProductImage src={product.images[0]} alt="" width={160} height={160} decoding="async" className="h-full w-full object-cover" />
           ) : (
-            <div className="flex h-full items-center justify-center text-[var(--text-muted)]">
-              <Package className="h-8 w-8" />
-            </div>
+            <span className="grid h-full w-full place-items-center text-[var(--text-muted)]"><Package className="h-6 w-6" aria-hidden="true" /></span>
           )}
         </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-light text-[var(--text-primary)]">
-              {product.name}
-            </h1>
-            {!product.active && (
-              <span className="rounded-full border border-[var(--border-default)] px-2 py-0.5 text-xs text-[var(--text-muted)]">
-                {t('detail.inactive')}
-              </span>
-            )}
-          </div>
-          {product.category && (
-            <span className="mt-1 inline-block text-sm text-[var(--text-muted)]">
-              {product.category.name}
+        <div className="min-w-0">
+          <h1 className="text-base font-medium leading-7 text-[var(--text-primary)] md:text-[22px]">{product.name}</h1>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            <span className={`inline-flex h-[26px] items-center gap-1.5 rounded-full px-2.5 text-xs font-medium ${product.active ? 'bg-[#e8f4ec] text-[#11622f]' : 'bg-[var(--bg-muted)] text-[var(--text-secondary)]'}`}>
+              <span className="h-[7px] w-[7px] rounded-full bg-current" aria-hidden="true" />
+              {product.active ? L('فعال · در دسترس ایجنت', 'Active · available to agents') : t('detail.inactive')}
             </span>
-          )}
-          <div className="mt-3 flex items-baseline gap-2">
-            {product.price != null && (
-              <span className="text-xl text-[var(--text-primary)]">
-                {fmt(product.price)}{' '}
-                <span className="text-sm text-[var(--text-muted)]">
-                  {t('toman')}
-                </span>
-              </span>
-            )}
-            {product.comparePrice != null && (
-              <span className="text-sm text-[var(--text-muted)] line-through">
-                {fmt(product.comparePrice)}
-              </span>
-            )}
+            <span className={pill}>{stockLabel}</span>
+            <span className={pill}>{fa ? fulfillment[0] : fulfillment[1]}</span>
           </div>
-          {product.sku && (
-            <div className="mt-2 flex items-center gap-2">
-              <p className="min-w-0 truncate text-xs text-[var(--text-muted)]" dir="ltr">
-                SKU: {product.sku}
-              </p>
-              <CopyButton value={product.sku} label={t('copySku')} copiedLabel={t('copied')} />
-            </div>
-          )}
-          {/* External product URL — the canonical link on the source store
-              (WooCommerce permalink, etc.). Used by the Instagram automation
-              engine to render the "View product" button on product cards. */}
-          {product.externalUrl && (
-            <div className="mt-2 flex min-w-0 items-center gap-2">
-              <a
-                href={product.externalUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                dir="ltr"
-                className="inline-flex min-h-11 min-w-0 items-center gap-1.5 rounded-xl border border-[var(--border-default)] px-3 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-              >
-                <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate">
-                  {product.externalUrl.length > 48
-                    ? `${product.externalUrl.slice(0, 48)}…`
-                    : product.externalUrl}
-                </span>
-              </a>
-              <CopyButton value={product.externalUrl} label={t('copyLink')} copiedLabel={t('copied')} />
-            </div>
-          )}
-          <div className="mt-2 flex items-center gap-2">
-            <span dir="ltr" className="min-w-0 truncate text-xs text-[var(--text-muted)]">
-              ID: {product.id}
-            </span>
-            <CopyButton value={product.id} label={t('copyId')} copiedLabel={t('copied')} />
-          </div>
-          {/* Description — rendered as plain text; <ul>/<li> blocks were
-              extracted into the attributes list above so they don't leak raw
-              HTML here. */}
-          {cleanDescription && (
-            <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-[var(--text-secondary)]">
-              {cleanDescription}
-            </p>
-          )}
-          {product.tags.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {product.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="inline-flex items-center gap-1 rounded-md border border-[var(--border-default)] px-2 py-0.5 text-xs text-[var(--text-secondary)]"
-                >
-                  <Tag className="h-3 w-3" />
-                  {tag}
-                </span>
-              ))}
-            </div>
-          )}
         </div>
-      </div>
+      </header>
 
-      {/* Analytics stats */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        {stats.map((s) => (
-          <div
-            key={s.label}
-            className="spatial-surface rounded-card p-5"
-          >
-            <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-              <s.icon className="h-4 w-4" />
-              {s.label}
-            </div>
-            <p className="mt-2 text-2xl font-light text-[var(--text-primary)]">
-              {s.value}
-            </p>
-          </div>
-        ))}
-      </div>
-
-      {/* Agent coverage */}
-      <div className="spatial-surface rounded-card p-5">
-        <h2 className="text-sm font-medium text-[var(--text-secondary)]">
-          {t('detail.knownByAgents')}
-        </h2>
-        {product.catalogItems.length === 0 ? (
-          <p className="mt-3 text-sm text-[var(--text-muted)]">
-            {t('detail.noAgents')}
-          </p>
-        ) : (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {product.catalogItems.map(({ agent }) => (
-              <Link
-                key={agent.id}
-                href={`/agents/${agent.id}`}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-              >
-                <Bot className="h-3.5 w-3.5" />
-                {agent.name}
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Attributes — rendered from the normalized list, so <ul>/<li>
-          descriptions and `[object Object]` attribute values both resolve
-          into clean rows instead of raw HTML / object dumps.
-          The internal `_variations` key is stripped by normalizeAttributes
-          so it never appears here. */}
-      {mergedAttributes.length > 0 && (
-        <div className="spatial-surface rounded-card p-5">
-          <h2 className="text-sm font-medium text-[var(--text-secondary)]">
-            {t('form.attributes')}
-          </h2>
-          <dl className="mt-3 grid gap-2 sm:grid-cols-2">
-            {mergedAttributes.map((attr, idx) => (
-              <div
-                key={`${attr.label}-${idx}`}
-                className="flex items-center justify-between rounded-lg bg-[var(--bg-muted)] px-3 py-2 text-sm"
-              >
-                <dt className="text-[var(--text-muted)]">{attr.label}</dt>
-                <dd className="text-[var(--text-primary)]">{attr.value}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-      )}
-
-      {/* Variations grid — for variable products (e.g. clothing with multiple
-          colors/patterns, each with its own stock count). Renders one row per
-          variation showing the distinguishing attributes (color/size/…),
-          per-variant price, stock state, and (when available) the variant's
-          own image.
-
-          This replaces the old behavior where `_variations` leaked into the
-          attributes grid as a single raw-JSON row. */}
-      {variations.length > 0 && (
-        <div className="spatial-surface rounded-card p-5">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-medium text-[var(--text-secondary)]">
-              {locale === 'fa' ? 'تنوع‌ها' : 'Variants'}
-            </h2>
-            <span className="text-xs text-[var(--text-muted)]">
-              {locale === 'fa'
-                ? `${fmt(inStockVariations.length)} موجود از ${fmt(variations.length)}`
-                : `${fmt(inStockVariations.length)} in stock of ${fmt(variations.length)}`}
-            </span>
-          </div>
-          <VariationMatrix variations={variations} locale={locale} fmt={fmt} />
-          <div className="mt-3 grid gap-3">
-            {variations.map((v) => {
-              const inStock = v.manageStock ? (v.stockQuantity ?? 0) > 0 : v.inStock
-              const stockText = v.manageStock
-                ? (v.stockQuantity ?? 0) > 0
-                  ? `${fmt(v.stockQuantity ?? 0)} ${locale === 'fa' ? 'عدد' : 'pcs'}`
-                  : (locale === 'fa' ? 'ناموجود' : 'Out of stock')
-                : v.inStock
-                  ? (locale === 'fa' ? 'موجود' : 'In stock')
-                  : (locale === 'fa' ? 'ناموجود' : 'Out of stock')
-              return (
-                <div
-                  key={v.id}
-                  className={`flex items-center gap-3 rounded-xl border p-3 ${
-                    inStock
-                      ? 'border-[var(--border-default)] bg-[var(--bg-base)]'
-                      : 'border-[var(--border-default)] bg-[var(--bg-muted)] opacity-70'
-                  }`}
-                >
-                  {/* Variant image (optional) */}
-                  {v.image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <ProductImage
-                      src={v.image}
-                      alt={Object.values(v.attributes).join('، ') || `#${v.id}`}
-                      width={56}
-                      height={56}
-                      className="h-14 w-14 shrink-0 rounded-lg object-cover"
-                    />
-                  ) : (
-                    <div className="grid h-14 w-14 shrink-0 place-items-center rounded-lg bg-[var(--bg-muted)] text-[var(--text-muted)]">
-                      <Package className="h-4 w-4" />
-                    </div>
-                  )}
-                  {/* Variant attributes (color/size/…) */}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-sm">
-                      {Object.entries(v.attributes).map(([k, val]) => (
-                        <span key={k} className="text-[var(--text-secondary)]">
-                          <span className="text-[var(--text-muted)]">{k}:</span>{' '}
-                          <span className="text-[var(--text-primary)]">{val}</span>
-                        </span>
-                      ))}
-                    </div>
-                    {v.sku && (
-                      <p className="mt-0.5 truncate text-xs text-[var(--text-muted)]" dir="ltr">
-                        SKU: {v.sku}
-                      </p>
-                    )}
-                  </div>
-                  {/* Price (when different from parent) */}
-                  {v.price != null && (
-                    <div className="shrink-0 text-left">
-                      <p className="text-sm text-[var(--text-primary)]">
-                        {fmt(v.price)}
-                      </p>
-                      <p className="text-xs text-[var(--text-muted)]">{t('toman')}</p>
-                    </div>
-                  )}
-                  {/* Stock badge */}
-                  <div className={`flex shrink-0 items-center gap-1 text-xs ${inStock ? 'text-emerald-600' : 'text-red-500'}`}>
-                    {inStock ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
-                    <span>{stockText}</span>
-                  </div>
+      <div className="flex flex-col gap-3 md:gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-5">
+        <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-5">
+          {/* Images */}
+          <section className={`${card} max-lg:order-1`} aria-labelledby="pd-images">
+            <h2 id="pd-images" className={cardTitle}>{L('تصاویر', 'Images')}</h2>
+            {product.images.length === 0 ? (
+              <p className="mt-3 text-sm text-[var(--text-muted)]">{L('تصویری ندارد. ایجنت در کارت محصول فقط متن می‌فرستد.', 'No images. The agent sends text only on the product card.')}</p>
+            ) : (
+              <div className="mt-3 flex flex-wrap gap-3">
+                <div className="relative h-56 w-full overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-muted)] sm:h-[236px] sm:w-[236px]">
+                  <ProductImage src={product.images[0]} alt={product.name} width={640} height={640} decoding="async" className="h-full w-full object-cover" />
+                  <span className="absolute end-2.5 top-2.5 inline-flex h-[26px] items-center rounded-full bg-black/80 px-2.5 text-xs font-medium text-white">{L('تصویر اصلی', 'Main image')}</span>
                 </div>
-              )
-            })}
-          </div>
+                {extraImages.length > 0 && (
+                  <div className="grid w-full grid-cols-4 gap-3 sm:w-[236px] sm:grid-cols-2">
+                    {extraImages.map((src, i) => (
+                      <div key={`${src}-${i}`} className="aspect-square overflow-hidden rounded-2xl bg-[var(--bg-muted)] sm:aspect-auto sm:h-28">
+                        <ProductImage src={src} alt={`${product.name} ${i + 2}`} width={240} height={240} className="h-full w-full object-cover" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+
+          {/* Description */}
+          {cleanDescription && (
+            <section className={`${card} max-lg:order-2`} aria-labelledby="pd-desc">
+              <h2 id="pd-desc" className={cardTitle}>{t('form.description')}</h2>
+              <p className="mt-3 whitespace-pre-line text-sm leading-8 text-[var(--text-secondary)]">{cleanDescription}</p>
+            </section>
+          )}
+
+          {/* Price & stock */}
+          <section className={`${card} max-lg:order-3`} aria-labelledby="pd-price">
+            <h2 id="pd-price" className={cardTitle}>{L('قیمت و موجودی', 'Price & stock')}</h2>
+            <dl className={rows}>
+              <div className={row}>
+                <dt className="text-[var(--text-muted)]">{t('form.price')}</dt>
+                <dd className="font-medium text-[var(--text-primary)]">
+                  {product.price != null ? <>{fmt(product.price)} <span className="font-normal text-[var(--text-muted)]">{t('toman')}</span></> : '—'}
+                </dd>
+              </div>
+              {product.comparePrice != null && (
+                <div className={row}>
+                  <dt className="text-[var(--text-muted)]">{t('form.comparePrice')}</dt>
+                  <dd className="text-[var(--text-muted)] line-through">{fmt(product.comparePrice)}</dd>
+                </div>
+              )}
+              <div className={row}>
+                <dt className="text-[var(--text-muted)]">{t('detail.stock')}</dt>
+                <dd className="text-[var(--text-primary)]">{stockLabel}</dd>
+              </div>
+              {product.lowStockThreshold != null && product.stock !== null && (
+                <div className={row}>
+                  <dt className="text-[var(--text-muted)]">{t('form.lowStockThreshold')}</dt>
+                  <dd className="text-[var(--text-primary)]">{fmt(product.lowStockThreshold)}</dd>
+                </div>
+              )}
+              {product.sku && (
+                <div className={row}>
+                  <dt className="text-[var(--text-muted)]">{t('form.sku')}</dt>
+                  <dd className="flex min-w-0 items-center gap-1.5">
+                    <span dir="ltr" className="truncate font-mono text-xs text-[var(--text-secondary)]">{product.sku}</span>
+                    <CopyButton value={product.sku} label={t('copySku')} copiedLabel={t('copied')} />
+                  </dd>
+                </div>
+              )}
+            </dl>
+          </section>
+
+          {/* Specs */}
+          {mergedAttributes.length > 0 && (
+            <section className={`${card} max-lg:order-5`} aria-labelledby="pd-specs">
+              <h2 id="pd-specs" className={cardTitle}>{t('form.attributes')}</h2>
+              <dl className={rows}>
+                {mergedAttributes.map((attr, idx) => (
+                  <div key={`${attr.label}-${idx}`} className={row}>
+                    <dt className="text-[var(--text-muted)]">{attr.label}</dt>
+                    <dd className="text-end text-[var(--text-primary)]">{attr.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          )}
+
+          {/* Variations */}
+          {variations.length > 0 && (
+            <section className={`${card} max-lg:order-6`} aria-labelledby="pd-vars">
+              <div className="flex items-center justify-between gap-3">
+                <h2 id="pd-vars" className={cardTitle}>{L('تنوع‌ها', 'Variants')}</h2>
+                <span className="text-xs text-[var(--text-muted)]">
+                  {fa
+                    ? `${fmt(inStockVariations.length)} موجود از ${fmt(variations.length)}`
+                    : `${fmt(inStockVariations.length)} in stock of ${fmt(variations.length)}`}
+                </span>
+              </div>
+              <VariationMatrix variations={variations} locale={locale} fmt={fmt} />
+              <div className="mt-3 grid gap-3">
+                {variations.map((v) => {
+                  const inStock = v.manageStock ? (v.stockQuantity ?? 0) > 0 : v.inStock
+                  const stockText = v.manageStock
+                    ? (v.stockQuantity ?? 0) > 0
+                      ? `${fmt(v.stockQuantity ?? 0)} ${L('عدد', 'pcs')}`
+                      : L('ناموجود', 'Out of stock')
+                    : v.inStock
+                      ? L('موجود', 'In stock')
+                      : L('ناموجود', 'Out of stock')
+                  return (
+                    <div
+                      key={v.id}
+                      className={`flex items-center gap-3 rounded-2xl border border-[var(--border-default)] p-3 ${inStock ? 'bg-[var(--bg-base)]' : 'bg-[var(--bg-muted)] opacity-70'}`}
+                    >
+                      {v.image ? (
+                        <ProductImage
+                          src={v.image}
+                          alt={Object.values(v.attributes).join('، ') || `#${v.id}`}
+                          width={56}
+                          height={56}
+                          className="h-14 w-14 shrink-0 rounded-xl object-cover"
+                        />
+                      ) : (
+                        <div className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-[var(--bg-muted)] text-[var(--text-muted)]">
+                          <Package className="h-4 w-4" />
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-sm">
+                          {Object.entries(v.attributes).map(([k, val]) => (
+                            <span key={k} className="text-[var(--text-secondary)]">
+                              <span className="text-[var(--text-muted)]">{k}:</span>{' '}
+                              <span className="text-[var(--text-primary)]">{val}</span>
+                            </span>
+                          ))}
+                        </div>
+                        {v.sku && (
+                          <p className="mt-0.5 truncate text-xs text-[var(--text-muted)]" dir="ltr">SKU: {v.sku}</p>
+                        )}
+                      </div>
+                      {v.price != null && (
+                        <div className="shrink-0 text-end">
+                          <p className="text-sm text-[var(--text-primary)]">{fmt(v.price)}</p>
+                          <p className="text-xs text-[var(--text-muted)]">{t('toman')}</p>
+                        </div>
+                      )}
+                      <div className={`flex shrink-0 items-center gap-1 text-xs ${inStock ? 'text-emerald-600' : 'text-red-500'}`}>
+                        {inStock ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
+                        <span>{stockText}</span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+          )}
         </div>
-      )}
-      <p className="pb-16 text-xs text-[var(--text-muted)] md:pb-0">
-        {t('detail.updatedAt')}: {formatDateTime(product.updatedAt, locale)}
-      </p>
+
+        <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-5">
+          {/* Status + agents */}
+          <section className={`${card} max-lg:order-9`} aria-labelledby="pd-status">
+            <div className="flex items-center justify-between gap-3">
+              <h2 id="pd-status" className={cardTitle}>{L('وضعیت', 'Status')}</h2>
+              <span className={`inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium ${product.active ? 'bg-[#e8f4ec] text-[#11622f]' : 'bg-[var(--bg-muted)] text-[var(--text-secondary)]'}`}>
+                <span className="h-[7px] w-[7px] rounded-full bg-current" aria-hidden="true" />
+                {product.active ? L('فعال', 'Active') : t('detail.inactive')}
+              </span>
+            </div>
+            <p className="mt-2 text-[12.5px] leading-6 text-[var(--text-muted)]">
+              {product.active ? L('ایجنت‌ها این محصول را در گفتگو به مشتری پیشنهاد می‌دهند.', 'Agents offer this product in chats.') : L('ایجنت‌ها این محصول را پیشنهاد نمی‌دهند.', 'Agents do not offer this product.')}
+            </p>
+            <h3 className="mt-3 border-t border-[var(--border-subtle)] pt-3 text-[13px] text-[var(--text-muted)]">{t('detail.knownByAgents')}</h3>
+            {product.catalogItems.length === 0 ? (
+              <p className="mt-2 text-sm text-[var(--text-muted)]">{t('detail.noAgents')}</p>
+            ) : (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {product.catalogItems.map(({ agent }) => (
+                  <Link
+                    key={agent.id}
+                    href={`/agents/${agent.id}`}
+                    className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-[var(--border-default)] px-3 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+                  >
+                    <Bot className="h-3.5 w-3.5" />
+                    {agent.name}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* Delivery */}
+          <section className={`${card} max-lg:order-4`} aria-labelledby="pd-ful">
+            <h2 id="pd-ful" className={cardTitle}>{L('نوع تحویل', 'Delivery')}</h2>
+            <p className="mt-3 text-sm font-medium text-[var(--text-primary)]">{fa ? fulfillment[0] : fulfillment[1]}</p>
+            <p className="mt-0.5 text-xs leading-6 text-[var(--text-muted)]">{fa ? fulfillment[2] : fulfillment[3]}</p>
+          </section>
+
+          {/* Category & tags */}
+          <section className={`${card} max-lg:order-7`} aria-labelledby="pd-cat">
+            <h2 id="pd-cat" className={cardTitle}>{L('دسته و تگ', 'Category & tags')}</h2>
+            <p className="mt-3 text-sm text-[var(--text-primary)]">{product.category?.name ?? t('form.noCategory')}</p>
+            {product.tags.length > 0 ? (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {product.tags.map((tag) => (
+                  <span key={tag} className={pill}>{tag}</span>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-1 text-xs text-[var(--text-muted)]">{L('بدون تگ', 'No tags')}</p>
+            )}
+          </section>
+
+          {/* Link & ID */}
+          <section className={`${card} max-lg:order-8`} aria-labelledby="pd-link">
+            <h2 id="pd-link" className={cardTitle}>{L('لینک و شناسه', 'Link & ID')}</h2>
+            {product.externalUrl && (
+              <div className="mt-3 flex min-w-0 items-center gap-2">
+                <a
+                  href={product.externalUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  dir="ltr"
+                  className="inline-flex min-h-11 min-w-0 flex-1 items-center gap-1.5 rounded-xl border border-[var(--border-default)] px-3 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+                >
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{product.externalUrl.replace(/^https?:\/\//, '')}</span>
+                </a>
+                <CopyButton value={product.externalUrl} label={t('copyLink')} copiedLabel={t('copied')} />
+              </div>
+            )}
+            <dl className={rows}>
+              <div className={row}>
+                <dt className="text-[var(--text-muted)]">{L('شناسه', 'ID')}</dt>
+                <dd className="flex min-w-0 items-center gap-1.5">
+                  <span dir="ltr" className="truncate font-mono text-xs text-[var(--text-secondary)]">{product.id}</span>
+                  <CopyButton value={product.id} label={t('copyId')} copiedLabel={t('copied')} />
+                </dd>
+              </div>
+            </dl>
+          </section>
+
+          {/* Performance */}
+          <section className={`${card} max-lg:order-10`} aria-labelledby="pd-perf">
+            <h2 id="pd-perf" className={cardTitle}>{L('عملکرد', 'Performance')}</h2>
+            <dl className={rows}>
+              <div className={row}>
+                <dt className="text-[var(--text-muted)]">{t('detail.queryCount')}</dt>
+                <dd className="font-medium text-[var(--text-primary)]">{fmt(product.queryCount)}</dd>
+              </div>
+              <div className={row}>
+                <dt className="text-[var(--text-muted)]">{t('detail.agentCoverage')}</dt>
+                <dd className="font-medium text-[var(--text-primary)]">{fmt(product.catalogItems.length)}</dd>
+              </div>
+              <div className={row}>
+                <dt className="text-[var(--text-muted)]">{t('detail.updatedAt')}</dt>
+                <dd className="text-[var(--text-primary)]">{formatDateTime(product.updatedAt, locale)}</dd>
+              </div>
+            </dl>
+          </section>
+        </div>
+      </div>
+      <div className="h-16 md:hidden" aria-hidden="true" />
     </div>
   );
 }
-
-// ─── helpers ─────────────────────────────────────────────────────────────
-// `normalizeAttributes`, `formatAttrValue`, `extractListItems`, and
-// `stripListBlocks` live in `lib/products/description.ts` so the Instagram
-// automation engine can reuse the same HTML-stripping logic for product card
-// subtitles.
 
 /**
  * Two-option products (رنگ × سایز) read best as a grid: one row per first

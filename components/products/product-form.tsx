@@ -1,12 +1,14 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useUnsavedChangesGuard } from '@/lib/hooks/use-unsaved-changes-guard'
 import { cn } from '@/lib/utils'
 import { useLocale, useTranslations } from 'next-intl'
-import { ArrowRight, ImageOff, Layers, Plus, Sparkles, Star, X } from 'lucide-react'
+import { ArrowRight, ChevronUp, ImageOff, Layers, Link2, ListChecks, Plus, Shirt, Sparkles, Star, Tag, Truck, X, type LucideIcon } from 'lucide-react'
+import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
+import { Switch } from '@/components/ui/switch'
 import { MaterialSelect } from '@/components/ui/material-select'
 import { NumberField } from '@/components/admin/number-field'
 import { SAVED_BEAT_MS, SaveButton, useSaveState } from '@/components/ui/save-button'
@@ -242,98 +244,71 @@ export function ProductForm({
     }
   }
 
+  const L = (fa: string, en: string) => (persianDigits ? fa : en)
+  const num = (v: string | number) => Number(v).toLocaleString(persianDigits ? 'fa-IR' : 'en-US')
+  const fulfillment = form.fulfillment ?? 'SHIPPED'
+  const FULFILLMENTS = [
+    ['SHIPPED', 'ارسال پستی یا پیک', 'Shipped', 'ایجنت آدرس و شماره تماس را می‌گیرد', 'The agent asks for an address and phone'],
+    ['DIGITAL', 'دیجیتال (فایل، اشتراک، کد)', 'Digital', 'ایجنت آدرس نمی‌پرسد', 'The agent never asks for an address'],
+    ['SERVICE', 'خدمت', 'Service', 'انجام کار یا مشاوره', 'A job or a consultation'],
+    ['PICKUP', 'تحویل حضوری', 'Pickup', 'مشتری از فروشگاه تحویل می‌گیرد', 'The customer collects it in store'],
+  ] as const
+  const fulfillmentRow = FULFILLMENTS.find((row) => row[0] === fulfillment) ?? FULFILLMENTS[0]
+  const categoryName = categories.find((c) => c.id === form.categoryId)?.name ?? t('noCategory')
+  const tagList = form.tags.split(',').map((s) => s.trim()).filter(Boolean)
+  const filledAttrs = form.attributes.filter((a) => a.key.trim())
+  const unlimited = form.stock === ''
+
+  // Which sections differ from what was loaded — names the save bar's count.
+  const changedLabels = useMemo(() => {
+    const base = JSON.parse(initialSnapshot) as ProductFormData
+    const groups: [string, (keyof ProductFormData)[]][] = [
+      [L('تصاویر', 'Images'), ['images']],
+      [L('اطلاعات اصلی', 'Details'), ['name', 'description']],
+      [L('قیمت', 'Price'), ['price', 'comparePrice']],
+      [L('موجودی', 'Stock'), ['sku', 'stock', 'lowStockThreshold']],
+      [L('نوع تحویل', 'Delivery'), ['fulfillment']],
+      [L('مشخصات', 'Specs'), ['attributes']],
+      [L('تنوع‌ها', 'Variations'), ['variations']],
+      [L('دسته و تگ', 'Category & tags'), ['categoryId', 'tags']],
+      [L('لینک', 'Link'), ['externalUrl']],
+      [L('وضعیت', 'Status'), ['active']],
+    ]
+    return groups
+      .filter(([, keys]) => keys.some((k) => JSON.stringify(form[k]) !== JSON.stringify(base[k])))
+      .map(([label]) => label)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form, initialSnapshot, persianDigits])
+
+  const card = 'spatial-surface rounded-card p-4 sm:p-5'
+  const cardTitle = 'text-[15px] font-medium text-[var(--text-primary)]'
+  const cardHint = 'mt-1 text-[12.5px] leading-6 text-[var(--text-muted)]'
+
   return (
-    <div className="spatial-surface space-y-5 rounded-card p-4 sm:p-6">
-      <Field label={t('name')} hint={t('nameHint')}>
-        <input value={form.name} onChange={(e) => set('name', e.target.value)} placeholder={t('namePlaceholder')} className="input" />
-      </Field>
-      <Field label={t('description')}>
-        <textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={3} className="input resize-none" />
-      </Field>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label={t('price')}>
-          <NumberField value={form.price} onChange={(raw) => set('price', raw)} unit={t('priceUnit')} persian={persianDigits} ariaLabel={t('price')} />
-        </Field>
-        <Field label={t('comparePrice')} optional={t('optional')} hint={t('comparePriceHint')}>
-          <NumberField value={form.comparePrice} onChange={(raw) => set('comparePrice', raw)} unit={t('priceUnit')} persian={persianDigits} ariaLabel={t('comparePrice')} />
-        </Field>
-        <Field label={t('sku')}>
-          <input dir="ltr" value={form.sku} onChange={(e) => set('sku', e.target.value)} className="input font-mono text-sm" />
-        </Field>
-        <Field label={t('stock')} optional={t('optional')} hint={t('stockHint')}>
-          <input type="number" inputMode="numeric" value={form.stock} onChange={(e) => set('stock', e.target.value)} className="input" />
-        </Field>
-        {form.stock !== '' && (
-          <Field label={t('lowStockThreshold')}>
-            <input
-              type="number"
-              min={0}
-              value={form.lowStockThreshold ?? ''}
-              onChange={(e) => set('lowStockThreshold', e.target.value)}
-              placeholder={t('lowStockThresholdPlaceholder')}
-              className="input"
-            />
-          </Field>
-        )}
-      </div>
-
-      <Field label={t('category')}>
-        <MaterialSelect
-          value={form.categoryId}
-          onValueChange={(value) => set('categoryId', value)}
-          ariaLabel={t('category')}
-          options={[
-            { value: '', label: t('noCategory') },
-            ...categories.map((category) => ({ value: category.id, label: category.name })),
-          ]}
-        />
-      </Field>
-
-      <Field label={persianDigits ? 'نوع تحویل' : 'Delivery'}>
-        <div role="radiogroup" aria-label={persianDigits ? 'نوع تحویل' : 'Delivery'} className="flex flex-wrap gap-2">
-          {([
-            ['SHIPPED', 'ارسال پستی یا پیک', 'Shipped'],
-            ['DIGITAL', 'دیجیتال (فایل، اشتراک، کد)', 'Digital'],
-            ['SERVICE', 'خدمت', 'Service'],
-            ['PICKUP', 'تحویل حضوری', 'Pickup'],
-          ] as const).map(([value, fa, en]) => {
-            const on = (form.fulfillment ?? 'SHIPPED') === value
-            return (
-              <button
-                key={value}
-                type="button"
-                role="radio"
-                aria-checked={on}
-                onClick={() => set('fulfillment', value)}
-                className={cn('min-h-10 rounded-xl border px-3 text-[13px] font-medium transition-colors', on ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-white' : 'border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--border-strong)]')}
-              >
-                {persianDigits ? fa : en}
-              </button>
-            )
-          })}
+    <div className="space-y-4">
+      {mode === 'edit' && (
+        <div className="flex items-center gap-3.5">
+          <div className="h-[76px] w-[76px] shrink-0 overflow-hidden rounded-[18px] bg-[var(--bg-muted)] md:h-[60px] md:w-[60px] md:rounded-2xl">
+            {form.images[0] ? <ProductImage src={form.images[0]} alt="" className="h-full w-full object-cover" /> : <span className="grid h-full w-full place-items-center text-[var(--text-muted)]"><ImageOff className="h-5 w-5" aria-hidden="true" /></span>}
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-base font-medium leading-7 text-[var(--text-primary)] md:text-[22px]">{form.name || t('namePlaceholder')}</p>
+            <div className="mt-1.5 flex flex-wrap gap-1.5 text-xs font-medium">
+              <span className={cn('inline-flex h-[26px] items-center gap-1.5 rounded-full px-2.5', form.active ? 'bg-[#e8f4ec] text-[#11622f]' : 'bg-[var(--bg-muted)] text-[var(--text-secondary)]')}>
+                <span className="h-[7px] w-[7px] rounded-full bg-current" aria-hidden="true" />{form.active ? L('فعال', 'Active') : L('غیرفعال', 'Inactive')}
+              </span>
+              <span className="inline-flex h-[26px] items-center rounded-full bg-[var(--bg-muted)] px-2.5 text-[var(--text-secondary)]">{unlimited ? L('نامحدود', 'Unlimited') : `${num(form.stock)} ${L('عدد', 'in stock')}`}</span>
+              {form.price && <span className="inline-flex h-[26px] items-center rounded-full bg-[var(--bg-muted)] px-2.5 text-[var(--text-secondary)]">{num(form.price)} {t('priceUnit')}</span>}
+            </div>
+          </div>
         </div>
-        <p className="mt-1.5 text-[12px] text-[var(--text-muted)]">
-          {persianDigits ? 'فقط برای «ارسال پستی» ایجنت در گفتگو آدرس می‌پرسد.' : 'The agent asks for an address only for shipped products.'}
-        </p>
-      </Field>
+      )}
 
-      <Field label={t('externalUrl')}>
-        <input
-          dir="ltr"
-          value={form.externalUrl}
-          onChange={(e) => set('externalUrl', e.target.value)}
-          placeholder="https://shop.example.com/product/…"
-          className="input font-mono text-sm"
-          type="url"
-        />
-      </Field>
-
-      <Field label={t('tags')}>
-        <input value={form.tags} onChange={(e) => set('tags', e.target.value)} className="input" />
-      </Field>
-
-      <Field label={t('images')}>
+      <div className="flex flex-col gap-3 md:gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-5">
+        <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-5">
+          <section className={cn(card, 'max-lg:order-1')} aria-labelledby="pf-images">
+            <h2 id="pf-images" className={cn(cardTitle, 'mb-1')}>{t('images')}</h2>
+            <p className={cn(cardHint, 'mb-3 mt-0')}>{L('تصویر اول در کارت محصول و پاسخ ایجنت نشان داده می‌شود.', 'The first image is shown on the product card and in agent replies.')}</p>
         {form.images.length > 0 && (
           <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
             {form.images.map((img, i) => (
@@ -404,10 +379,64 @@ export function ProductForm({
             <Plus className="h-4 w-4" />
           </button>
         </div>
-      </Field>
+          </section>
 
-      {/* Attributes */}
-      <Field label={t('attributes')}>
+          <section className={cn(card, 'space-y-4 max-lg:order-2')} aria-labelledby="pf-info">
+            <h2 id="pf-info" className={cardTitle}>{L('اطلاعات اصلی', 'Details')}</h2>
+            <Field label={t('name')} hint={t('nameHint')}>
+              <input value={form.name} onChange={(e) => set('name', e.target.value)} placeholder={t('namePlaceholder')} className="input" />
+            </Field>
+            <Field label={t('description')} hint={L('ایجنت از همین متن برای جواب دادن به سؤال مشتری استفاده می‌کند.', 'The agent answers customer questions from this text.')}>
+              <textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={6} className="input min-h-[170px] resize-y py-3 leading-8" />
+            </Field>
+          </section>
+
+          <section className={cn(card, 'max-lg:order-3')} aria-labelledby="pf-price">
+            <h2 id="pf-price" className={cn(cardTitle, 'mb-4')}>{L('قیمت و موجودی', 'Price & stock')}</h2>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label={t('price')}>
+                <NumberField value={form.price} onChange={(raw) => set('price', raw)} unit={t('priceUnit')} persian={persianDigits} ariaLabel={t('price')} />
+              </Field>
+              <Field label={t('comparePrice')} optional={t('optional')} hint={t('comparePriceHint')}>
+                <NumberField value={form.comparePrice} onChange={(raw) => set('comparePrice', raw)} unit={t('priceUnit')} persian={persianDigits} ariaLabel={t('comparePrice')} />
+              </Field>
+              <Field label={t('sku')}>
+                <input dir="ltr" value={form.sku} onChange={(e) => set('sku', e.target.value)} className="input font-mono text-sm" />
+              </Field>
+              <Field label={t('stock')} hint={unlimited ? undefined : t('stockHint')}>
+                <input type="number" inputMode="numeric" value={form.stock} disabled={unlimited} onChange={(e) => set('stock', e.target.value)} className="input disabled:opacity-50" />
+              </Field>
+              {!unlimited && (
+                <Field label={t('lowStockThreshold')}>
+                  <input
+                    type="number"
+                    min={0}
+                    value={form.lowStockThreshold ?? ''}
+                    onChange={(e) => set('lowStockThreshold', e.target.value)}
+                    placeholder={t('lowStockThresholdPlaceholder')}
+                    className="input"
+                  />
+                </Field>
+              )}
+            </div>
+            <div className="mt-4 flex items-center gap-3 rounded-2xl bg-[var(--bg-muted)] px-3.5 py-3">
+              <div className="min-w-0 flex-1 text-sm leading-7 text-[var(--text-primary)]">
+                {L('موجودی نامحدود', 'Unlimited stock')}
+                <span className="block text-xs text-[var(--text-muted)]">{L('برای خدمت، فایل یا محصولی که تمام نمی‌شود؛ ایجنت هیچ‌وقت «ناموجود» نمی‌گوید.', 'For services, files or anything that never runs out.')}</span>
+              </div>
+              <Switch checked={unlimited} onChange={(on) => set('stock', on ? '' : '0')} aria-label={L('موجودی نامحدود', 'Unlimited stock')} />
+            </div>
+          </section>
+
+          <SheetSection
+            className="max-lg:order-5"
+            icon={ListChecks}
+            title={t('attributes')}
+            hint={L('ایجنت این‌ها را مثل جدول مشخصات جواب می‌دهد: «حجمش چقدره؟»', 'The agent answers from these like a spec table.')}
+            summary={filledAttrs.length ? filledAttrs.map((a) => `${a.key}: ${a.value}`).join(' · ') : L('ندارد', 'None')}
+            closeLabel={L('بستن', 'Close')}
+            doneLabel={L('تأیید', 'Done')}
+          >
         <div className="space-y-2">
           {form.attributes.map((attr, i) => (
             <div key={i} className="flex gap-2">
@@ -437,14 +466,17 @@ export function ProductForm({
             {t('addAttr')}
           </button>
         </div>
-      </Field>
+          </SheetSection>
 
-      {/* Variations — manual variable-product entry.
-          Lets the merchant define per-variant combinations (e.g. each color
-          with its own stock count). Stored under `attributes._variations`,
-          the same shape the WooCommerce ingest writes, so the detail page,
-          RAG formatter, and AI all read variations from one place. */}
-      <Field label={t('variations')}>
+          <SheetSection
+            className="max-lg:order-6"
+            icon={Shirt}
+            size="large"
+            title={t('variations')}
+            summary={form.variations.length ? `${num(form.variations.length)} ${L('تنوع', 'variations')}` : L('ندارد · رنگ یا سایز اضافه کنید', 'None · add colors or sizes')}
+            closeLabel={L('بستن', 'Close')}
+            doneLabel={L('تأیید', 'Done')}
+          >
         <div className="space-y-3">
           <VariantBuilder
             onGenerate={(combos) => setForm((current) => {
@@ -571,7 +603,108 @@ export function ProductForm({
             {t('addVariation')}
           </button>
         </div>
-      </Field>
+          </SheetSection>
+        </div>
+
+        <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-5">
+          <section className={cn(card, 'max-lg:order-9')} aria-labelledby="pf-status">
+            <div className="flex items-center justify-between gap-3">
+              <h2 id="pf-status" className={cardTitle}>{L('وضعیت', 'Status')}</h2>
+              <Switch checked={form.active} onChange={(on) => set('active', on)} aria-label={L('محصول فعال است', 'Product is active')} />
+            </div>
+            <p className={cardHint}>
+              {form.active ? L('فعال — ایجنت‌ها این محصول را در گفتگو به مشتری پیشنهاد می‌دهند.', 'Active — agents offer this product in chats.') : L('غیرفعال — ایجنت‌ها این محصول را پیشنهاد نمی‌دهند.', 'Inactive — agents will not offer this product.')}
+            </p>
+          </section>
+
+          <SheetSection
+            className="max-lg:order-4"
+            icon={Truck}
+            title={L('نوع تحویل', 'Delivery')}
+            hint={L('فقط برای «ارسال پستی» ایجنت در گفتگو آدرس می‌پرسد.', 'The agent asks for an address only for shipped products.')}
+            summary={persianDigits ? fulfillmentRow[1] : fulfillmentRow[2]}
+            closeLabel={L('بستن', 'Close')}
+            doneLabel={L('تأیید', 'Done')}
+          >
+            <div role="radiogroup" aria-label={L('نوع تحویل', 'Delivery')} className="flex flex-col gap-2">
+              {FULFILLMENTS.map(([value, fa, en, faHint, enHint]) => {
+                const on = fulfillment === value
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => set('fulfillment', value)}
+                    className={cn('flex min-h-14 items-center gap-3 rounded-2xl border px-3.5 py-2 text-start transition-colors', on ? 'border-[var(--text-primary)] shadow-[inset_0_0_0_1px_var(--text-primary)]' : 'border-[var(--border-default)] hover:border-[var(--border-strong)]')}
+                  >
+                    <span className={cn('grid h-5 w-5 shrink-0 place-items-center rounded-full border-2', on ? 'border-[var(--text-primary)]' : 'border-[var(--border-strong)]')} aria-hidden="true">
+                      {on && <span className="h-2.5 w-2.5 rounded-full bg-[var(--text-primary)]" />}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium text-[var(--text-primary)]">{persianDigits ? fa : en}</span>
+                      <span className="block text-xs text-[var(--text-muted)]">{persianDigits ? faHint : enHint}</span>
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </SheetSection>
+
+          <SheetSection
+            className="max-lg:order-7"
+            icon={Tag}
+            title={`${t('category')} ${L('و', '&')} ${t('tags')}`}
+            summary={`${categoryName} · ${tagList.length ? tagList.join('، ') : L('بدون تگ', 'No tags')}`}
+            closeLabel={L('بستن', 'Close')}
+            doneLabel={L('تأیید', 'Done')}
+          >
+            <div className="space-y-4">
+              <Field label={t('category')}>
+                <MaterialSelect
+                  value={form.categoryId}
+                  onValueChange={(value) => set('categoryId', value)}
+                  ariaLabel={t('category')}
+                  options={[
+                    { value: '', label: t('noCategory') },
+                    ...categories.map((category) => ({ value: category.id, label: category.name })),
+                  ]}
+                />
+              </Field>
+              <Field label={t('tags')} hint={L('با کاما جدا کنید.', 'Separate with commas.')}>
+                <input value={form.tags} onChange={(e) => set('tags', e.target.value)} className="input" />
+              </Field>
+            </div>
+          </SheetSection>
+
+          <SheetSection
+            className="max-lg:order-8"
+            icon={Link2}
+            title={L('لینک و شناسه', 'Link & ID')}
+            summary={form.externalUrl ? form.externalUrl.replace(/^https?:\/\//, '') : L('بدون لینک', 'No link')}
+            summaryLtr
+            closeLabel={L('بستن', 'Close')}
+            doneLabel={L('تأیید', 'Done')}
+          >
+            <Field label={t('externalUrl')}>
+              <input
+                dir="ltr"
+                value={form.externalUrl}
+                onChange={(e) => set('externalUrl', e.target.value)}
+                placeholder="https://shop.example.com/product/…"
+                className="input font-mono text-sm"
+                type="url"
+              />
+            </Field>
+            {form.id && (
+              <p className="mt-3 flex items-center justify-between gap-3 border-t border-[var(--border-subtle)] pt-3 text-[13px] text-[var(--text-muted)]">
+                {L('شناسه', 'ID')}
+                <span dir="ltr" className="truncate font-mono text-xs text-[var(--text-secondary)]">{form.id}</span>
+              </p>
+            )}
+          </SheetSection>
+        </div>
+      </div>
 
       {formError && (
         <div role="alert" className="flex flex-col gap-3 rounded-xl border border-danger/25 bg-danger/5 p-3 text-sm text-danger sm:flex-row sm:items-center">
@@ -588,14 +721,113 @@ export function ProductForm({
         </div>
       )}
 
-      <SaveButton
-        state={saveState.state}
-        onClick={submit}
-        disabled={!form.name.trim()}
-        label={mode === 'edit' ? t('save') : returnTo ? t('saveAndContinue') : t('create')}
-        savingLabel={mode === 'edit' ? undefined : t('creating')}
-        className="w-full sm:w-auto"
-      />
+      <div
+        data-sticky-actions
+        className="sticky z-30 flex items-center gap-2 rounded-2xl border border-[var(--border-subtle)] bg-white/95 p-2 ps-4 shadow-[var(--elev-2)] backdrop-blur [bottom:calc(5.75rem+env(safe-area-inset-bottom))] md:bottom-3 md:z-10"
+      >
+        <div className="min-w-0 flex-1 text-[12.5px] leading-6">
+          {mode === 'edit' && changedLabels.length > 0 ? (
+            <>
+              <span className="inline-flex items-center gap-1.5 font-medium text-amber-700">
+                <span className="h-[7px] w-[7px] rounded-full bg-amber-600" aria-hidden="true" />
+                {num(changedLabels.length)} {L('تغییر ذخیره نشده', 'unsaved changes')}
+              </span>
+              <span className="block truncate text-[var(--text-muted)]">{changedLabels.join('، ')}</span>
+            </>
+          ) : (
+            <span className="text-[var(--text-muted)]">{mode === 'edit' ? L('همه تغییرات ذخیره شده', 'All changes saved') : ''}</span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => router.push(returnTo ?? '/products')}
+          className="min-h-11 shrink-0 rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-bold text-[var(--text-primary)] hover:border-[var(--border-strong)]"
+        >
+          {L('انصراف', 'Cancel')}
+        </button>
+        <SaveButton
+          state={saveState.state}
+          onClick={submit}
+          disabled={!form.name.trim() || (mode === 'edit' && !formDirty)}
+          label={mode === 'edit' ? t('save') : returnTo ? t('saveAndContinue') : t('create')}
+          savingLabel={mode === 'edit' ? undefined : t('creating')}
+          className="shrink-0"
+        />
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Wide screens: a plain card. Phones: a one-line row (title + what is set)
+ * that opens the same fields in a sheet rising from the bottom.
+ */
+function SheetSection({
+  icon: Icon,
+  title,
+  hint,
+  summary,
+  summaryLtr,
+  size = 'auto',
+  closeLabel,
+  doneLabel,
+  className,
+  children,
+}: {
+  icon: LucideIcon
+  title: string
+  hint?: string
+  summary: string
+  summaryLtr?: boolean
+  size?: 'auto' | 'large'
+  closeLabel: string
+  doneLabel: string
+  className?: string
+  children: React.ReactNode
+}) {
+  const [open, setOpen] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  return (
+    <div className={className}>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-haspopup="dialog"
+        className="spatial-surface flex min-h-16 w-full items-center gap-3 rounded-card px-4 py-3 text-start md:hidden"
+      >
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-[var(--bg-muted)] text-[var(--text-secondary)]">
+          <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-medium text-[var(--text-primary)]">{title}</span>
+          <span dir={summaryLtr ? 'ltr' : undefined} className={cn('mt-0.5 block truncate text-[12.5px] text-[var(--text-muted)]', summaryLtr && 'text-end')}>{summary}</span>
+        </span>
+        <ChevronUp className="h-[18px] w-[18px] shrink-0 text-[var(--text-muted)]" aria-hidden="true" />
+      </button>
+
+      <MobileBottomSheet
+        open={open}
+        title={title}
+        description={hint}
+        closeLabel={closeLabel}
+        size={size}
+        triggerRef={triggerRef}
+        onClose={() => setOpen(false)}
+        footer={
+          <button type="button" onClick={() => setOpen(false)} className="min-h-12 w-full rounded-xl bg-black px-4 text-sm font-bold text-white">
+            {doneLabel}
+          </button>
+        }
+      >
+        {children}
+      </MobileBottomSheet>
+
+      <section className="spatial-surface hidden rounded-card p-5 md:block" aria-label={title}>
+        <h2 className="text-[15px] font-medium text-[var(--text-primary)]">{title}</h2>
+        {hint && <p className="mb-3 mt-1 text-[12.5px] leading-6 text-[var(--text-muted)]">{hint}</p>}
+        <div className={hint ? undefined : 'mt-3'}>{children}</div>
+      </section>
     </div>
   )
 }

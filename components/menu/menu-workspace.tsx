@@ -87,6 +87,7 @@ export function MenuWorkspace({
   initialItems,
   truncated,
   showOrders,
+  ordersCount = 0,
   initialTab = 'items',
 }: {
   businessName: string
@@ -99,6 +100,8 @@ export function MenuWorkspace({
   truncated: boolean
   /** The catalog is only this menu, so its orders are a tab here. */
   showOrders: boolean
+  /** Paid orders waiting to be delivered, for the count on the Orders tab. */
+  ordersCount?: number
   initialTab?: 'items' | 'design'
 }) {
   const [tab, setTab] = useState<'items' | 'design'>(initialTab)
@@ -238,7 +241,7 @@ export function MenuWorkspace({
         }
       />
 
-      <MenuTabs active={tab} showOrders={showOrders} onSelect={setTab} />
+      <MenuTabs active={tab} showOrders={showOrders} onSelect={setTab} ordersCount={ordersCount} />
 
       {tab === 'design' ? (
         <MenuDesign

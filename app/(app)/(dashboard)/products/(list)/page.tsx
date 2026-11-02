@@ -20,6 +20,7 @@ import { dateLocaleTag } from '@/lib/localized-date'
 import type { WooIntegrationState } from '@/components/products/woo-setup-card'
 import { WOO_LINK_CARD, WOO_TINT } from '@/components/integrations/woo-styles'
 import { CommerceTabs } from '@/components/products/commerce-tabs'
+import { loadCommerceAttention } from '@/lib/commerce/attention'
 import { BulkDeleteMenu } from '@/components/ui/bulk-delete-menu'
 import { PlanLimitNotice, type PlanLimitInfo } from '@/components/billing/plan-limit-notice'
 import { checkWorkspaceResourceCreateAllowed } from '@/lib/billing/entitlements'
@@ -91,6 +92,8 @@ export default async function ProductsPage(
   //    The recent-events panel was noisy and duplicated what the WooSetupCard
   //    already shows. Removing it keeps the products page focused on the
   //    catalog itself.
+  // Started first so it runs beside the page's own reads.
+  const attention = loadCommerceAttention(user.workspaceId)
   const [products, categories, totalProducts, topProductsByQuery, productTrend7, wooIntegrationRaw, productCapacity, planDefs, lowStockCount, trackedStockCount, allCount, inStockCount, outOfStockCount, hiddenCount] = await Promise.all([
     prisma.product.findMany({
       where: productWhere,
@@ -344,6 +347,8 @@ export default async function ProductsPage(
         productsLabel={t('title')}
         ordersLabel={t('orders.title')}
         requestsLabel={t('orders.requestsTab')}
+        attention={await attention}
+        locale={locale}
       />
 
       {!productCapacity.allowed && (
