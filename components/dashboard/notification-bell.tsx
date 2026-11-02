@@ -21,6 +21,8 @@ import {
 import { cn } from '@/lib/utils'
 import { formatDateTime, smartTime } from '@/lib/format'
 import { claimNotificationArrivals } from '@/lib/notifications/browser-delivery'
+import { SwipeRow } from '@/components/ui/swipe-row'
+import { OPEN_INSTALL_GUIDE_EVENT, PUSH_ARRIVED_EVENT, readPushState, showLocalNotification, subscribePush, type PushState } from '@/lib/push/client'
 
 interface NotificationItem {
 	id: string
@@ -93,27 +95,18 @@ function groupByDay(items: readonly NotificationItem[], now: Date) {
 	})
 }
 
-function pushBrowserNotification(item: NotificationToast, scope: string, fa: boolean, onClick: () => void) {
-	if (!('Notification' in window) || window.Notification.permission !== 'granted') return
-	try {
-		const notification = new window.Notification(item.title, {
-			body: item.body ?? undefined,
-			tag: `vigent-${scope}`,
-			icon: '/android-chrome-192x192.png',
-			dir: fa ? 'rtl' : 'ltr',
-			lang: fa ? 'fa' : 'en',
-			silent: true,
-			requireInteraction: false,
-		})
-		notification.onclick = () => {
-			window.focus()
-			onClick()
-			notification.close()
-		}
-		window.setTimeout(() => notification.close(), TOAST_MS)
-	} catch {
-		// Some browsers expose Notification but do not support its constructor.
-	}
+function pushBrowserNotification(item: NotificationToast, scope: string, fa: boolean) {
+	// Through the service worker: `new Notification()` throws on Android, and a
+	// tap is routed by the worker's notificationclick to the alert's link.
+	void showLocalNotification(item.title, {
+		body: item.body ?? undefined,
+		tag: `vigent-${scope}`,
+		icon: '/android-chrome-192x192.png',
+		dir: fa ? 'rtl' : 'ltr',
+		lang: fa ? 'fa' : 'en',
+		silent: true,
+		link: item.link ?? '/overview',
+	})
 }
 
 function useIsMobile() {
@@ -143,9 +136,9 @@ export function NotificationBell() {
 	const [ringKey, setRingKey] = useState(0)
 	const [mounted, setMounted] = useState(false)
 	const [toast, setToast] = useState<NotificationToast | null>(null)
-	const [browserPermission, setBrowserPermission] = useState<
-		NotificationPermission | 'unsupported'
-	>('unsupported')
+	const [pushState, setPushState] = useState<PushState>('unsupported')
+	const pushStateRef = useRef<PushState>('unsupported')
+	const [enablingPush, setEnablingPush] = useState(false)
 	const triggerRef = useRef<HTMLButtonElement>(null)
 	const panelRef = useRef<HTMLElement>(null)
 	const loadingRef = useRef(false)
@@ -160,9 +153,10 @@ export function NotificationBell() {
 	useEffect(() => {
 		setMounted(true)
 		mountedRef.current = true
-		if ('Notification' in window) {
-			setBrowserPermission(window.Notification.permission)
-		}
+		void readPushState().then((state) => {
+			pushStateRef.current = state
+			if (mountedRef.current) setPushState(state)
+		})
 		return () => { mountedRef.current = false }
 	}, [])
 
@@ -211,11 +205,9 @@ export function NotificationBell() {
 			if (document.visibilityState === 'visible') {
 				setReadError(false)
 				setToast(alert)
-			} else {
-				pushBrowserNotification(alert, data.scope, fa, () => {
-					openRef.current = true
-					setOpen(true)
-				})
+			} else if (pushStateRef.current !== 'subscribed') {
+				// A subscribed device already got this alert from the push service.
+				pushBrowserNotification(alert, data.scope, fa)
 			}
 		} catch {
 			// A transient notification failure must not interrupt the dashboard.
@@ -236,11 +228,13 @@ export function NotificationBell() {
 		document.addEventListener('visibilitychange', refreshWhenVisible)
 		window.addEventListener('focus', refreshOnFocus)
 		window.addEventListener('online', refreshOnFocus)
+		window.addEventListener(PUSH_ARRIVED_EVENT, refreshOnFocus)
 		return () => {
 			window.clearInterval(id)
 			document.removeEventListener('visibilitychange', refreshWhenVisible)
 			window.removeEventListener('focus', refreshOnFocus)
 			window.removeEventListener('online', refreshOnFocus)
+			window.removeEventListener(PUSH_ARRIVED_EVENT, refreshOnFocus)
 		}
 	}, [load])
 
@@ -315,9 +309,19 @@ export function NotificationBell() {
 	}, [open, isMobile])
 
 	async function enableBrowserNotifications() {
-		if (!('Notification' in window)) return
-		const permission = await window.Notification.requestPermission()
-		setBrowserPermission(permission)
+		if (pushState === 'needs-install') {
+			window.dispatchEvent(new Event(OPEN_INSTALL_GUIDE_EVENT))
+			return
+		}
+		setEnablingPush(true)
+		try {
+			const state = await subscribePush()
+			pushStateRef.current = state
+			setPushState(state)
+			if (state === 'subscribed') void fetch('/api/push/test', { method: 'POST' }).catch(() => undefined)
+		} finally {
+			setEnablingPush(false)
+		}
 	}
 
 	async function markRead(target?: string | string[]) {
@@ -614,20 +618,26 @@ export function NotificationBell() {
 									</header>
 
 									<div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-3 [scrollbar-width:thin] sm:px-2 sm:pb-2 sm:pt-1">
-										{browserPermission === 'default' && (
+										{(pushState === 'default' || pushState === 'needs-install') && (
 											<div className="mb-3 mt-1 flex items-center gap-3 rounded-card border border-black/[0.06] bg-white p-3 shadow-[var(--elev-1)] sm:mx-1 sm:mt-2 sm:bg-[var(--bg-surface)] sm:shadow-none">
 												<span className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] bg-black text-white">
 													<BellRing className="h-4 w-4" aria-hidden="true" />
 												</span>
-												<p className="min-w-0 flex-1 text-[13px] leading-5 text-[var(--text-secondary)]">{t('enableBrowserHint')}</p>
+												<p className="min-w-0 flex-1 text-[13px] leading-5 text-[var(--text-secondary)]">{t(pushState === 'needs-install' ? 'enableIosHint' : 'enableBrowserHint')}</p>
 												<button
 													type="button"
 													onClick={enableBrowserNotifications}
+													disabled={enablingPush}
 													className="spatial-press inline-flex min-h-9 shrink-0 items-center rounded-full bg-black px-3.5 text-[12px] font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
 												>
-													{t('enableBrowserShort')}
+													{t(pushState === 'needs-install' ? 'enableIosShort' : 'enableBrowserShort')}
 												</button>
 											</div>
+										)}
+										{pushState === 'denied' && (
+											<p className="mb-3 mt-1 rounded-card border border-black/[0.06] bg-[var(--bg-surface)] p-3 text-[12px] leading-5 text-[var(--text-muted)] sm:mx-1 sm:mt-2">
+												{t('pushDeniedHint')}
+											</p>
 										)}
 
 										{sections.length === 0 ? (
@@ -669,10 +679,10 @@ export function NotificationBell() {
 										)}
 									</div>
 
-									{browserPermission === 'granted' && (
-										<footer className="hidden shrink-0 items-center justify-center gap-1.5 border-t border-black/[0.06] px-4 py-2.5 text-[12px] font-medium text-[var(--text-muted)] sm:flex">
+									{(pushState === 'granted' || pushState === 'subscribed') && (
+										<footer className="flex shrink-0 items-center justify-center gap-1.5 border-t border-black/[0.06] px-4 py-2.5 text-[12px] font-medium text-[var(--text-muted)]">
 											<span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.12)]" />
-											{t('browserEnabled')}
+											{t(pushState === 'subscribed' ? 'pushEnabled' : 'browserEnabled')}
 										</footer>
 									)}
 								</motion.section>
@@ -745,18 +755,27 @@ function NotificationRow({
 				!first && 'before:absolute before:end-3 before:start-[4rem] before:top-0 before:h-px before:bg-black/[0.06] before:content-[""]',
 			)}
 		>
-			{item.link ? (
-				<Link href={item.link} onClick={onOpen} className={rowClass}>
-					{content}
-				</Link>
-			) : (
-				<button type="button" onClick={onOpen} className={rowClass}>
-					{content}
-				</button>
-			)}
+			{/* On phones (no hover button) a swipe marks one alert read. */}
+			<SwipeRow
+				disabled={item.read || reading}
+				trailing={[{ key: 'read', label: markReadLabel, icon: Check, tone: 'brand', onAction: onMarkRead }]}
+				className="bg-white sm:bg-transparent"
+			>
+				{item.link ? (
+					<Link href={item.link} onClick={onOpen} className={rowClass}>
+						{content}
+					</Link>
+				) : (
+					<button type="button" onClick={onOpen} className={rowClass}>
+						{content}
+					</button>
+				)}
+				{!item.read && (
+					<span aria-hidden="true" className="pointer-events-none absolute end-[1.15rem] top-[1.35rem] h-2 w-2 rounded-full bg-[var(--notif)] ring-1 ring-[var(--notif-strong)] transition-opacity [@media(hover:hover)]:group-focus-within:opacity-0 [@media(hover:hover)]:group-hover:opacity-0" />
+				)}
+			</SwipeRow>
 			{!item.read && (
 				<>
-					<span aria-hidden="true" className="pointer-events-none absolute end-[1.15rem] top-[1.35rem] h-2 w-2 rounded-full bg-[var(--notif)] ring-1 ring-[var(--notif-strong)] transition-opacity [@media(hover:hover)]:group-focus-within:opacity-0 [@media(hover:hover)]:group-hover:opacity-0" />
 					<button
 						type="button"
 						disabled={reading}

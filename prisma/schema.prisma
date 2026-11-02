@@ -81,6 +81,7 @@ model Workspace {
   products                 Product[]
   productCategories        ProductCategory[]
   notifications            Notification[]
+  pushSubscriptions        PushSubscription[]
   blogPosts                BlogPost[]
   blogCategories           BlogCategory[]
   operatorChannels         OperatorChannel[]
@@ -148,6 +149,7 @@ model User {
   lastLoginAt  DateTime?
 
   loginEvents                LoginEvent[]
+  pushSubscriptions          PushSubscription[]
   workspace                  Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   knowledgeApprovalsVerified KnowledgeApproval[]      @relation("KnowledgeApprovalVerifier")
   vigentoThreads             WorkspaceVigentoThread[]
@@ -519,7 +521,7 @@ model ProductCategory {
 }
 
 model Product {
-  id                  String    @id @default(cuid())
+  id                  String             @id @default(cuid())
   workspaceId         String
   sourceIntegrationId String?
   externalId          String?
@@ -527,7 +529,7 @@ model Product {
   sourceHash          String?
   categoryId          String?
   name                String
-  description         String?   @db.Text
+  description         String?            @db.Text
   price               Float?
   comparePrice        Float? // original price (for showing discount)
   sku                 String?
@@ -542,16 +544,16 @@ model Product {
   tags                String[]
   externalUrl         String? // canonical product URL on the source store (WooCommerce permalink, etc.) — used for the "View product" button in Instagram product cards
   // How the buyer receives it: only SHIPPED goods make the chat ask for an address.
-  fulfillment       ProductFulfillment @default(SHIPPED)
-  active              Boolean   @default(true)
+  fulfillment         ProductFulfillment @default(SHIPPED)
+  active              Boolean            @default(true)
   embeddingUpdatedAt  DateTime? // track when last embedded into vector store
   // ── Soft delete (undo support). NULL = live row; a timestamp = trashed.
   // Trashed rows are hidden by the global Prisma extension in lib/prisma.ts
   // and permanently purged by the worker after SOFT_DELETE_RETENTION_DAYS.
   deletedAt           DateTime?
-  queryCount          Int       @default(0) // how many times AI retrieved this product
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  queryCount          Int                @default(0) // how many times AI retrieved this product
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
 
   workspace         Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   sourceIntegration StoreIntegration? @relation(fields: [sourceIntegrationId], references: [id], onDelete: SetNull)
@@ -1457,6 +1459,27 @@ model Notification {
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId, read, createdAt])
+}
+
+// Web Push (lib/notifications/web-push): one row per browser/device that
+// allowed notifications on the panel. Rows whose endpoint the push service
+// reports gone (404/410) are deleted on the next send.
+model PushSubscription {
+  id          String    @id @default(cuid())
+  workspaceId String
+  userId      String
+  endpoint    String    @unique @db.Text
+  p256dh      String
+  auth        String
+  userAgent   String?
+  createdAt   DateTime  @default(now())
+  lastSentAt  DateTime?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([userId])
 }
 
 enum NotificationType {

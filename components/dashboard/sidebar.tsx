@@ -176,7 +176,7 @@ export function Sidebar({ businessType, capabilities = NO_CAPABILITIES, handedOf
                                         <p className="truncate text-[13px] font-medium leading-5 text-[var(--text-primary)]">{displayName}</p>
                                         <p className="truncate text-[12px] leading-5 text-[var(--text-muted)]">{businessLabel}</p>
                                 </div>
-                                <form action={logout}>
+                                <form action={logout} data-vigent-logout="">
                                         <button
                                                 type="submit"
                                                 aria-label={t('logout')}

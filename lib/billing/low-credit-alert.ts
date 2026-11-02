@@ -1,5 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { captureError } from '@/lib/errors/capture'
+import { dispatchNotification } from '@/lib/queue/jobs'
+import { webPushConfigured } from '@/lib/notifications/web-push'
 import { OperatorBotUnavailableError, sendOperatorTelegramNotification } from '@/lib/notifications/operator-telegram'
 import { findModel, type ModelAlias } from '@/lib/ai/models'
 import {
@@ -115,6 +117,10 @@ export async function processLowCreditAlert(params: {
           ...(error instanceof OperatorBotUnavailableError ? { level: 'warn' as const } : {}),
         }),
       )
+      if (webPushConfigured()) {
+        await dispatchNotification({ kind: 'push', workspaceId: params.workspaceId, type: 'SYSTEM', title: alert.title, body: alert.body, link: '/billing' })
+          .catch((error) => captureError('billing:low-credit-push', error, { workspaceId: params.workspaceId }))
+      }
     }
   } catch (error) {
     captureError('billing:low-credit-alert', error, {

@@ -1,6 +1,7 @@
 import type { NotificationType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { dispatchNotification } from '@/lib/queue/jobs'
+import { webPushConfigured } from '@/lib/notifications/web-push'
 import { captureError, captureWarning } from '@/lib/errors/capture'
 import { OperatorBotUnavailableError, sendOperatorTelegramNotification } from '@/lib/notifications/operator-telegram'
 import type { OperatorPrefKey } from '@/lib/channels/operator-bot-screens'
@@ -55,6 +56,22 @@ export async function notifyWorkspace(params: NotifyParams): Promise<void> {
     })
   } catch (e) {
     captureError('notify:create', e, { workspaceId: params.workspaceId })
+  }
+
+  // The installed panel's lock-screen alert (sent by the worker).
+  if (webPushConfigured()) {
+    try {
+      await dispatchNotification({
+        kind: 'push',
+        workspaceId: params.workspaceId,
+        type: params.type,
+        title: params.title,
+        body: params.body ?? null,
+        link: params.link ?? null,
+      })
+    } catch (e) {
+      captureError('notify:push', e, { workspaceId: params.workspaceId })
+    }
   }
 
   const text = params.body ? `${params.title}\n${params.body}` : params.title

@@ -279,7 +279,7 @@ export async function Header({
           </div>
           {userSwitcher ? <AdminPanelButton fa={fa} /> : <SupportButton />}
           <NotificationBell />
-          <form action={logout}>
+          <form action={logout} data-vigent-logout="">
             <button
               type="submit"
               aria-label={t('logout')}

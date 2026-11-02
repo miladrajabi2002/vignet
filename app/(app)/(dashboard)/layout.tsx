@@ -22,6 +22,7 @@ import { ModuleAccessBanner } from '@/components/dashboard/module-access-banner'
 import { loadGatewayNavState } from '@/lib/payments/card/dashboard'
 import type { NavStatusMap } from '@/lib/dashboard/nav-status'
 import { loadCommerceAttention } from '@/lib/commerce/attention'
+import { PwaRuntime } from '@/components/pwa/pwa-runtime'
 
 export const metadata: Metadata = {
   title: { template: '%s · پنل ویجنت', default: 'پنل ویجنت' },
@@ -204,6 +205,8 @@ export default async function DashboardLayout({
             user's exact position on back navigation. */}
         <GlobalUndoToast />
         <ScrollRestoration />
+        {/* Install offer, push opt-in, offline banner (the installed panel). */}
+        <PwaRuntime userId={user.id} fa={fa} />
       </div>
     </div>
     </ScopedIntlProvider>

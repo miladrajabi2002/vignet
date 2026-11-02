@@ -416,7 +416,7 @@ export function MobileNav({
 									<ChevronLeft className="h-4 w-4 shrink-0 text-white/50 ltr:rotate-180" aria-hidden="true" />
 								</Link>
 
-								<form action={logout} className="mt-1">
+								<form action={logout} className="mt-1" data-vigent-logout="">
 									<button
 										type="submit"
 										className="flex min-h-11 w-full items-center justify-center gap-2 rounded-control text-[13px] font-medium text-[var(--text-muted)] transition-colors hover:text-danger active:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
