@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { getCurrentUser } from '@/lib/session'
-import { prisma } from '@/lib/prisma'
+import { prisma, prismaRaw } from '@/lib/prisma'
 import { agentUpdateSchema } from '@/lib/validations/agent'
 import { syncOnboarding } from '@/lib/onboarding'
 import { getPlatformAiConfig } from '@/lib/ai/platform-config'
@@ -105,17 +105,14 @@ export async function DELETE(_req: Request, props: Params) {
   const existing = await getOwnedAgent(user.workspaceId, params.agentId)
   if (!existing) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
 
-  // Clean up dependent rows that don't cascade in the schema.
-  await prisma.$transaction([
-    prisma.message.deleteMany({
-      where: { conversation: { agentId: params.agentId } },
-    }),
-    prisma.conversation.deleteMany({ where: { agentId: params.agentId } }),
-    prisma.knowledgeChunk.deleteMany({ where: { agentId: params.agentId } }),
-    prisma.agentChannel.deleteMany({ where: { agentId: params.agentId } }),
-    prisma.knowledgeBase.deleteMany({ where: { agentId: params.agentId } }),
-    prisma.agent.delete({ where: { id: params.agentId } }),
-  ])
+  // Every table that points at an agent (conversations → messages, channels,
+  // knowledge, catalog, drafts, …) cascades at the database level, so one
+  // physical delete removes it all. It goes through the raw client on purpose:
+  // the soft-delete extension turns conversation deletes into a separate
+  // UPDATE that never joins a batch `$transaction([...])`, which left the old
+  // batched version of this request hanging until the proxy gave up.
+  await prismaRaw.agent.delete({ where: { id: existing.id } })
+  await invalidateWidgetConfig(existing.id).catch(() => {})
 
   await syncOnboarding(user.workspaceId)
   return NextResponse.json({ ok: true })
