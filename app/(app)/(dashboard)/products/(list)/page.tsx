@@ -24,7 +24,8 @@ import { loadCommerceAttention } from '@/lib/commerce/attention'
 import { BulkDeleteMenu } from '@/components/ui/bulk-delete-menu'
 import { PlanLimitNotice, type PlanLimitInfo } from '@/components/billing/plan-limit-notice'
 import { checkWorkspaceResourceCreateAllowed } from '@/lib/billing/entitlements'
-import { getEffectivePlanDefs, planResourceLimit, recommendedUpgradePlan } from '@/lib/billing/plans'
+import { getEffectivePlanDefs } from '@/lib/billing/plans'
+import { productPlanLimit, storeCatalogTotal } from '@/lib/integrations/store-catalog-size'
 import { searchVariants } from '@/lib/search/persian'
 import { LiveEmptyState } from '@/components/ui/live-empty-state'
 import { PRODUCTS_VIEW_COOKIE } from '@/lib/products/view-preference'
@@ -94,7 +95,7 @@ export default async function ProductsPage(
   //    catalog itself.
   // Started first so it runs beside the page's own reads.
   const attention = loadCommerceAttention(user.workspaceId)
-  const [products, categories, totalProducts, topProductsByQuery, productTrend7, wooIntegrationRaw, productCapacity, planDefs, lowStockCount, trackedStockCount, allCount, inStockCount, outOfStockCount, hiddenCount] = await Promise.all([
+  const [products, categories, totalProducts, topProductsByQuery, productTrend7, wooIntegrationRaw, productCapacity, planDefs, lowStockCount, trackedStockCount, allCount, inStockCount, outOfStockCount, hiddenCount, catalogTotal] = await Promise.all([
     prisma.product.findMany({
       where: productWhere,
       orderBy,
@@ -144,22 +145,10 @@ export default async function ProductsPage(
     prisma.product.count({ where: { workspaceId: user.workspaceId, ...stockFilterWhere('in_stock', lowStockThreshold) } }),
     prisma.product.count({ where: { workspaceId: user.workspaceId, ...stockFilterWhere('out_of_stock', lowStockThreshold) } }),
     prisma.product.count({ where: { workspaceId: user.workspaceId, active: false } }),
+    storeCatalogTotal(user.workspaceId),
   ])
 
-  const recommendedPlan = recommendedUpgradePlan(
-    planDefs,
-    productCapacity.plan,
-    'products',
-    productCapacity.used,
-  )
-  const productLimit: PlanLimitInfo = {
-    resource: 'products',
-    plan: productCapacity.plan,
-    used: productCapacity.used,
-    limit: productCapacity.limit,
-    recommendedPlan,
-    recommendedLimit: recommendedPlan ? planResourceLimit(planDefs[recommendedPlan], 'products') : null,
-  }
+  const productLimit: PlanLimitInfo = productPlanLimit(planDefs, productCapacity, catalogTotal)
 
   // Map the raw Prisma row to the client component's expected shape.
   let wooIntegration: WooIntegrationState | null = null

@@ -1830,6 +1830,10 @@ model StoreIntegration {
   // Set when a plugin push was refused by the plan's product limit; the store
   // is asked to resend its catalog once there is room (lib/integrations/woo-resync.ts).
   productResyncNeededAt DateTime?
+  // Products in the store's own catalog, as the plugin last reported it
+  // (X-Vigent-Catalog-Size). Lets the capacity warning name the plan that
+  // fits the whole store, not just the next step up. Null = not reported.
+  catalogProductCount   Int?
   connectedAt           DateTime?
   lastWebhookAt         DateTime?
   pluginVersion         String?

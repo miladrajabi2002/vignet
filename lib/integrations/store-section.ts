@@ -9,6 +9,7 @@ import type { PlanLimitInfo } from '@/components/billing/plan-limit-notice'
 import { loadStoreAccessChoice } from '@/lib/agents/store-access-choice'
 import { checkWorkspaceResourceCreateAllowed } from '@/lib/billing/entitlements'
 import { getEffectivePlanDefs, planResourceLimit, recommendedUpgradePlan, type LimitedPlanResource } from '@/lib/billing/plans'
+import { productPlanLimit, storeCatalogTotal } from '@/lib/integrations/store-catalog-size'
 
 export async function loadStoreSection(workspaceId: string) {
   const storeIntegrationsRaw = await prisma.storeIntegration.findMany({
@@ -26,12 +27,13 @@ export async function loadStoreSection(workspaceId: string) {
     },
   })
 
-  const [storeAccessChoice, productCapacity, orderCapacity, customerCapacity, planDefs] = await Promise.all([
+  const [storeAccessChoice, productCapacity, orderCapacity, customerCapacity, planDefs, catalogTotal] = await Promise.all([
     loadStoreAccessChoice(workspaceId),
     checkWorkspaceResourceCreateAllowed(workspaceId, 'products'),
     checkWorkspaceResourceCreateAllowed(workspaceId, 'orders'),
     checkWorkspaceResourceCreateAllowed(workspaceId, 'customers'),
     getEffectivePlanDefs(),
+    storeCatalogTotal(workspaceId),
   ])
   const capacities = [
     ['products', productCapacity],
@@ -40,6 +42,7 @@ export async function loadStoreSection(workspaceId: string) {
   ] as const
   const planLimits: PlanLimitInfo[] = capacities.flatMap(([resource, capacity]) => {
     if (capacity.allowed) return []
+    if (resource === 'products') return [productPlanLimit(planDefs, capacity, catalogTotal)]
     const recommendedPlan = recommendedUpgradePlan(planDefs, capacity.plan, resource as LimitedPlanResource, capacity.used)
     return [{
       resource,

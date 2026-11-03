@@ -14,6 +14,7 @@ import {
   requestWooProductResync,
   wooResyncHint,
 } from '@/lib/integrations/woo-resync'
+import { catalogSizeFromHeaders, recordCatalogSize } from '@/lib/integrations/store-catalog-size'
 import { wooPluginUpdateHint } from '@/lib/integrations/woo-plugin-release'
 import { prisma } from '@/lib/prisma'
 import {
@@ -190,6 +191,10 @@ export async function POST(req: Request) {
   if (!verifyWooWebhookSignature(rawBody, signature, integration.webhookSecret)) {
     console.warn(`[woo-webhook] invalid signature for integration ${integration.id}`)
     return NextResponse.json({ error: 'INVALID_SIGNATURE' }, { status: 401 })
+  }
+  const catalogSize = catalogSizeFromHeaders(req)
+  if (catalogSize !== undefined) {
+    await recordCatalogSize(integration.id, catalogSize).catch(() => undefined)
   }
 
   let json: unknown

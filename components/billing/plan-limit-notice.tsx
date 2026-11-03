@@ -11,6 +11,8 @@ export interface PlanLimitInfo {
   limit: number
   recommendedPlan: PaidPlan | null
   recommendedLimit?: number | null
+  /** Products in the connected store, when it reported more than are stored. */
+  storeTotal?: number | null
 }
 
 const PLAN_LABELS = {
@@ -46,18 +48,31 @@ export function PlanLimitNotice({
   const title = locale === 'fa'
     ? `ظرفیت ${resource} در پلن ${currentPlan} پر شده`
     : `Your ${currentPlan} plan ${resource} allowance is full`
-  const explanation = locale === 'fa'
+  const missing = limit.storeTotal != null ? Math.max(0, limit.storeTotal - limit.used) : 0
+  const explanation = missing > 0
+    ? locale === 'fa'
+      ? `فروشگاه شما ${nf.format(limit.storeTotal!)} محصول دارد، ولی پلن ${currentPlan} تا ${nf.format(limit.limit)} محصول جا دارد؛ ${nf.format(missing)} محصول به ویجنت نیامده و دستیار آن‌ها را نمی‌شناسد.`
+      : `Your store has ${nf.format(limit.storeTotal!)} products, but ${currentPlan} holds ${nf.format(limit.limit)}; ${nf.format(missing)} products were not brought in and the assistant does not know them.`
+    : locale === 'fa'
     ? syncContext
       ? `افزونه وصل است؛ فقط ${resource} جدید تا بیشتر شدن ظرفیت نمی‌آید.`
       : `الان ${nf.format(limit.used)} از ${nf.format(limit.limit)} ${resource} پر است.`
     : syncContext
       ? `The plugin is connected; only new ${resource} imports are paused until capacity increases.`
       : `You are using ${nf.format(limit.used)} of ${nf.format(limit.limit)} ${resource} slots.`
-  const recommendation = nextPlan && limit.recommendedLimit
-    ? locale === 'fa'
-      ? `با پلن ${nextPlan} ظرفیت شما به ${nf.format(limit.recommendedLimit)} می‌رسد.`
-      : `${nextPlan} increases your allowance to ${nf.format(limit.recommendedLimit)}.`
-    : null
+  const recommendation = missing > 0
+    ? nextPlan
+      ? locale === 'fa'
+        ? `برای اضافه شدن بقیهٔ محصولات، پلن ${nextPlan} (تا ${nf.format(limit.recommendedLimit ?? 0)} محصول) را بگیرید؛ بعد از ارتقا خودکار همگام می‌شوند.`
+        : `Take ${nextPlan} (up to ${nf.format(limit.recommendedLimit ?? 0)} products) to bring in the rest; they sync on their own after the upgrade.`
+      : locale === 'fa'
+        ? 'هیچ پلنی همهٔ محصولات این فروشگاه را جا نمی‌دهد؛ برای ظرفیت بیشتر با پشتیبانی هماهنگ کنید.'
+        : 'No plan holds this whole catalog; contact support for more capacity.'
+    : nextPlan && limit.recommendedLimit
+      ? locale === 'fa'
+        ? `با پلن ${nextPlan} ظرفیت شما به ${nf.format(limit.recommendedLimit)} می‌رسد.`
+        : `${nextPlan} increases your allowance to ${nf.format(limit.recommendedLimit)}.`
+      : null
 
   return (
     <section
@@ -135,6 +150,7 @@ export function PlanLimitsNotice({
     ? `${names.slice(0, -1).join('، ')} و ${names[names.length - 1]}`
     : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
   const upgradeHref = recommended ? `/billing?plan=${recommended}#plan-${recommended}` : '/billing#vigent-plans'
+  const storeGap = limits.find((limit) => limit.storeTotal != null && limit.storeTotal > limit.used) ?? null
 
   return (
     <section
@@ -158,6 +174,13 @@ export function PlanLimitsNotice({
               ? fa ? 'سایت وصل است و به‌روزرسانی‌ها ادامه دارد؛ فقط مورد تازه‌ای تا بیشتر شدن ظرفیت اضافه نمی‌شود.' : 'The site stays connected and updates continue; only new items wait for more capacity.'
               : fa ? 'موارد جدید تا افزایش ظرفیت اضافه نمی‌شوند.' : 'New items wait until capacity increases.'}
           </p>
+          {storeGap && (
+            <p className="mt-1 text-xs font-semibold leading-6 text-amber-950">
+              {fa
+                ? `فروشگاه شما ${nf.format(storeGap.storeTotal!)} محصول دارد و ${nf.format(storeGap.storeTotal! - storeGap.used)} محصول هنوز به ویجنت نیامده.`
+                : `Your store has ${nf.format(storeGap.storeTotal!)} products; ${nf.format(storeGap.storeTotal! - storeGap.used)} have not been brought in yet.`}
+            </p>
+          )}
           <div className="mt-2 flex flex-wrap gap-1.5">
             {limits.map((limit) => (
               <span key={limit.resource} className="rounded-full border border-amber-300 bg-white/70 px-2.5 py-1 text-[12px] font-bold tabular-nums">

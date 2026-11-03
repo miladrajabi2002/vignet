@@ -353,6 +353,21 @@ class Vigent_Woo_Core {
          * @param int $code HTTP status code from wp_remote_post.
          * @return bool True for 502/503/504/429; false otherwise.
          */
+        /**
+         * Published products in this store (same count as the sync screen).
+         * Sent with every push so Vigent can tell how much of the catalog its
+         * plan limit kept out and which plan would hold all of it.
+         *
+         * @return string
+         */
+        private function catalog_size() {
+                if ( ! $this->has_wc() ) {
+                        return '';
+                }
+                $counts = wp_count_posts( 'product' );
+                return isset( $counts->publish ) ? (string) (int) $counts->publish : '';
+        }
+
         private function is_retryable_http_code( $code ) {
                 return in_array( (int) $code, self::RETRYABLE_HTTP_CODES, true );
         }
@@ -431,6 +446,7 @@ class Vigent_Woo_Core {
                                                 'X-WC-Webhook-Topic'     => $topic,
                                                 'X-WC-Webhook-Signature' => $signature,
                                                 'X-Vigent-Plugin-Version' => defined( 'VIGENT_WOO_VERSION' ) ? VIGENT_WOO_VERSION : '',
+                                                'X-Vigent-Catalog-Size'   => $this->catalog_size(),
                                         ),
                                         'body'        => $body,
                                 )
@@ -830,6 +846,7 @@ class Vigent_Woo_Core {
                                                 'X-WC-Webhook-Topic'     => $item['topic'],
                                                 'X-WC-Webhook-Signature' => $signature,
                                                 'X-Vigent-Plugin-Version' => defined( 'VIGENT_WOO_VERSION' ) ? VIGENT_WOO_VERSION : '',
+                                                'X-Vigent-Catalog-Size'   => $this->catalog_size(),
                                         ),
                                         'body'    => $item['body'],
                                 )
