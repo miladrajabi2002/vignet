@@ -147,6 +147,37 @@
                 leadCaptureMessage: null,
         }
 
+        // ---- Settings: last known copy first, live copy right behind ----
+        // The launcher used to stay hidden until /api/widget/<id> answered
+        // (up to 2.5s on a slow phone link) on every page view. The last
+        // settings this browser saw are kept, so a returning visitor gets the
+        // launcher as soon as the page has a body; the live answer still
+        // arrives and re-themes it if the owner changed anything.
+        var CFG_STORAGE_KEY = 'vgt:cfg:' + agentId
+        function mergeConfig(cfg) {
+                Object.keys(config).forEach(function (k) {
+                        if (cfg[k] != null) config[k] = cfg[k]
+                })
+        }
+        var cachedConfig = null
+        try {
+                cachedConfig = JSON.parse(localStorage.getItem(CFG_STORAGE_KEY) || 'null')
+        } catch (e) {
+                cachedConfig = null
+        }
+        if (cachedConfig && typeof cachedConfig === 'object') mergeConfig(cachedConfig)
+        else cachedConfig = null
+        // Sent now, before the ~3,000 lines below run, so the request and the
+        // widget's own setup overlap. Resolves to the settings, false for a
+        // deleted agent, or null when the network failed.
+        var configRequest = fetch(base + '/api/widget/' + agentId)
+                .then(function (r) {
+                        return r.ok ? r.json() : r.status === 404 ? false : null
+                })
+                .catch(function () {
+                        return null
+                })
+
         function isRtl() {
                 return config.language === 'fa'
         }
@@ -310,8 +341,10 @@
 
         // ---- Fonts ----
         var FONT_LINKS = {
-                vazirmatn:
-                        'https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css',
+                // Self-hosted (one variable file for every weight): the default
+                // font no longer waits on a third-party CDN that is slow or
+                // filtered for many visitors in Iran.
+                vazirmatn: base + '/widget/fonts/vazirmatn.css',
                 samim: 'https://cdn.jsdelivr.net/gh/rastikerdar/samim-font@v4.0.5/dist/font-face.css',
                 yekan:
                         'https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/font-face.css',
@@ -3019,23 +3052,29 @@
         if (document.body) mount()
         else document.addEventListener('DOMContentLoaded', mount)
 
-        var readyTimer = setTimeout(markReady, 2500)
+        // A returning visitor already has settings; a first visit waits for
+        // them, but never longer than 2.5s.
+        var readyTimer = cachedConfig ? null : setTimeout(markReady, 2500)
+        if (cachedConfig) markReady()
 
-        fetch(base + '/api/widget/' + agentId)
-                .then(function (r) {
-                        return r.ok ? r.json() : null
-                })
-                .then(function (cfg) {
-                        if (cfg) {
-                                Object.keys(config).forEach(function (k) {
-                                        if (cfg[k] != null) config[k] = cfg[k]
-                                })
+        configRequest.then(function (cfg) {
+                if (cfg) {
+                        mergeConfig(cfg)
+                        try {
+                                localStorage.setItem(CFG_STORAGE_KEY, JSON.stringify(cfg))
+                        } catch (e) {
+                                /* private mode: the next visit just waits for the network */
                         }
-                        clearTimeout(readyTimer)
-                        markReady()
-                })
-                .catch(function () {
-                        clearTimeout(readyTimer)
-                        markReady()
-                })
+                } else if (cfg === false) {
+                        try {
+                                localStorage.removeItem(CFG_STORAGE_KEY)
+                        } catch (e) {
+                                /* ignore */
+                        }
+                }
+                clearTimeout(readyTimer)
+                // Already showing the cached copy: re-theme with the live one.
+                if (configReady && mounted && cfg) applyConfig()
+                markReady()
+        })
 })()

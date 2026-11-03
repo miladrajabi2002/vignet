@@ -143,6 +143,23 @@ const nextConfig = {
                                         { key: 'Cache-Control', value: 'public, max-age=3600, stale-while-revalidate=604800' },
                                 ],
                         },
+                        // The widget's self-hosted font, loaded by customer sites: @font-face
+                        // across origins needs CORS. The file name carries the font version,
+                        // so it never changes in place.
+                        {
+                                source: '/widget/fonts/:file*.woff2',
+                                headers: [
+                                        { key: 'Access-Control-Allow-Origin', value: '*' },
+                                        { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+                                ],
+                        },
+                        {
+                                source: '/widget/fonts/:file*.css',
+                                headers: [
+                                        { key: 'Access-Control-Allow-Origin', value: '*' },
+                                        { key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' },
+                                ],
+                        },
                         // Font files: content only changes alongside a CSS/code release.
                         {
                                 source: '/fonts/:path*',
