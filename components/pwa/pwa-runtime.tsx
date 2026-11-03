@@ -267,7 +267,7 @@ export function PwaRuntime({ userId, fa }: { userId: string; fa: boolean }) {
       >
         <ol className="space-y-3">
           {[
-            { icon: Share, text: fa ? 'در نوار پایین Safari، دکمهٔ «اشتراک‌گذاری» را بزنید.' : 'In Safari, tap the Share button in the toolbar.' },
+            { icon: Share, text: fa ? 'در نوار پایین Safari، دکمهٔ «Share» را بزنید.' : 'In Safari, tap the Share button in the toolbar.' },
             { icon: PlusSquare, text: fa ? 'گزینهٔ «Add to Home Screen» را انتخاب و «Add» را بزنید.' : 'Choose “Add to Home Screen”, then tap “Add”.' },
             { icon: BellRing, text: fa ? 'ویجنت را از صفحهٔ اصلی باز کنید و «فعال‌سازی اعلان‌ها» را بزنید.' : 'Open Vigent from the Home Screen and turn on notifications.' },
           ].map((step, index) => (
