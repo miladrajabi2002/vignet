@@ -9,6 +9,7 @@ import { sendSubscriptionPurchasedSms } from '@/lib/sms/ippanel'
 import { captureError } from '@/lib/errors/capture'
 import { CUSTOMER_WHERE } from '@/lib/crm/customer'
 import { CLAIMABLE_PAYMENT_STATUSES } from '@/lib/billing/payment-expiry'
+import { carryOverMs } from '@/lib/billing/plan-change'
 import type { ChannelType, Plan, Prisma } from '@prisma/client'
 
 /**
@@ -255,7 +256,7 @@ async function persistSubscription(
 
   const existing = await tx.subscription.findUnique({
     where: { workspaceId },
-    select: { plan: true, status: true, currentPeriodEnd: true },
+    select: { plan: true, status: true, currentPeriodEnd: true, monthlyPrice: true, currency: true },
   })
 
   const extendsCurrentPeriod = Boolean(
@@ -268,8 +269,16 @@ async function persistSubscription(
   // cancellation. Period arithmetic is stricter: only an active, unexpired
   // same-plan subscription extends from its existing end date.
   const renewed = Boolean(existing && existing.plan === plan)
+  // Changing plan mid-period keeps what is left of the old one, re-priced as
+  // time on the new plan (lib/billing/plan-change.ts).
+  let carry = 0
+  if (existing && existing.plan !== plan && existing.status === 'ACTIVE' && existing.currentPeriodEnd > now) {
+    const defs = await getEffectivePlanDefs()
+    const listRatio = defs[existing.plan].priceIRR / defs[plan].priceIRR
+    carry = carryOverMs(existing, { plan, monthlyPrice, currency }, listRatio, now)
+  }
   const base = extendsCurrentPeriod && existing ? existing.currentPeriodEnd : now
-  const currentPeriodEnd = new Date(base.getTime() + PERIOD_DAYS * 24 * 60 * 60 * 1000)
+  const currentPeriodEnd = new Date(base.getTime() + PERIOD_DAYS * 24 * 60 * 60 * 1000 + carry)
 
   await tx.subscription.upsert({
       where: { workspaceId },

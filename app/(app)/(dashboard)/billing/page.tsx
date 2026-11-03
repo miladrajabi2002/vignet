@@ -16,7 +16,9 @@ import { cn } from '@/lib/utils'
 import { getActiveChannelConnectionCount, getMonthlyMessageCount } from '@/lib/billing/entitlements'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { CreditFlowMotion } from '@/components/motion/explainers'
-import { audienceBlockMessage, formatFollowers, getInstagramAudience, planFitsAudience, PLAN_MAX_IG_FOLLOWERS, smallestPlanForAudience } from '@/lib/billing/instagram-audience'
+import { audienceBlockMessage, formatFollowers, getInstagramAudience, needsSupportQuote, planFitsAudience, PLAN_MAX_IG_FOLLOWERS, smallestPlanForAudience, SUPPORT_QUOTE_IG_FOLLOWERS } from '@/lib/billing/instagram-audience'
+import { carryOverDays, carryOverMs, planChange, upgradedPeriodEnd } from '@/lib/billing/plan-change'
+import { SUPPORT_PHONE_DISPLAY, SUPPORT_PHONE_E164, SUPPORT_TELEGRAM_URL } from '@/lib/marketing/contact'
 import { dashboardTitle } from '@/lib/dashboard/page-title'
 
 export const generateMetadata = dashboardTitle('اشتراک و اعتبار', 'Plan & credit')
@@ -56,7 +58,7 @@ export default async function BillingPage(
       }),
       prisma.subscription.findUnique({
         where: { workspaceId: ws },
-        select: { status: true, currentPeriodEnd: true },
+        select: { plan: true, status: true, currentPeriodEnd: true, monthlyPrice: true, currency: true },
       }),
       prisma.usageLog.aggregate({
         where: { workspaceId: ws, date: { gte: monthStart } },
@@ -96,12 +98,14 @@ export default async function BillingPage(
     ? searchParams.plan
     : null
   // A page too big for the asked (or smallest) plan gets the plan that serves it.
-  // سازمانی has no follower cap, so every page — however big — always has a
-  // self-serve plan; no support detour is ever offered.
+  // Above سازمانی's cap no plan fits: the subscription is set up with support.
   const fittingPlan = smallestPlanForAudience(audience)
-  const requestedPlan = askedPlan && planFitsAudience(askedPlan, audience)
-    ? askedPlan
-    : fittingPlan !== 'STARTER' ? fittingPlan : askedPlan
+  const supportQuote = needsSupportQuote(audience)
+  const requestedPlan = supportQuote
+    ? null
+    : askedPlan && planFitsAudience(askedPlan, audience)
+      ? askedPlan
+      : fittingPlan !== 'STARTER' ? fittingPlan : askedPlan
   const checkoutLabels = {
     rial: t('payRial'),
     crypto: t('payCrypto'),
@@ -330,7 +334,7 @@ export default async function BillingPage(
             {locale === 'fa' ? `هر پرداخت ${nf.format(PERIOD_DAYS)} روز اشتراک` : `Each payment covers ${nf.format(PERIOD_DAYS)} days`}
           </span>
         </div>
-        {audience && subscriptionLive && isPaidPlan(plan) && !planFitsAudience(plan, audience) && (
+        {audience && supportQuote && (
           <div className="mb-4 rounded-card border border-amber-300/70 bg-amber-50 p-4 text-amber-950">
             <p className="text-sm font-bold">
               {locale === 'fa'
@@ -339,8 +343,30 @@ export default async function BillingPage(
             </p>
             <p className="mt-1 text-[13px] leading-6">
               {locale === 'fa'
-                ? `از سقف پلن فعلی شما (تا ${formatFollowers(PLAN_MAX_IG_FOLLOWERS[plan] ?? 0, 'fa')} فالوور) عبور کرده است. سرویس شما بدون وقفه ادامه دارد؛ پیج‌های بزرگ‌تر با پلن سازمانی و بدون سقف فالوور پوشش داده می‌شوند.`
-                : `That is above your current plan's cap of ${formatFollowers(PLAN_MAX_IG_FOLLOWERS[plan] ?? 0, 'en')} followers. Your service keeps running; larger pages are covered by the Business plan, which has no follower cap.`}
+                ? `پیج‌های بالای ${formatFollowers(SUPPORT_QUOTE_IG_FOLLOWERS, 'fa')} فالوور پیام و کامنت خیلی بیشتری دارند و هزینهٔ پاسخ‌گویی‌شان بیشتر است، پس اشتراکشان جداگانه تنظیم می‌شود. با پشتیبانی هماهنگ کنید تا پلن مناسب پیج شما را فعال کنیم.${subscriptionLive ? ' سرویس فعلی شما بدون وقفه ادامه دارد.' : ''}`
+                : `Pages above ${formatFollowers(SUPPORT_QUOTE_IG_FOLLOWERS, 'en')} followers bring far more messages and comments and cost more to serve, so their subscription is set up separately. Contact support and we will activate the right plan for your page.${subscriptionLive ? ' Your current service keeps running.' : ''}`}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <a href={SUPPORT_TELEGRAM_URL} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-10 items-center rounded-xl bg-black px-4 text-[13px] font-semibold text-white">
+                {locale === 'fa' ? 'هماهنگی در تلگرام' : 'Message support on Telegram'}
+              </a>
+              <a href={`tel:${SUPPORT_PHONE_E164}`} dir="ltr" className="inline-flex min-h-10 items-center rounded-xl border border-amber-300 bg-white px-4 text-[13px] font-semibold tabular-nums">
+                {SUPPORT_PHONE_DISPLAY}
+              </a>
+            </div>
+          </div>
+        )}
+        {audience && !supportQuote && subscriptionLive && isPaidPlan(plan) && !planFitsAudience(plan, audience) && (
+          <div className="mb-4 rounded-card border border-amber-300/70 bg-amber-50 p-4 text-amber-950">
+            <p className="text-sm font-bold">
+              {locale === 'fa'
+                ? `پیج ${audience.username ? `@${audience.username}` : 'شما'} ${formatFollowers(audience.followers, 'fa')} فالوور دارد`
+                : `${audience.username ? `@${audience.username}` : 'Your page'} has ${formatFollowers(audience.followers, 'en')} followers`}
+            </p>
+            <p className="mt-1 text-[13px] leading-6">
+              {locale === 'fa'
+                ? `از سقف پلن فعلی شما (تا ${formatFollowers(PLAN_MAX_IG_FOLLOWERS[plan], 'fa')} فالوور) عبور کرده است. سرویس شما بدون وقفه ادامه دارد؛ پیج‌های بزرگ‌تر، تا ${formatFollowers(PLAN_MAX_IG_FOLLOWERS.BUSINESS, 'fa')} فالوور، با پلن سازمانی پوشش داده می‌شوند.`
+                : `That is above your current plan's cap of ${formatFollowers(PLAN_MAX_IG_FOLLOWERS[plan], 'en')} followers. Your service keeps running; larger pages, up to ${formatFollowers(PLAN_MAX_IG_FOLLOWERS.BUSINESS, 'en')} followers, are covered by the Business plan.`}
             </p>
             <a
               href="#plan-BUSINESS"
@@ -355,14 +381,18 @@ export default async function BillingPage(
             const def = defs[p]
             const isRecommended = requestedPlan === p
             const isCurrent = plan === p && subscriptionLive
-            const blocked = !planFitsAudience(p, audience)
+            const change = planChange(subscription, p, now)
+            // A smaller plan waits for the current period to end (lib/billing/plan-change.ts).
+            const downgradeLocked = change === 'downgrade'
+            const blocked = !planFitsAudience(p, audience) || downgradeLocked
+            const carryMs = change === 'upgrade'
+              ? carryOverMs(subscription, { plan: p, monthlyPrice: def.priceIRR, currency: 'IRR' }, defs[plan].priceIRR / def.priceIRR, now)
+              : 0
             const followerCap = PLAN_MAX_IG_FOLLOWERS[p]
             const limits = [
               {
                 label: locale === 'fa' ? 'فالوور پیج اینستاگرام' : 'Instagram page followers',
-                value: followerCap == null
-                  ? (locale === 'fa' ? `بیش از ${formatFollowers(PLAN_MAX_IG_FOLLOWERS.PRO ?? 0, 'fa')}` : `Over ${formatFollowers(PLAN_MAX_IG_FOLLOWERS.PRO ?? 0, 'en')}`)
-                  : (locale === 'fa' ? `تا ${formatFollowers(followerCap, 'fa')}` : `Up to ${formatFollowers(followerCap, 'en')}`),
+                value: locale === 'fa' ? `تا ${formatFollowers(followerCap, 'fa')}` : `Up to ${formatFollowers(followerCap, 'en')}`,
               },
               { label: locale === 'fa' ? 'اتصال فعال' : 'Active channel connections', value: isUnlimitedPlanLimit(def.maxChannels) ? unlimitedPlanLabel(locale) : nf.format(def.maxChannels) },
               { label: locale === 'fa' ? 'محصول' : 'Products', value: nf.format(def.maxProducts) },
@@ -405,9 +435,27 @@ export default async function BillingPage(
                     </div>
                   ))}
                 </dl>
-                {blocked && audience && (
+                {!planFitsAudience(p, audience) && audience && !supportQuote && (
                   <p className="mt-3 rounded-xl bg-[var(--bg-muted)] px-3 py-2 text-xs leading-6 text-[var(--text-secondary)]">
                     {audienceBlockMessage(p, audience, locale)}
+                  </p>
+                )}
+                {downgradeLocked && planFitsAudience(p, audience) && subscription && (
+                  <p className="mt-3 rounded-xl bg-[var(--bg-muted)] px-3 py-2 text-xs leading-6 text-[var(--text-secondary)]">
+                    {locale === 'fa'
+                      ? `تا پایان پلن فعلی (${formatLocalizedDate(subscription.currentPeriodEnd, locale)}) نمی‌توانید به پلن پایین‌تر بروید.`
+                      : `You can move to a smaller plan once your current one ends (${formatLocalizedDate(subscription.currentPeriodEnd, locale)}).`}
+                  </p>
+                )}
+                {change === 'upgrade' && !blocked && (
+                  <p className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-xs leading-6 text-emerald-900">
+                    {carryOverDays(carryMs) > 0
+                      ? (locale === 'fa'
+                          ? `${nf.format(PERIOD_DAYS)} روز ${t(PLAN_KEY[p])} + ${nf.format(carryOverDays(carryMs))} روز هدیه از باقی‌ماندهٔ پلن فعلی؛ اشتراک تا ${formatLocalizedDate(upgradedPeriodEnd(carryMs, now), locale)}.`
+                          : `${nf.format(PERIOD_DAYS)} days of ${t(PLAN_KEY[p])} + ${nf.format(carryOverDays(carryMs))} days from what is left of your current plan; runs until ${formatLocalizedDate(upgradedPeriodEnd(carryMs, now), locale)}.`)
+                      : (locale === 'fa'
+                          ? `${nf.format(PERIOD_DAYS)} روز ${t(PLAN_KEY[p])} از امروز.`
+                          : `${nf.format(PERIOD_DAYS)} days of ${t(PLAN_KEY[p])} from today.`)}
                   </p>
                 )}
                 <div className="mt-4">
@@ -419,7 +467,9 @@ export default async function BillingPage(
                       ...checkoutLabels,
                       rial: isCurrent
                         ? (locale === 'fa' ? `تمدید ${nf.format(PERIOD_DAYS)} روزه` : `Renew for ${nf.format(PERIOD_DAYS)} days`)
-                        : checkoutLabels.rial,
+                        : change === 'upgrade'
+                          ? (locale === 'fa' ? `ارتقا به ${t(PLAN_KEY[p])}` : `Upgrade to ${t(PLAN_KEY[p])}`)
+                          : checkoutLabels.rial,
                       crypto: `${checkoutLabels.crypto} · ≈ $${def.priceUSD}`,
                     }}
                   />

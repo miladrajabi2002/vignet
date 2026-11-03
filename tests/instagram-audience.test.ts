@@ -12,7 +12,7 @@ vi.mock('@/lib/prisma', () => ({
   },
 }))
 
-const { audienceBlockMessage, connectAudienceBlock, formatFollowers, planFitsAudience, smallestPlanForAudience } = await import('@/lib/billing/instagram-audience')
+const { audienceBlockMessage, connectAudienceBlock, formatFollowers, needsSupportQuote, planFitsAudience, smallestPlanForAudience } = await import('@/lib/billing/instagram-audience')
 
 const page = (followers: number) => ({ followers, username: 'shop' })
 
@@ -22,13 +22,14 @@ describe('plans by Instagram audience', () => {
     expect(smallestPlanForAudience(null)).toBe('STARTER')
   })
 
-  it('caps Starter at 20K and Pro at 100K, inclusive; Business is unlimited', () => {
+  it('caps Starter at 20K, Pro at 100K and Business at 1M, inclusive', () => {
     expect(planFitsAudience('STARTER', page(20_000))).toBe(true)
     expect(planFitsAudience('STARTER', page(20_001))).toBe(false)
     expect(planFitsAudience('PRO', page(100_000))).toBe(true)
     expect(planFitsAudience('PRO', page(100_001))).toBe(false)
     expect(planFitsAudience('BUSINESS', page(100_001))).toBe(true)
-    expect(planFitsAudience('BUSINESS', page(5_000_000))).toBe(true)
+    expect(planFitsAudience('BUSINESS', page(1_000_000))).toBe(true)
+    expect(planFitsAudience('BUSINESS', page(1_000_001))).toBe(false)
   })
 
   it('points a page at the smallest plan that serves it', () => {
@@ -36,9 +37,19 @@ describe('plans by Instagram audience', () => {
     expect(smallestPlanForAudience(page(35_000))).toBe('PRO')
     expect(smallestPlanForAudience(page(75_000))).toBe('PRO')
     expect(smallestPlanForAudience(page(100_001))).toBe('BUSINESS')
-    // However big the page, سازمانی (no cap) always has it covered.
     expect(smallestPlanForAudience(page(200_000))).toBe('BUSINESS')
-    expect(smallestPlanForAudience(page(2_000_000))).toBe('BUSINESS')
+    expect(smallestPlanForAudience(page(1_000_000))).toBe('BUSINESS')
+  })
+
+  it('sends pages above 1M to support: no self-serve plan fits', () => {
+    expect(needsSupportQuote(page(1_000_000))).toBe(false)
+    expect(needsSupportQuote(page(2_000_000))).toBe(true)
+    expect(needsSupportQuote(null)).toBe(false)
+    expect(smallestPlanForAudience(page(2_000_000))).toBeNull()
+    expect(audienceBlockMessage('BUSINESS', page(2_000_000), 'fa')).toBe(
+      '@shop ۲ میلیون فالوور دارد. هزینهٔ پاسخ‌گویی به پیج‌های بالای ۱ میلیون فالوور بیشتر است؛ برای اشتراک با پشتیبانی هماهنگ کنید.',
+    )
+    expect(formatFollowers(2_500_000, 'en')).toBe('2.5M')
   })
 
   it('explains the block in Persian', () => {
@@ -59,6 +70,7 @@ describe('connecting a page', () => {
     expect(await connectAudienceBlock('w', 35_000)).toBeNull()
     expect(await connectAudienceBlock('w', 100_000)).toBeNull()
     expect(await connectAudienceBlock('w', 200_000)).toEqual({ plan: 'PRO', cap: 100_000 })
+    // Business connects any page: the ones above its cap are set up by support.
     db.workspace = { plan: 'BUSINESS' }
     expect(await connectAudienceBlock('w', 5_000_000)).toBeNull()
   })

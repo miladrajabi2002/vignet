@@ -7,6 +7,7 @@ import { getEffectivePlanDefs, isPaidPlan } from '@/lib/billing/plans'
 import { createVigentPayPayment, vigentPayConfigured } from '@/lib/billing/vigentpay'
 import { createNowPaymentsInvoice } from '@/lib/billing/nowpayments'
 import { audienceBlockMessage, getInstagramAudience, planFitsAudience } from '@/lib/billing/instagram-audience'
+import { planChange } from '@/lib/billing/plan-change'
 
 const bodySchema = z.discriminatedUnion('kind', [
   z.object({
@@ -53,6 +54,14 @@ export async function POST(req: Request) {
     const audience = await getInstagramAudience(user.workspaceId)
     if (audience && !planFitsAudience(plan, audience)) {
       return NextResponse.json({ error: 'PLAN_AUDIENCE_LIMIT', message: audienceBlockMessage(plan, audience, 'fa') }, { status: 403 })
+    }
+    // A smaller plan waits until the current one ends (lib/billing/plan-change.ts).
+    const subscription = await prisma.subscription.findUnique({
+      where: { workspaceId: user.workspaceId },
+      select: { plan: true, status: true, currentPeriodEnd: true, monthlyPrice: true, currency: true },
+    })
+    if (planChange(subscription, plan) === 'downgrade') {
+      return NextResponse.json({ error: 'PLAN_DOWNGRADE_LOCKED', message: 'تا پایان دورهٔ پلن فعلی نمی‌توانید به پلن پایین‌تر بروید.' }, { status: 403 })
     }
   }
   const def = plan ? (await getEffectivePlanDefs())[plan] : null

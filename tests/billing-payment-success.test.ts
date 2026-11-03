@@ -182,6 +182,41 @@ describe('commercial payment success hooks', () => {
     )
   })
 
+  it('adds what is left of the old plan, re-priced, on top of the 30 upgraded days', async () => {
+    const now = new Date('2026-11-03T10:00:00Z')
+    vi.useFakeTimers({ now })
+    try {
+      mocks.paymentUpdateMany.mockResolvedValueOnce({ count: 1 })
+      mocks.subscriptionFindUnique.mockResolvedValueOnce({
+        plan: 'STARTER',
+        status: 'ACTIVE',
+        currentPeriodEnd: new Date(now.getTime() + 20 * 86_400_000),
+        monthlyPrice: 8_900_000,
+        currency: 'IRR',
+      })
+      mocks.getEffectivePlanDefs.mockResolvedValue({
+        STARTER: { priceIRR: 8_900_000 },
+        PRO: { priceIRR: 24_900_000 },
+        BUSINESS: { priceIRR: 59_000_000 },
+      })
+
+      await activateSubscriptionPayment({
+        paymentId: 'payment-upgrade-carry',
+        workspaceId: 'workspace-1',
+        plan: 'PRO',
+        monthlyPrice: 24_900_000,
+        currency: 'IRR',
+        paymentUpdate: { status: 'PAID', paidAt: now },
+      })
+
+      const end = mocks.subscriptionUpsert.mock.calls[0][0].update.currentPeriodEnd as Date
+      // 30 days of Pro + 20 days × 890k / 2.49M ≈ 7.15 days
+      expect((end.getTime() - now.getTime()) / 86_400_000).toBeCloseTo(37.149, 2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('credits and notifies only the callback that claims an AI-credit payment', async () => {
     mocks.paymentUpdateMany
       .mockResolvedValueOnce({ count: 1 })
