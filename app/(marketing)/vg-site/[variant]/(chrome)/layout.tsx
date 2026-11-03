@@ -6,6 +6,7 @@ import { BackToTop } from '@/components/marketing/back-to-top'
 import { ScopedIntlProvider } from '@/components/i18n/scoped-intl-provider'
 import { MARKETING_CLIENT_MESSAGE_PATHS } from '@/lib/i18n/client-messages'
 import { MotionPauser } from '@/components/marketing/site/motion-pauser'
+import { HashScroll } from '@/components/marketing/site/hash-scroll'
 import { enterSite, type SiteParams } from '@/lib/marketing/enter-site'
 
 export default async function MarketingLayout({ children, params }: { children: ReactNode; params: SiteParams }) {
@@ -34,6 +35,7 @@ export default async function MarketingLayout({ children, params }: { children: 
 			<Footer />
 			<BackToTop />
 			<MotionPauser />
+			<HashScroll />
 		</div>
 		</ScopedIntlProvider>
 	)

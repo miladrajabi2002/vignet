@@ -95,6 +95,9 @@
 	background-size: 56px 56px;
 }
 .vg-cv { content-visibility: auto; contain-intrinsic-size: auto 900px; }
+/* HashScroll sets this for the moment of an in-page jump, so the target is
+   measured against real section heights instead of the 900px placeholders. */
+.vg-cv-all .vg-cv { content-visibility: visible; }
 .vg-noscroll { scrollbar-width: none; }
 .vg-noscroll::-webkit-scrollbar { display: none; }
 
