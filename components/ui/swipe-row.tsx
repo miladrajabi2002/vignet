@@ -20,6 +20,9 @@ import { cn } from '@/lib/utils'
  *   • One row is open at a time; scrolling, tapping elsewhere or tapping the
  *     row closes it. Rows do nothing on mouse/trackpad devices, so every
  *     action must also exist in the row's own menu or detail sheet.
+ *   • With `hint`, the first such row on screen peeks its actions once a
+ *     visit (at most HINT_MAX_PLAYS times) until the person has opened a
+ *     row or run an action themselves.
  */
 
 export interface SwipeAction {
@@ -36,6 +39,9 @@ const EDGE_GUARD = 20
 const FULL_SWIPE = 0.6
 const OPEN_VELOCITY = 450 // px/s
 const SNAP = { type: 'spring' as const, stiffness: 560, damping: 44, mass: 0.7 }
+const HINT_KEY = 'vigent:swipe-hint'
+const HINT_MAX_PLAYS = 3
+const HINT_PEEK = 56
 
 const TONE: Record<NonNullable<SwipeAction['tone']>, string> = {
   danger: 'bg-[#dc2626] text-white',
@@ -46,6 +52,45 @@ const TONE: Record<NonNullable<SwipeAction['tone']>, string> = {
 
 /** The row currently open, so opening another closes it. */
 let openRow: { close: () => void } | null = null
+/** One peek per page visit, taken by the first hinted row that scrolls into view. */
+let hintClaimed = false
+/** Every mounted hinted row, so the topmost one on screen is the one that peeks. */
+const hintedRows = new Set<HTMLElement>()
+
+function fullyVisible(element: HTMLElement) {
+  const rect = element.getBoundingClientRect()
+  return rect.height > 0 && rect.top >= 0 && rect.bottom <= window.innerHeight
+}
+
+/** Is another hinted row above this one also fully on screen? Then it goes first. */
+function rowAboveIsVisible(element: HTMLElement) {
+  for (const other of hintedRows) {
+    if (other === element) continue
+    const above = other.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING
+    if (above && fullyVisible(other)) return true
+  }
+  return false
+}
+
+/** Plays left, or 0 once the person has swiped a row or storage is unavailable. */
+function hintPlaysLeft() {
+  try {
+    const value = window.localStorage.getItem(HINT_KEY)
+    if (value === 'done') return 0
+    return HINT_MAX_PLAYS - (Number(value) || 0)
+  } catch {
+    return 0
+  }
+}
+
+function recordHint(value: 'played' | 'done') {
+  try {
+    const next = value === 'done' ? 'done' : String(HINT_MAX_PLAYS - hintPlaysLeft() + 1)
+    window.localStorage.setItem(HINT_KEY, next)
+  } catch {
+    // Without storage the hint just doesn't come back.
+  }
+}
 
 function useCoarsePointer() {
   const [coarse, setCoarse] = useState(false)
@@ -63,12 +108,15 @@ export function SwipeRow({
   leading = [],
   trailing = [],
   disabled = false,
+  hint = false,
   className,
   children,
 }: {
   leading?: SwipeAction[]
   trailing?: SwipeAction[]
   disabled?: boolean
+  /** Peek the actions once when this row first shows, to teach the gesture. */
+  hint?: boolean
   /** Shape of the row (rounding, border) — the rails are clipped to it. */
   className?: string
   children: ReactNode
@@ -100,6 +148,8 @@ export function SwipeRow({
     setOpenSide(side)
     animate(x, target, reduceMotion ? { duration: 0 } : SNAP)
     if (side) {
+      // They found the gesture on their own; the hint has done its job.
+      recordHint('done')
       if (openRow && openRow !== handle) openRow.close()
       openRow = handle
     } else if (openRow === handle) {
@@ -116,6 +166,7 @@ export function SwipeRow({
   async function run(action: SwipeAction, side: 'leading' | 'trailing') {
     if (stateRef.current.busy) return
     setBusy(true)
+    recordHint('done')
     const width = rootRef.current?.offsetWidth ?? 360
     // Full swipe: the row slides out of the way while the action runs.
     await animate(x, signFor(side) * width, reduceMotion ? { duration: 0 } : { duration: 0.18, ease: [0.4, 0, 1, 1] })
@@ -151,6 +202,8 @@ export function SwipeRow({
       if (event.touches.length !== 1 || stateRef.current.busy) return
       const touch = event.touches[0]
       if (touch.clientX < EDGE_GUARD || touch.clientX > window.innerWidth - EDGE_GUARD) return
+      // Catch the row mid-flight (a snap or the hint) instead of fighting it.
+      x.stop()
       start = { x: touch.clientX, y: touch.clientY, offset: x.get(), t: performance.now() }
       mode = 'pending'
       lastX = touch.clientX
@@ -275,6 +328,49 @@ export function SwipeRow({
     if (openRow === handle) openRow = null
   }, [handle])
 
+  // The peek: nudge the row toward its first rail and back, once it is in view.
+  useEffect(() => {
+    const root = rootRef.current
+    if (!enabled || !hint || reduceMotion || !root || hintClaimed || hintPlaysLeft() <= 0) return
+    const side = stateRef.current.leading.length ? 'leading' : 'trailing'
+    let timer = 0
+    // Claimed but not yet played. A row that re-renders, unmounts or cannot
+    // play hands the claim back, so a live list refresh or a re-render in the
+    // first 0.7s does not swallow the visit's only hint.
+    let pending = false
+    const release = () => {
+      if (!pending) return
+      pending = false
+      hintClaimed = false
+    }
+    hintedRows.add(root)
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry?.isIntersecting || entry.intersectionRatio < 0.9 || hintClaimed) return
+      if (rowAboveIsVisible(root)) return
+      hintClaimed = true
+      pending = true
+      observer.disconnect()
+      timer = window.setTimeout(() => {
+        if (document.hidden || stateRef.current.openSide || stateRef.current.busy || x.get() !== 0) {
+          release()
+          return
+        }
+        pending = false
+        recordHint('played')
+        const peek = signFor(side) * HINT_PEEK
+        void animate(x, [0, peek, peek, 0], { duration: 1.1, times: [0, 0.32, 0.55, 1], ease: [0.32, 0.72, 0, 1] })
+      }, 700)
+    }, { threshold: 0.9 })
+    observer.observe(root)
+    return () => {
+      hintedRows.delete(root)
+      observer.disconnect()
+      window.clearTimeout(timer)
+      release()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, hint, reduceMotion, rtl])
+
   if (!enabled) return <div className={className}>{children}</div>
 
   return (
@@ -326,15 +422,24 @@ function Rail({
   const width = useTransform(x, (value) => Math.max(actions.length * ACTION_WIDTH, Math.abs(value)))
   const first = actions[0]
 
+  // Laid out physically (dir="ltr") so the first action always sits at the
+  // screen edge. Past the rail's own width the buttons stretch with the drag,
+  // so no gap opens behind the row; armed, the first one takes it all. The
+  // rail wears the first action's colour so the stretch never shows through.
   return (
     <motion.div
       aria-hidden={!open}
+      dir="ltr"
       style={{ opacity, width }}
-      className={cn('absolute inset-y-0 flex', onLeft ? 'left-0 flex-row' : 'right-0 flex-row-reverse')}
+      className={cn(
+        'absolute inset-y-0 flex',
+        onLeft ? 'left-0 flex-row' : 'right-0 flex-row-reverse',
+        first && TONE[first.tone ?? 'neutral'],
+      )}
     >
       {actions.map((action, index) => {
         const Icon = action.icon
-        const grow = armed && index === 0
+        const flex = armed ? (index === 0 ? '1 1 0px' : '0 0 0px') : `1 1 ${ACTION_WIDTH}px`
         return (
           <button
             key={action.key}
@@ -346,15 +451,21 @@ function Rail({
               onRun(action)
             }}
             className={cn(
-              'flex h-full shrink-0 flex-col items-center justify-center gap-1 px-2 text-[11px] font-bold transition-[flex-grow] duration-150',
+              'flex h-full min-w-0 overflow-hidden transition-[flex] duration-200 ease-out',
+              // The label rides along the row's edge as the button stretches.
+              onLeft ? 'justify-end' : 'justify-start',
               TONE[action.tone ?? 'neutral'],
-              grow ? 'grow' : 'grow-0',
-              armed && index > 0 && 'hidden',
             )}
-            style={{ minWidth: grow ? undefined : ACTION_WIDTH }}
+            style={{ flex }}
           >
-            <Icon className="h-5 w-5" aria-hidden="true" />
-            <span className="max-w-[4.5rem] truncate">{action.label}</span>
+            <span
+              dir="auto"
+              className="flex h-full shrink-0 flex-col items-center justify-center gap-1 px-2 text-[11px] font-bold"
+              style={{ width: ACTION_WIDTH }}
+            >
+              <Icon className="h-5 w-5" aria-hidden="true" />
+              <span className="max-w-[4.5rem] truncate">{action.label}</span>
+            </span>
           </button>
         )
       })}

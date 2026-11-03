@@ -118,7 +118,7 @@ export function MobileConversationCard({
 
   return (
     <>
-      <SwipeRow leading={[ownershipAction]} trailing={[deleteAction]} className="rounded-card">
+      <SwipeRow leading={[ownershipAction]} trailing={[deleteAction]} hint className="rounded-card">
       <article
         className={cn(
           'spatial-surface overflow-hidden rounded-card transition-[border-color,box-shadow] duration-150',
