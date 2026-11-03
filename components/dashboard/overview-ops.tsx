@@ -52,7 +52,7 @@ export function OpsCenter({
 
 	return (
 		<section aria-labelledby="ops-title" className="dashboard-arrival dashboard-intro relative overflow-hidden rounded-card border border-[var(--border-subtle)]">
-			<div className="grid gap-0 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+			<div className="grid grid-cols-1 gap-0 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
 				<div className="relative p-5 sm:p-7">
 					<div className="flex flex-wrap items-center gap-2">
 						<span className="ui-chip ui-chip-neutral">{businessLabel}</span>

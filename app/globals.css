@@ -2174,7 +2174,8 @@ html[dir='rtl'] .undo-indeterminate {
 	.ls-mn-st.is-bad { background: #dc2626; }
 	.ls-mn-st.is-setup { background: #fff; border: 1.5px solid #c9c5bf; box-shadow: none; }
 	@keyframes ls-ping { 75%, 100% { transform: scale(2.4); opacity: 0; } }
-	.ls-mrow { display: flex; gap: 8px; overflow-x: auto; margin: 0 -2px; padding: 4px 2px 8px; scrollbar-width: none; }
+	/* The row scrolls; inline-size containment keeps its tiles from widening the card around it. */
+	.ls-mrow { display: flex; gap: 8px; overflow-x: auto; margin: 0 -2px; padding: 4px 2px 8px; scrollbar-width: none; contain: inline-size; }
 	.ls-mrow::-webkit-scrollbar { display: none; }
 	.ls-mrow .ls-mn { position: relative; flex: none; min-width: 128px; }
 	/* Centred while the row fits; auto margins (not justify-content) keep the overflow scrollable. */
