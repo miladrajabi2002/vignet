@@ -26,6 +26,7 @@
 		"test:agent-real-eval": "tsx -r dotenv/config scripts/agent-real-account-eval.ts",
 		"test:conversation-state-live": "tsx -r dotenv/config scripts/conversation-state-live-smoke.ts",
 		"test:vigento-isolation": "tsx -r dotenv/config scripts/vigento-isolation-smoke.ts",
+		"test:widget-load": "tsx -r dotenv/config scripts/widget-load-test.ts",
 		"test:watch": "vitest",
 		"db:generate": "prisma generate",
 		"db:migrate": "prisma migrate dev",
