@@ -32,6 +32,7 @@ tagline: 'ایجنت هوش مصنوعی برای فروش، پشتیبانی و
 		current: 'فارسی',
 		other: 'English',
 		enamad: 'نماد اعتماد الکترونیکی',
+		enamadBadge: 'مورد تایید',
 	},
 	en: {
 tagline: 'An AI agent for sales, support and CRM',
@@ -56,6 +57,7 @@ tagline: 'An AI agent for sales, support and CRM',
 		current: 'English',
 		other: 'فارسی',
 		enamad: 'eNamad trust seal',
+		enamadBadge: 'Verified',
 	},
 } as const
 
@@ -111,7 +113,7 @@ export async function Footer() {
 							</a>
 						</nav>
 					</div>
-					<EnamadSeal label={c.enamad} className="mt-3 lg:mt-0" />
+					<EnamadSeal label={c.enamad} badge={c.enamadBadge} className="mt-3 lg:mt-0" />
 				</div>
 
 				<div className="mt-1.5 flex flex-wrap justify-center gap-x-3.5 gap-y-1 text-[12px] text-vg-cap lg:mt-[26px] lg:justify-between lg:border-t lg:border-black/[0.06] lg:pt-[18px] lg:text-[13px]">
