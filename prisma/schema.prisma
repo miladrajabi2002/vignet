@@ -47,6 +47,10 @@ model Workspace {
   trialInitialCreditIRR         Int?
   trialQuota80AlertedAt         DateTime?
   trialQuota100AlertedAt        DateTime?
+  // Expired, never-paid, idle trials (lib/maintenance/expired-trial-purge.ts):
+  // when the owner was warned that the bulk data goes in 30 days, and when it went.
+  trialPurgeWarnedAt            DateTime?
+  trialDataPurgedAt             DateTime?
   // Internal/test workspaces are intentionally omitted from admin commercial reports.
   excludeFromAdminReports       Boolean      @default(false)
   // Public digital menu look & info (theme, colour, cover, hours, contact).

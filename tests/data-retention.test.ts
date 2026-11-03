@@ -56,6 +56,8 @@ describe('bounded data retention', () => {
       syncLogsOverCap: 5,
       orphanWorkspaces: 1,
       understandingLogs: 6,
+      inboundEvents: 5,
+      turnLeases: 5,
     })
     expect(mocks.understandingDeleteMany).toHaveBeenCalledWith({
       where: { createdAt: { lt: new Date('2026-05-10T12:00:00.000Z') } },
@@ -77,5 +79,29 @@ describe('bounded data retention', () => {
     expect(mocks.workspaceDeleteMany).toHaveBeenCalledWith({
       where: { id: { in: ['orphan-1'] }, owner: { is: null } },
     })
+  })
+
+  it('drops only finished inbound events after 14 days and idle, released turn leases after 7', async () => {
+    const now = new Date('2026-08-08T12:00:00.000Z')
+    await cleanupOldRecords(now)
+    const sql = mocks.executeRaw.mock.calls.map((call) => ({ text: String(call[0]), values: call.slice(1) }))
+    const inbound = sql.find((q) => q.text.includes('"InboundEvent"'))!
+    expect(inbound.text).toContain("'COMPLETED', 'FAILED', 'DELIVERY_UNCERTAIN'")
+    expect(inbound.values).toContainEqual(new Date('2026-07-25T12:00:00.000Z'))
+    const lease = sql.find((q) => q.text.includes('"ConversationTurnLease"'))!
+    expect(lease.text).toContain('"leaseExpiresAt" IS NULL OR "leaseExpiresAt" <')
+    expect(lease.values).toContainEqual(new Date('2026-08-01T12:00:00.000Z'))
+  })
+
+  it('keeps deleting in slices while full slices come back', async () => {
+    mocks.executeRaw
+      .mockResolvedValueOnce(0) // sync-log cap
+      .mockResolvedValueOnce(5_000)
+      .mockResolvedValueOnce(5_000)
+      .mockResolvedValueOnce(12)
+      .mockResolvedValueOnce(0)
+    const result = await cleanupOldRecords(new Date('2026-08-08T12:00:00.000Z'))
+    expect(result.inboundEvents).toBe(10_012)
+    expect(result.turnLeases).toBe(0)
   })
 })

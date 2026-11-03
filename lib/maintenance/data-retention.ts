@@ -10,6 +10,14 @@ const ORPHAN_WORKSPACE_GRACE_DAYS = 7
 // Per-turn understanding readings: enough history for the admin report's
 // 90-day view and for comparing a rollout, without growing forever.
 const UNDERSTANDING_LOG_RETENTION_DAYS = 90
+// Finished inbound events only guard against a provider redelivering the same
+// webhook (hours, a day at most); two weeks is ample.
+const INBOUND_EVENT_RETENTION_DAYS = 14
+// A conversation's turn lease is recreated on its next message.
+const IDLE_TURN_LEASE_DAYS = 7
+// Big deletes go in slices so one run never holds long locks.
+const DELETE_SLICE = 5_000
+const MAX_SLICES_PER_RUN = 40
 
 interface CleanupResult {
   otpLogs: number
@@ -18,6 +26,19 @@ interface CleanupResult {
   syncLogsOverCap: number
   orphanWorkspaces: number
   understandingLogs: number
+  inboundEvents: number
+  turnLeases: number
+}
+
+/** Run a `DELETE … WHERE id IN (SELECT … LIMIT n)` until nothing is left (or the run cap). */
+async function deleteInSlices(deleteSlice: () => Promise<number>): Promise<number> {
+  let total = 0
+  for (let slice = 0; slice < MAX_SLICES_PER_RUN; slice++) {
+    const deleted = await deleteSlice()
+    total += deleted
+    if (deleted < DELETE_SLICE) break
+  }
+  return total
 }
 
 /**
@@ -104,6 +125,30 @@ export async function cleanupOldRecords(now = new Date()): Promise<CleanupResult
       })
     : { count: 0 }
 
+  const inboundCutoff = new Date(now.getTime() - INBOUND_EVENT_RETENTION_DAYS * DAY_MS)
+  // Messages keep their text; their link to the event is set to NULL.
+  const inboundEvents = await deleteInSlices(() => prisma.$executeRaw`
+    DELETE FROM "InboundEvent"
+    WHERE "id" IN (
+      SELECT "id" FROM "InboundEvent"
+      WHERE "state" IN ('COMPLETED', 'FAILED', 'DELIVERY_UNCERTAIN')
+        AND "updatedAt" < ${inboundCutoff}
+      LIMIT ${DELETE_SLICE}
+    )`)
+
+  const leaseCutoff = new Date(now.getTime() - IDLE_TURN_LEASE_DAYS * DAY_MS)
+  // Only released or long-expired leases; the outer WHERE re-checks so a
+  // lease taken between the two reads is kept.
+  const turnLeases = await deleteInSlices(() => prisma.$executeRaw`
+    DELETE FROM "ConversationTurnLease"
+    WHERE "id" IN (
+      SELECT "id" FROM "ConversationTurnLease"
+      WHERE "updatedAt" < ${leaseCutoff}
+      LIMIT ${DELETE_SLICE}
+    )
+      AND "updatedAt" < ${leaseCutoff}
+      AND ("leaseExpiresAt" IS NULL OR "leaseExpiresAt" < ${now})`)
+
   return {
     otpLogs: otp.count,
     errorLogs: errors.count,
@@ -111,5 +156,7 @@ export async function cleanupOldRecords(now = new Date()): Promise<CleanupResult
     syncLogsOverCap: Number(syncLogsOverCap),
     orphanWorkspaces: deletedOrphans.count,
     understandingLogs: understandingLogs.count,
+    inboundEvents,
+    turnLeases,
   }
 }

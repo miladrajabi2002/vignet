@@ -27,6 +27,7 @@ import { sweepChannelHealth } from '@/lib/channels/health'
 import { refreshStaleUrlKnowledge } from '@/lib/integrations/crawler'
 import { sweepAdminCommercialSmsOutbox } from '@/lib/billing/admin-commercial-outbox'
 import { cleanupOldRecords } from '@/lib/maintenance/data-retention'
+import { sweepExpiredTrials } from '@/lib/maintenance/expired-trial-purge'
 import { purgeSoftDeleted } from '@/lib/maintenance/soft-delete-purge'
 import { sweepRestockAlerts } from '@/lib/commerce/restock-service'
 import { sweepCheckoutLinks } from '@/lib/commerce/checkout-service'
@@ -412,14 +413,26 @@ async function runCleanup(): Promise<void> {
                         result.syncLogsByAge +
                         result.syncLogsOverCap +
                         result.orphanWorkspaces +
-                        result.understandingLogs
+                        result.understandingLogs +
+                        result.inboundEvents +
+                        result.turnLeases
                 if (total > 0) {
                         console.log(
-                                `[scheduler] retention cleanup: ${result.otpLogs} OTP, ${result.errorLogs} error, ${result.syncLogsByAge + result.syncLogsOverCap} sync log, ${result.orphanWorkspaces} orphan workspace, ${result.understandingLogs} understanding log rows deleted`,
+                                `[scheduler] retention cleanup: ${result.otpLogs} OTP, ${result.errorLogs} error, ${result.syncLogsByAge + result.syncLogsOverCap} sync log, ${result.orphanWorkspaces} orphan workspace, ${result.understandingLogs} understanding log, ${result.inboundEvents} inbound event, ${result.turnLeases} turn lease rows deleted`,
                         )
                 }
         } catch (e) {
                 console.error('[scheduler] retention cleanup failed:', e)
+        }
+        try {
+                const trials = await sweepExpiredTrials()
+                if (trials.warned || trials.cancelled || trials.purged) {
+                        console.log(
+                                `[scheduler] expired trials: ${trials.warned} warned, ${trials.cancelled} warning cancelled (active again), ${trials.purged} purged`,
+                        )
+                }
+        } catch (e) {
+                console.error('[scheduler] expired-trial sweep failed:', e)
         }
 }
 
