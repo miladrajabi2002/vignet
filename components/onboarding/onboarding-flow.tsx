@@ -27,6 +27,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { OnboardingIntroVideo } from '@/components/onboarding/onboarding-intro-video'
 import { CapabilityOptions } from '@/components/onboarding/capability-options'
 import { GoalPicker } from '@/components/agents/goal-picker'
 import { Switch } from '@/components/ui/switch'
@@ -133,6 +134,8 @@ export function OnboardingFlow({
   const phaseContentRef = useRef<HTMLDivElement>(null)
   const [direction, setDirection] = useState(1)
   const [phaseOverride, setPhaseOverride] = useState<Phase | null>(null)
+  const [introOpen, setIntroOpen] = useState(false)
+  const [introSeen, setIntroSeen] = useState(false)
   const [detailsFromTypeSelection, setDetailsFromTypeSelection] = useState(false)
   const [resolvedAgentId, setResolvedAgentId] = useState(agentId)
   const [draftBusinessType, setDraftBusinessType] = useState<BusinessTypeValue | null>(
@@ -152,7 +155,7 @@ export function OnboardingFlow({
     if (!hasChannel) return 'channel'
     return 'done'
   })()
-  const currentPhase = phaseOverride ?? serverPhase
+  const currentPhase = introOpen ? 'intro' : phaseOverride ?? serverPhase
 
   useEffect(() => {
     setPhaseOverride(null)
@@ -174,7 +177,7 @@ export function OnboardingFlow({
 
   // Poll for state updates when user completes an external CTA
   useEffect(() => {
-    if (currentPhase === 'done' || currentPhase === 'type' || currentPhase === 'details') return
+    if (currentPhase === 'done' || currentPhase === 'type' || currentPhase === 'details' || currentPhase === 'intro') return
     const interval = setInterval(() => router.refresh(), 4000)
     return () => clearInterval(interval)
   }, [currentPhase, router])
@@ -221,10 +224,29 @@ export function OnboardingFlow({
                 onNext={() => {
                   setDirection(1)
                   setDetailsFromTypeSelection(false)
+                  if (!introSeen) setIntroOpen(true)
                   setPhaseOverride('agent')
                   router.refresh()
                 }}
               />
+            )}
+
+            {currentPhase === 'intro' && (
+              <div className="mx-auto max-w-4xl overflow-hidden rounded-3xl border border-[var(--border-default)] bg-white">
+                <div className="flex items-center justify-between px-4 pt-2 sm:px-8">
+                  <BackLink label={fa ? 'مرحلهٔ قبل' : 'Previous step'} onClick={() => {
+                    setDirection(-1)
+                    setPhaseOverride('details')
+                    setIntroOpen(false)
+                  }} />
+                  <span className="text-sm text-[var(--text-muted)]">{fa ? 'قدم ۲' : 'Step 2'}</span>
+                </div>
+                <OnboardingIntroVideo fa={fa} onContinue={() => {
+                  setIntroSeen(true)
+                  setIntroOpen(false)
+                  setPhaseOverride('agent')
+                }} />
+              </div>
             )}
 
             {currentPhase === 'agent' && (
